@@ -30,7 +30,6 @@ postgresql://neondb_owner:npg_mCShrFRbkc16@ep-small-salad-ad85fh4s-pooler.c-2.us
 - `http://127.0.0.1:8000`
 
 #### Production:
-- `https://estate-pro-a62r.onrender.com`
 - `https://estate-manager-backend-vwop.onrender.com`
 - `https://estate-manager-frontend.onrender.com`
 

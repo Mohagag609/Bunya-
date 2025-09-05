@@ -33,7 +33,6 @@ allowed_origins = [
     "http://localhost:8000", 
     "http://127.0.0.1:3000", 
     "http://127.0.0.1:8000", 
-    "https://estate-pro-a62r.onrender.com",
     "https://estate-manager-backend-vwop.onrender.com",
     "https://estate-manager-frontend.onrender.com"
 ]
