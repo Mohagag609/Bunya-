@@ -7,8 +7,8 @@ echo "=================================="
 echo "📋 التحقق من الملفات المطلوبة..."
 
 required_files=(
-    "index.html"
-    "app.js"
+    "index-simple.html"
+    "app-simple.js"
     "style.css"
     "manifest.json"
     "sw.js"
@@ -43,8 +43,8 @@ mkdir -p dist
 
 # نسخ الملفات
 echo "📋 نسخ الملفات..."
-cp index.html dist/
-cp app.js dist/
+cp index-simple.html dist/index.html
+cp app-simple.js dist/
 cp style.css dist/
 cp manifest.json dist/
 cp sw.js dist/
