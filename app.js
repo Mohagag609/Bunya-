@@ -87,6 +87,13 @@ class ApiService {
         });
     }
 
+    async post(endpoint, data) {
+        return this.request(endpoint, {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+    }
+
     async delete(endpoint) {
         return this.request(endpoint, { method: 'DELETE' });
     }
@@ -650,9 +657,36 @@ function renderPartners(container) {
     container.innerHTML = `
         <div class="page-header">
             <h1>الشركاء</h1>
-            <button class="btn btn-primary" id="add-partner-btn">+ إضافة شريك</button>
         </div>
         <div class="page-content">
+            <!-- Add Partner Form -->
+            <div class="card" style="margin-bottom: 20px;">
+                <h3>إضافة شريك جديد</h3>
+                <form id="partner-form" class="form-grid">
+                    <div class="form-field">
+                        <label>الاسم</label>
+                        <input type="text" id="partner-name" required>
+                    </div>
+                    <div class="form-field">
+                        <label>النسبة (%)</label>
+                        <input type="number" id="partner-percentage" min="0" max="100" required>
+                    </div>
+                    <div class="form-field">
+                        <label>الهاتف</label>
+                        <input type="tel" id="partner-phone">
+                    </div>
+                    <div class="form-field">
+                        <label>البريد الإلكتروني</label>
+                        <input type="email" id="partner-email">
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">حفظ الشريك</button>
+                        <button type="button" class="btn btn-secondary" onclick="clearPartnerForm()">مسح</button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Partners Table -->
             <div id="partners-table">
                 <div class="table-container">
                     <table class="table">
@@ -661,6 +695,7 @@ function renderPartners(container) {
                                 <th>الاسم</th>
                                 <th>النسبة</th>
                                 <th>الهاتف</th>
+                                <th>البريد الإلكتروني</th>
                                 <th>الإجراءات</th>
                             </tr>
                         </thead>
@@ -670,9 +705,10 @@ function renderPartners(container) {
                                     <td>${partner.name || 'غير محدد'}</td>
                                     <td>${partner.percentage || 0}%</td>
                                     <td>${partner.phone || 'غير محدد'}</td>
+                                    <td>${partner.email || 'غير محدد'}</td>
                                     <td>
-                                        <button class="btn-edit" data-type="عميل" data-id="${customer.id || Math.random()}">تعديل</button>
-                                        <button class="btn-delete" data-type="عميل" data-id="${customer.id || Math.random()}">حذف</button>
+                                        <button class="btn btn-sm btn-primary" onclick="editPartner('${partner.id || Math.random()}')">تعديل</button>
+                                        <button class="btn btn-sm btn-danger" onclick="deletePartner('${partner.id || Math.random()}')">حذف</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -688,9 +724,32 @@ function renderSafes(container) {
     container.innerHTML = `
         <div class="page-header">
             <h1>الخزائن</h1>
-            <button class="btn btn-primary" id="add-safe-btn">+ إضافة خزنة</button>
         </div>
         <div class="page-content">
+            <!-- Add Safe Form -->
+            <div class="card" style="margin-bottom: 20px;">
+                <h3>إضافة خزنة جديدة</h3>
+                <form id="safe-form" class="form-grid">
+                    <div class="form-field">
+                        <label>اسم الخزنة</label>
+                        <input type="text" id="safe-name" required>
+                    </div>
+                    <div class="form-field">
+                        <label>الرصيد الابتدائي (ج.م)</label>
+                        <input type="number" id="safe-balance" value="0" min="0">
+                    </div>
+                    <div class="form-field">
+                        <label>الوصف</label>
+                        <textarea id="safe-description"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">حفظ الخزنة</button>
+                        <button type="button" class="btn btn-secondary" onclick="clearSafeForm()">مسح</button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Safes Table -->
             <div id="safes-table">
                 <div class="table-container">
                     <table class="table">
@@ -698,6 +757,7 @@ function renderSafes(container) {
                             <tr>
                                 <th>اسم الخزنة</th>
                                 <th>الرصيد</th>
+                                <th>الوصف</th>
                                 <th>الإجراءات</th>
                             </tr>
                         </thead>
@@ -706,9 +766,10 @@ function renderSafes(container) {
                                 <tr>
                                     <td>${safe.name || 'غير محدد'}</td>
                                     <td>${(safe.balance || 0).toLocaleString()} ج.م</td>
+                                    <td>${safe.description || 'غير محدد'}</td>
                                     <td>
-                                        <button class="btn-edit" data-type="عميل" data-id="${customer.id || Math.random()}">تعديل</button>
-                                        <button class="btn-delete" data-type="عميل" data-id="${customer.id || Math.random()}">حذف</button>
+                                        <button class="btn btn-sm btn-primary" onclick="editSafe('${safe.id || Math.random()}')">تعديل</button>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteSafe('${safe.id || Math.random()}')">حذف</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -1483,6 +1544,7 @@ function deleteItem(type, id) {
 // Form functions
 async function addCustomer() {
     const customer = {
+        id: Date.now().toString(),
         name: document.getElementById('customer-name').value,
         phone: document.getElementById('customer-phone').value,
         email: document.getElementById('customer-email').value,
@@ -1490,18 +1552,21 @@ async function addCustomer() {
     };
     
     try {
-        await api.put('customers', customer);
+        console.log('Adding customer:', customer);
+        await api.post('customers', customer);
         appState.customers.push(customer);
         renderMainContent();
         clearCustomerForm();
         showNotification('تم إضافة العميل بنجاح', 'success');
     } catch (error) {
-        showNotification('فشل في إضافة العميل', 'error');
+        console.error('Error adding customer:', error);
+        showNotification('فشل في إضافة العميل: ' + error.message, 'error');
     }
 }
 
 async function addUnit() {
     const unit = {
+        id: Date.now().toString(),
         unitNumber: document.getElementById('unit-number').value,
         type: document.getElementById('unit-type').value,
         area: parseInt(document.getElementById('unit-area').value),
@@ -1510,18 +1575,21 @@ async function addUnit() {
     };
     
     try {
-        await api.put('units', unit);
+        console.log('Adding unit:', unit);
+        await api.post('units', unit);
         appState.units.push(unit);
         renderMainContent();
         clearUnitForm();
         showNotification('تم إضافة الوحدة بنجاح', 'success');
     } catch (error) {
-        showNotification('فشل في إضافة الوحدة', 'error');
+        console.error('Error adding unit:', error);
+        showNotification('فشل في إضافة الوحدة: ' + error.message, 'error');
     }
 }
 
 async function addPartner() {
     const partner = {
+        id: Date.now().toString(),
         name: document.getElementById('partner-name').value,
         percentage: parseInt(document.getElementById('partner-percentage').value),
         phone: document.getElementById('partner-phone').value,
@@ -1529,31 +1597,36 @@ async function addPartner() {
     };
     
     try {
-        await api.put('partners', partner);
+        console.log('Adding partner:', partner);
+        await api.post('partners', partner);
         appState.partners.push(partner);
         renderMainContent();
         clearPartnerForm();
         showNotification('تم إضافة الشريك بنجاح', 'success');
     } catch (error) {
-        showNotification('فشل في إضافة الشريك', 'error');
+        console.error('Error adding partner:', error);
+        showNotification('فشل في إضافة الشريك: ' + error.message, 'error');
     }
 }
 
 async function addSafe() {
     const safe = {
+        id: Date.now().toString(),
         name: document.getElementById('safe-name').value,
         balance: parseInt(document.getElementById('safe-balance').value) || 0,
         description: document.getElementById('safe-description').value
     };
     
     try {
-        await api.put('safes', safe);
+        console.log('Adding safe:', safe);
+        await api.post('safes', safe);
         appState.safes.push(safe);
         renderMainContent();
         clearSafeForm();
         showNotification('تم إضافة الخزنة بنجاح', 'success');
     } catch (error) {
-        showNotification('فشل في إضافة الخزنة', 'error');
+        console.error('Error adding safe:', error);
+        showNotification('فشل في إضافة الخزنة: ' + error.message, 'error');
     }
 }
 
@@ -1607,6 +1680,27 @@ function deleteUnit(id) {
     }
 }
 
+// Additional functions
+function editPartner(id) {
+    showNotification('تعديل الشريك - سيتم إضافته قريباً', 'info');
+}
+
+function deletePartner(id) {
+    if (confirm('هل أنت متأكد من حذف الشريك؟')) {
+        showNotification('حذف الشريك - سيتم إضافته قريباً', 'info');
+    }
+}
+
+function editSafe(id) {
+    showNotification('تعديل الخزنة - سيتم إضافته قريباً', 'info');
+}
+
+function deleteSafe(id) {
+    if (confirm('هل أنت متأكد من حذف الخزنة؟')) {
+        showNotification('حذف الخزنة - سيتم إضافته قريباً', 'info');
+    }
+}
+
 // Make functions global
 window.clearCustomerForm = clearCustomerForm;
 window.clearUnitForm = clearUnitForm;
@@ -1616,6 +1710,10 @@ window.editCustomer = editCustomer;
 window.deleteCustomer = deleteCustomer;
 window.editUnit = editUnit;
 window.deleteUnit = deleteUnit;
+window.editPartner = editPartner;
+window.deletePartner = deletePartner;
+window.editSafe = editSafe;
+window.deleteSafe = deleteSafe;
 
 // Start app when DOM is loaded
 document.addEventListener('DOMContentLoaded', initializeApp);
