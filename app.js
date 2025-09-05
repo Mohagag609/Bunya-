@@ -5,15 +5,12 @@ let historyIndex = -1;
 let currentView = 'dash';
 let currentParam = null;
 
-// Define OBJECT_STORES here as a fallback if db.js doesn't load properly
-if (typeof OBJECT_STORES === 'undefined') {
-    const OBJECT_STORES = [
-        'customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments',
-        'partnerDebts', 'safes', 'transfers', 'auditLog', 'vouchers', 'brokerDues',
-        'brokers', 'partnerGroups', 'settings', 'keyval'
-    ];
-    window.OBJECT_STORES = OBJECT_STORES;
-}
+// Define OBJECT_STORES globally to ensure it's always available
+window.OBJECT_STORES = window.OBJECT_STORES || [
+    'customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments',
+    'partnerDebts', 'safes', 'transfers', 'auditLog', 'vouchers', 'brokerDues',
+    'brokers', 'partnerGroups', 'settings', 'keyval'
+];
 
 /* ===== CORE APP INITIALIZATION ===== */
 document.addEventListener('DOMContentLoaded', initializeApp);
@@ -33,7 +30,7 @@ async function initializeApp() {
         state = await loadStateFromAPI();
 
         // Ensure state has default empty arrays if they are missing from the DB
-        OBJECT_STORES.forEach(storeName => {
+        window.OBJECT_STORES.forEach(storeName => {
             if (storeName !== 'keyval' && storeName !== 'settings' && !state[storeName]) {
                 state[storeName] = [];
             }
@@ -84,11 +81,11 @@ async function loadStateFromAPI() {
 
     // We need the list of all stores to fetch from.
     // This should be defined somewhere globally, e.g., in index.html before this script.
-    if (typeof OBJECT_STORES === 'undefined') {
+    if (typeof window.OBJECT_STORES === 'undefined') {
         throw new Error("Fatal: OBJECT_STORES is not defined.");
     }
 
-    const promises = OBJECT_STORES.map(storeName =>
+    const promises = window.OBJECT_STORES.map(storeName =>
         getAll(storeName).catch(e => {
             console.error(`Failed to load data for ${storeName}:`, e);
             return []; // Return empty array on failure to not break Promise.all
@@ -97,7 +94,7 @@ async function loadStateFromAPI() {
 
     const results = await Promise.all(promises);
 
-    OBJECT_STORES.forEach((storeName, index) => {
+    window.OBJECT_STORES.forEach((storeName, index) => {
         // The settings and keyval stores are not arrays of objects with 'id'
         // They are special cases. Our API returns them as arrays, so we need to handle that.
         if (storeName === 'settings') {

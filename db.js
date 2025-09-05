@@ -9,6 +9,9 @@ const OBJECT_STORES = [
     'brokers', 'partnerGroups', 'settings', 'keyval'
 ];
 
+// Make OBJECT_STORES available globally
+window.OBJECT_STORES = OBJECT_STORES;
+
 // Use the window.location.origin to construct an absolute URL.
 // This is a more robust way to ensure the frontend calls the correct backend,
 // especially in environments with complex proxying.
