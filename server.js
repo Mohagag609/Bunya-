@@ -28,7 +28,7 @@ app.use(limiter);
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: ['http://localhost:3000', 'https://bunya.onrender.com', 'https://estate-management-frontend.onrender.com'],
   credentials: true
 }));
 
@@ -60,10 +60,21 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     endpoints: {
       health: '/health',
+      test: '/api/test',
       auth: '/api/auth',
       data: '/api/data',
       migration: '/api/migration'
     }
+  });
+});
+
+// Test endpoint
+app.get('/api/test', (req, res) => {
+  res.json({ 
+    success: true,
+    message: 'Backend is working!',
+    timestamp: new Date().toISOString(),
+    database: 'Connected to PostgreSQL'
   });
 });
 
