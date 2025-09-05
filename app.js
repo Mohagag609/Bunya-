@@ -347,6 +347,116 @@ function refreshCurrentView() {
     console.log('Falling back to nav:', currentView);
     nav(currentView, currentParam);
 }
+
+// دالة الإشعارات
+function showNotification(message, type = 'info') {
+    // إزالة الإشعارات السابقة
+    const existingNotifications = document.querySelectorAll('.notification');
+    existingNotifications.forEach(notif => notif.remove());
+    
+    // إنشاء الإشعار الجديد
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.innerHTML = `
+        <div class="notification-content">
+            <span class="notification-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️'}</span>
+            <span class="notification-message">${message}</span>
+            <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+        </div>
+    `;
+    
+    // إضافة الأنماط
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 10000;
+        max-width: 400px;
+        padding: 16px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        animation: slideInRight 0.3s ease-out;
+        font-family: 'Cairo', system-ui, sans-serif;
+    `;
+    
+    // ألوان مختلفة حسب النوع
+    if (type === 'success') {
+        notification.style.background = 'linear-gradient(135deg, rgba(34, 197, 94, 0.9) 0%, rgba(22, 163, 74, 0.9) 100%)';
+        notification.style.color = 'white';
+    } else if (type === 'error') {
+        notification.style.background = 'linear-gradient(135deg, rgba(239, 68, 68, 0.9) 0%, rgba(220, 38, 38, 0.9) 100%)';
+        notification.style.color = 'white';
+    } else if (type === 'warning') {
+        notification.style.background = 'linear-gradient(135deg, rgba(245, 158, 11, 0.9) 0%, rgba(217, 119, 6, 0.9) 100%)';
+        notification.style.color = 'white';
+    } else {
+        notification.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.9) 0%, rgba(37, 99, 235, 0.9) 100%)';
+        notification.style.color = 'white';
+    }
+    
+    // إضافة الإشعار للصفحة
+    document.body.appendChild(notification);
+    
+    // إزالة الإشعار تلقائياً بعد 5 ثوان
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.style.animation = 'slideOutRight 0.3s ease-in';
+            setTimeout(() => notification.remove(), 300);
+        }
+    }, 5000);
+    
+    // إضافة الأنماط المتحركة
+    if (!document.getElementById('notification-styles')) {
+        const style = document.createElement('style');
+        style.id = 'notification-styles';
+        style.textContent = `
+            @keyframes slideInRight {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOutRight {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+            .notification-content {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+            .notification-icon {
+                font-size: 20px;
+                flex-shrink: 0;
+            }
+            .notification-message {
+                flex: 1;
+                font-size: 14px;
+                font-weight: 500;
+                line-height: 1.4;
+            }
+            .notification-close {
+                background: none;
+                border: none;
+                color: inherit;
+                font-size: 20px;
+                cursor: pointer;
+                padding: 0;
+                width: 24px;
+                height: 24px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 50%;
+                transition: background-color 0.2s ease;
+            }
+            .notification-close:hover {
+                background-color: rgba(255, 255, 255, 0.2);
+            }
+        `;
+        document.head.appendChild(style);
+    }
+}
 function unitById(id){ return state.units.find(u=>u.id===id); }
 function custById(id){ return state.customers.find(c=>c.id===id); }
 function partnerById(id){ return state.partners.find(p=>p.id===id); }
@@ -1439,7 +1549,7 @@ function renderSafes(){
   window.addSafe = async () => {
       const name = document.getElementById('s-name').value.trim();
       const balance = parseNumber(document.getElementById('s-balance').value);
-      if (!name) return alert('الرجاء إدخال اسم الخزنة.');
+      if (!name) return showNotification('الرجاء إدخال اسم الخزنة.', 'error');
 
       const newSafe = { id: uid('S'), name, balance };
 
@@ -1454,8 +1564,9 @@ function renderSafes(){
           document.getElementById('s-balance').value = '0';
           // إعادة رسم الصفحة الحالية
           refreshCurrentView();
+          showNotification('تم إضافة الخزنة بنجاح!', 'success');
       } catch (err) {
-          alert("فشل إضافة الخزنة: " + err.message);
+          showNotification("فشل إضافة الخزنة: " + err.message, 'error');
       }
   };
 
@@ -1828,14 +1939,20 @@ function renderContracts(){
     const maintenanceDeposit = parseNumber(document.getElementById('ct-maintenance-deposit').value);
     const startStr=document.getElementById('ct-start').value||today(); const start=new Date(startStr);
 
+    // --- 1.1. Check for existing contracts for this unit ---
+    const existingContract = state.contracts.find(c => c.unitId === unitId);
+    if (existingContract) {
+        return showNotification('خطأ: هذه الوحدة لها عقد موجود بالفعل!', 'error');
+    }
+
     if (paymentType === 'installment' && down >= total) { paymentType = 'cash'; }
-    if (brokerAmt > 0 && !commissionSafeId) return alert('الرجاء تحديد الخزنة التي سيتم دفع العمولة منها.');
-    if (down > 0 && !downPaymentSafeId) return alert('الرجاء تحديد الخزنة التي سيتم إيداع المقدم بها.');
-    if(!unitId||!customerId) return alert('الرجاء اختيار الوحدة والعميل.');
+    if (brokerAmt > 0 && !commissionSafeId) return showNotification('الرجاء تحديد الخزنة التي سيتم دفع العمولة منها.', 'error');
+    if (down > 0 && !downPaymentSafeId) return showNotification('الرجاء تحديد الخزنة التي سيتم إيداع المقدم بها.', 'error');
+    if(!unitId||!customerId) return showNotification('الرجاء اختيار الوحدة والعميل.', 'error');
     const unitPartners = state.unitPartners.filter(up => up.unitId === unitId);
-    if (unitPartners.length === 0) return alert('لا يمكن إنشاء عقد. يجب تحديد شركاء لهذه الوحدة أولاً.');
-    if (unitPartners.reduce((s, p) => s + p.percent, 0) !== 100) return alert(`لا يمكن إنشاء عقد. مجموع نسب الشركاء ليس 100%.`);
-    if(paymentType === 'installment' && count <= 0 && extra <= 0) return alert('الرجاء إدخال عدد دفعات أو عدد دفعات سنوية.');
+    if (unitPartners.length === 0) return showNotification('لا يمكن إنشاء عقد. يجب تحديد شركاء لهذه الوحدة أولاً.', 'error');
+    if (unitPartners.reduce((s, p) => s + p.percent, 0) !== 100) return showNotification(`لا يمكن إنشاء عقد. مجموع نسب الشركاء ليس 100%.`, 'error');
+    if(paymentType === 'installment' && count <= 0 && extra <= 0) return showNotification('الرجاء إدخال عدد دفعات أو عدد دفعات سنوية.', 'error');
 
     // --- 2. Prepare all new objects to be created ---
     const originalState = JSON.parse(JSON.stringify(state)); // For rollback
@@ -1860,12 +1977,23 @@ function renderContracts(){
     }
 
     if (paymentType === 'installment') {
-        // ... (installment generation logic is complex and remains the same)
+        console.log('Generating installments for contract:', ct.id);
         const installmentBase = total - (ct.maintenanceDeposit || 0);
         const totalAfterDown = installmentBase - discount - down;
         const totalAnnualPayments = extra * annualBonusValue;
         const amountForRegularInstallments = totalAfterDown - totalAnnualPayments;
         const months={'شهري':1,'ربع سنوي':3,'نصف سنوي':6,'سنوي':12}[type]||1;
+        
+        console.log('Installment details:', {
+            installmentBase,
+            totalAfterDown,
+            totalAnnualPayments,
+            amountForRegularInstallments,
+            count,
+            extra,
+            months
+        });
+        
         if (count > 0) {
             const baseAmount = Math.floor((amountForRegularInstallments / count) * 100) / 100;
             let accumulatedAmount = 0;
@@ -1873,34 +2001,47 @@ function renderContracts(){
               const d = new Date(start); d.setMonth(d.getMonth() + months * (i + 1));
               const amount = (i === count - 1) ? Math.round((amountForRegularInstallments - accumulatedAmount) * 100) / 100 : baseAmount;
               accumulatedAmount += amount;
-              itemsToCreate.installments.push({id:uid('I'),unitId,type,amount,originalAmount:amount,dueDate:d.toISOString().slice(0,10),paymentDate:null,status:'غير مدفوع'});
+              const installment = {id:uid('I'),unitId,type,amount,originalAmount:amount,dueDate:d.toISOString().slice(0,10),paymentDate:null,status:'غير مدفوع'};
+              itemsToCreate.installments.push(installment);
+              console.log('Created installment:', installment);
             }
         }
         for(let j=0; j<extra; j++){
           const d = new Date(start); d.setMonth(d.getMonth() + 12 * (j + 1));
-          itemsToCreate.installments.push({id:uid('I'),unitId,type:'دفعة سنوية',amount:annualBonusValue,originalAmount:annualBonusValue,dueDate:d.toISOString().slice(0,10),paymentDate:null,status:'غير مدفوع'});
+          const installment = {id:uid('I'),unitId,type:'دفعة سنوية',amount:annualBonusValue,originalAmount:annualBonusValue,dueDate:d.toISOString().slice(0,10),paymentDate:null,status:'غير مدفوع'};
+          itemsToCreate.installments.push(installment);
+          console.log('Created annual installment:', installment);
         }
         if (ct.maintenanceDeposit > 0) {
             const allNewInstallments = itemsToCreate.installments;
             const lastInstallment = allNewInstallments.sort((a, b) => (b.dueDate || '').localeCompare(a.dueDate || ''))[0];
             const lastDate = new Date(lastInstallment ? lastInstallment.dueDate : startStr);
             lastDate.setMonth(lastDate.getMonth() + months);
-            itemsToCreate.installments.push({id:uid('I'),unitId,type:'دفعة صيانة',amount:ct.maintenanceDeposit,originalAmount:ct.maintenanceDeposit,dueDate:lastDate.toISOString().slice(0,10),paymentDate:null,status:'غير مدفوع'});
+            const installment = {id:uid('I'),unitId,type:'دفعة صيانة',amount:ct.maintenanceDeposit,originalAmount:ct.maintenanceDeposit,dueDate:lastDate.toISOString().slice(0,10),paymentDate:null,status:'غير مدفوع'};
+            itemsToCreate.installments.push(installment);
+            console.log('Created maintenance installment:', installment);
         }
+        
+        console.log('Total installments created:', itemsToCreate.installments.length);
     }
 
     const u=unitById(unitId); if(u) { u.status='مباعة'; itemsToUpdate.units.push(u); }
 
     // --- 3. Execute all API calls ---
     try {
+        console.log('Saving items to API...');
         for(const coll in itemsToCreate) {
+            console.log(`Saving ${itemsToCreate[coll].length} items to ${coll}`);
             for(const item of itemsToCreate[coll]) {
-                await put(coll, item);
+                const result = await put(coll, item);
+                console.log(`Saved ${coll} item:`, result);
             }
         }
         for(const coll in itemsToUpdate) {
+            console.log(`Updating ${itemsToUpdate[coll].length} items in ${coll}`);
             for(const item of itemsToUpdate[coll]) {
-                await put(coll, item);
+                const result = await put(coll, item);
+                console.log(`Updated ${coll} item:`, result);
             }
         }
 
@@ -1915,12 +2056,69 @@ function renderContracts(){
                 if (index !== -1) state[coll][index] = item;
             });
         }
+        
+        // تحقق من حفظ الأقساط في الحالة المحلية
+        const localInstallments = state.installments.filter(i => i.unitId === unitId);
+        console.log('Local installments count after save:', localInstallments.length);
+        
+        // إضافة persist() لضمان الحفظ
+        persist();
 
         logAction('إنشاء عقد جديد', { contractId: ct.id, unitId, customerId, price: total });
-        alert("تم إنشاء العقد وجميع البيانات المرتبطة به بنجاح.");
+        
+        // تحقق من حفظ الأقساط
+        const savedInstallments = state.installments.filter(i => i.unitId === unitId);
+        console.log('Saved installments count:', savedInstallments.length);
+        
+        let successMessage = "تم إنشاء العقد بنجاح.";
+        if (paymentType === 'installment') {
+            successMessage += ` تم توليد ${localInstallments.length} قسط.`;
+        }
+        if (brokerAmt > 0) {
+            successMessage += ` تم إضافة عمولة السمسار.`;
+        }
+        if (down > 0) {
+            successMessage += ` تم إضافة المقدم.`;
+        }
+        
+        // تحقق إضافي من الأقساط
+        if (paymentType === 'installment' && localInstallments.length === 0) {
+            showNotification("تحذير: لم يتم توليد أي أقساط! يرجى مراجعة البيانات.", 'warning');
+        }
+        
+        showNotification(successMessage, 'success');
+        
+        // إعادة تحميل البيانات من الخادم للتأكد
+        setTimeout(async () => {
+            try {
+                const freshData = await loadStateFromAPI();
+                Object.keys(freshData).forEach(key => {
+                    if (freshData[key]) state[key] = freshData[key];
+                });
+                console.log('Data refreshed from server');
+                
+                // تحقق من الأقساط بعد إعادة التحميل
+                const refreshedInstallments = state.installments.filter(i => i.unitId === unitId);
+                console.log('Refreshed installments count:', refreshedInstallments.length);
+                
+                if (paymentType === 'installment' && refreshedInstallments.length > 0) {
+                    showNotification(`تم تأكيد حفظ ${refreshedInstallments.length} قسط بنجاح!`, 'success');
+                } else if (paymentType === 'installment' && refreshedInstallments.length === 0) {
+                    showNotification("تحذير: لم يتم العثور على أقساط بعد إعادة التحميل!", 'warning');
+                }
+                
+                // إعادة رسم الصفحة بعد التحديث
+                if (currentView === 'contracts') {
+                    renderContracts();
+                }
+            } catch (err) {
+                console.error('Failed to refresh data:', err);
+            }
+        }, 1000);
+        
         nav('contracts'); // إعادة رسم صفحة العقود بدلاً من draw() المحلية
     } catch(err) {
-        alert("فشل إنشاء العقد: " + err.message + "\n\nحدث خطأ أثناء محاولة حفظ البيانات. قد تكون بعض البيانات قد حفظت. يرجى مراجعة البيانات أو محاولة مرة أخرى.");
+        showNotification("فشل إنشاء العقد: " + err.message, 'error');
         // Rollback local state
         Object.keys(originalState).forEach(key => state[key] = originalState[key]);
     }
@@ -2101,9 +2299,9 @@ function renderBrokers() {
         const phone = document.getElementById('b-phone').value.trim();
         const notes = document.getElementById('b-notes').value.trim();
 
-        if (!name) return alert('الرجاء إدخال اسم السمسار.');
+        if (!name) return showNotification('الرجاء إدخال اسم السمسار.', 'error');
         if (state.brokers.some(b => b.name.toLowerCase() === name.toLowerCase())) {
-            return alert('هذا السمسار موجود بالفعل.');
+            return showNotification('هذا السمسار موجود بالفعل.', 'error');
         }
         
         const newBroker = { id: uid('B'), name, phone, notes };
@@ -2120,8 +2318,9 @@ function renderBrokers() {
             document.getElementById('b-name').value = '';
             document.getElementById('b-phone').value = '';
             document.getElementById('b-notes').value = '';
+            showNotification('تم إضافة السمسار بنجاح!', 'success');
         } catch (err) {
-            alert("فشل إضافة السمسار: " + err.message);
+            showNotification("فشل إضافة السمسار: " + err.message, 'error');
         }
     };
 
