@@ -14,8 +14,12 @@ async function initializeApp() {
     // Register Service Worker
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js')
-                .then(reg => console.log('ServiceWorker registered.', reg))
+            navigator.serviceWorker.register('/sw.js?v=' + Date.now())
+                .then(reg => {
+                    console.log('ServiceWorker registered.', reg);
+                    // Force update
+                    reg.update();
+                })
                 .catch(err => console.error('ServiceWorker registration failed:', err));
         });
     }
