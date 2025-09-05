@@ -1273,7 +1273,10 @@ async function initializeApp() {
             // Refresh the current view after data is loaded
             renderMainContent();
             updateNavigation();
-            showNotification('تم تحميل التطبيق بنجاح!', 'success');
+            // Only show notification on initial load, not after form submissions
+            if (appState.currentView === 'dash') {
+                showNotification('تم تحميل التطبيق بنجاح!', 'success');
+            }
         }).catch(error => {
             console.error('Data loading failed, but app will continue:', error);
             showNotification('تم تحميل التطبيق مع تحذير في البيانات', 'warning');
@@ -1555,7 +1558,8 @@ async function addCustomer() {
         console.log('Adding customer:', customer);
         await api.post('customers', customer);
         appState.customers.push(customer);
-        renderMainContent();
+        // Don't call renderMainContent() - just update the current view
+        renderCustomers(document.querySelector('#view'));
         clearCustomerForm();
         showNotification('تم إضافة العميل بنجاح', 'success');
     } catch (error) {
@@ -1578,7 +1582,8 @@ async function addUnit() {
         console.log('Adding unit:', unit);
         await api.post('units', unit);
         appState.units.push(unit);
-        renderMainContent();
+        // Don't call renderMainContent() - just update the current view
+        renderUnits(document.querySelector('#view'));
         clearUnitForm();
         showNotification('تم إضافة الوحدة بنجاح', 'success');
     } catch (error) {
@@ -1600,7 +1605,8 @@ async function addPartner() {
         console.log('Adding partner:', partner);
         await api.post('partners', partner);
         appState.partners.push(partner);
-        renderMainContent();
+        // Don't call renderMainContent() - just update the current view
+        renderPartners(document.querySelector('#view'));
         clearPartnerForm();
         showNotification('تم إضافة الشريك بنجاح', 'success');
     } catch (error) {
@@ -1621,7 +1627,8 @@ async function addSafe() {
         console.log('Adding safe:', safe);
         await api.post('safes', safe);
         appState.safes.push(safe);
-        renderMainContent();
+        // Don't call renderMainContent() - just update the current view
+        renderSafes(document.querySelector('#view'));
         clearSafeForm();
         showNotification('تم إضافة الخزنة بنجاح', 'success');
     } catch (error) {
