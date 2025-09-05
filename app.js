@@ -79,22 +79,44 @@ function hideFastLoading() {
     }
 }
 
-// Clean up all background elements - optimized for speed
+// تنظيف كامل - حذف جميع العناصر في الخلفية
 function cleanupBackgroundElements() {
-    // Quick cleanup - only remove specific elements
-    const loadingOverlay = document.getElementById('loading-overlay');
-    if (loadingOverlay) loadingOverlay.remove();
+    // حذف جميع العناصر العائمة
+    const allFloatingElements = document.querySelectorAll('[style*="position: fixed"], [style*="position: absolute"]');
+    allFloatingElements.forEach(element => {
+        if (element.id && (element.id.includes('loading') || element.id.includes('modal') || element.id.includes('overlay') || element.id.includes('fast'))) {
+            element.remove();
+        }
+    });
     
-    const modal = document.getElementById('dynamic-modal');
-    if (modal) modal.remove();
+    // حذف جميع العناصر المخفية
+    const hiddenElements = document.querySelectorAll('[style*="display: none"], [style*="opacity: 0"], [style*="visibility: hidden"]');
+    hiddenElements.forEach(element => {
+        if (element.id && (element.id.includes('loading') || element.id.includes('modal') || element.id.includes('overlay'))) {
+            element.remove();
+        }
+    });
     
-    const fastLoading = document.getElementById('fast-loading');
-    if (fastLoading) fastLoading.remove();
+    // حذف جميع العناصر مع z-index عالي
+    const highZElements = document.querySelectorAll('[style*="z-index: 10000"], [style*="z-index: 9999"]');
+    highZElements.forEach(element => {
+        element.remove();
+    });
 }
 
 async function initializeApp() {
-    // Clean up any existing background elements first
+    // تنظيف شامل - حذف جميع العناصر في الخلفية
     cleanupBackgroundElements();
+    
+    // تنظيف إضافي - حذف أي عناصر متبقية
+    setTimeout(() => {
+        cleanupBackgroundElements();
+    }, 100);
+    
+    // تنظيف نهائي - حذف أي عناصر متبقية
+    setTimeout(() => {
+        cleanupBackgroundElements();
+    }, 500);
     
     // Register Service Worker
     if ('serviceWorker' in navigator) {
@@ -153,9 +175,15 @@ async function initializeApp() {
         // Clean up any remaining background elements
         cleanupBackgroundElements();
         
-        // Add cleanup on window focus to prevent background elements
+        // تنظيف شامل - حذف جميع العناصر في الخلفية
         window.addEventListener('focus', cleanupBackgroundElements);
         window.addEventListener('blur', cleanupBackgroundElements);
+        window.addEventListener('click', cleanupBackgroundElements);
+        window.addEventListener('scroll', cleanupBackgroundElements);
+        window.addEventListener('resize', cleanupBackgroundElements);
+        document.addEventListener('click', cleanupBackgroundElements);
+        document.addEventListener('keydown', cleanupBackgroundElements);
+        document.addEventListener('keyup', cleanupBackgroundElements);
         
         // Add cleanup on page visibility change
         document.addEventListener('visibilitychange', () => {
@@ -653,9 +681,15 @@ async function initializeApp() {
         // Clean up any remaining background elements
         cleanupBackgroundElements();
         
-        // Add cleanup on window focus to prevent background elements
+        // تنظيف شامل - حذف جميع العناصر في الخلفية
         window.addEventListener('focus', cleanupBackgroundElements);
         window.addEventListener('blur', cleanupBackgroundElements);
+        window.addEventListener('click', cleanupBackgroundElements);
+        window.addEventListener('scroll', cleanupBackgroundElements);
+        window.addEventListener('resize', cleanupBackgroundElements);
+        document.addEventListener('click', cleanupBackgroundElements);
+        document.addEventListener('keydown', cleanupBackgroundElements);
+        document.addEventListener('keyup', cleanupBackgroundElements);
         
         // Add cleanup on page visibility change
         document.addEventListener('visibilitychange', () => {
@@ -1470,8 +1504,8 @@ const routes=[
 const tabs=document.getElementById('tabs'), view=document.getElementById('view');
 
 function nav(id, param = null){
-  // Show fast loading for quick feedback
-  showFastLoading();
+  // تنظيف شامل قبل التنقل
+  cleanupBackgroundElements();
   
   currentView = id; currentParam = param;
   const route = routes.find(x=>x.id===id); if(!route) return;
@@ -1484,9 +1518,9 @@ function nav(id, param = null){
   // Render immediately
   route.render(param);
   
-  // Hide loading quickly
+  // تنظيف نهائي بعد التنقل
   setTimeout(() => {
-    hideFastLoading();
+    cleanupBackgroundElements();
   }, 100);
   
   // htmx.process(view); // HTMX processing is now handled via attributes on tabs
