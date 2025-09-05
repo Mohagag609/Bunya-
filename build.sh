@@ -1,21 +1,13 @@
 #!/bin/bash
 
-# Build script for Estate Manager Frontend
-echo "🏗️ Building Estate Manager Frontend..."
+echo "🚀 Starting build process..."
 
-# Install dependencies
-echo "📦 Installing dependencies..."
-npm install
+# Upgrade pip
+echo "📦 Upgrading pip..."
+pip install --upgrade pip
 
-# Build the project
-echo "🔨 Building project..."
-npm run build
+# Install requirements
+echo "📦 Installing requirements..."
+pip install -r requirements.txt
 
-# Check if build was successful
-if [ -d "dist" ]; then
-    echo "✅ Build completed successfully!"
-    echo "📁 Build output: ./dist"
-else
-    echo "❌ Build failed!"
-    exit 1
-fi
+echo "✅ Build completed successfully!"
