@@ -19,33 +19,30 @@ async function initializeApp() {
     }
 
     try {
-        // Initialize SQL database
-        await SQLDB.init();
-        
-        const migrationComplete = await SQLDB.keyval.get('migrationComplete');
+        await openDB();
+        const migrationComplete = await getKeyVal('migrationComplete');
         if (migrationComplete) {
-            console.log("Loading state from SQL database...");
-            state = await loadStateFromSQL();
+            console.log("Loading state from IndexedDB...");
+            state = await loadStateFromDB();
         } else {
             console.log("Checking for localStorage data to migrate...");
             const localStorageState = loadFromLocalStorage();
             if (localStorageState && localStorageState.customers && localStorageState.customers.length > 0) {
-                console.log("Migrating data from localStorage to SQL...");
-                await migrateFromLocalStorageToSQL(localStorageState);
-                state = await loadStateFromSQL();
+                console.log("Migrating data from localStorage to IndexedDB...");
+                state = localStorageState;
+                await persist(); // Persist the migrated state to IndexedDB
                 console.log("Migration successful.");
             } else {
-                console.log("No data to migrate, loading fresh state from SQL.");
-                state = await loadStateFromSQL(); // Load empty state
+                console.log("No data to migrate, loading fresh state from DB.");
+                state = await loadStateFromDB(); // Load empty state
             }
-            await SQLDB.keyval.set('migrationComplete', 'true');
+            await setKeyVal('migrationComplete', true);
         }
 
         // Ensure state has default empty arrays for all stores if they are null/undefined
-        const COLLECTIONS = ['customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments', 'partnerDebts', 'safes', 'transfers', 'auditLog', 'vouchers', 'brokerDues', 'brokers', 'partnerGroups'];
-        COLLECTIONS.forEach(collection => {
-            if (!state[collection]) {
-                state[collection] = [];
+        OBJECT_STORES.forEach(storeName => {
+            if (storeName !== 'keyval' && storeName !== 'settings' && !state[storeName]) {
+                state[storeName] = [];
             }
         });
         if (typeof state.settings !== 'object' || state.settings === null) { state.settings = {theme:'dark',font:16, pass:null}; }
@@ -75,90 +72,58 @@ async function initializeApp() {
 /* ===== DATA PERSISTENCE & MIGRATION ===== */
 async function persist() {
     try {
-        // Persist all collections to SQL database
-        const collections = ['customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments', 'partnerDebts', 'safes', 'transfers', 'auditLog', 'vouchers', 'brokerDues', 'brokers', 'partnerGroups'];
-        
-        for (const collection of collections) {
-            const data = state[collection];
-            if (data && Array.isArray(data)) {
-                // Insert/update each item
-                for (const item of data) {
-                    if (typeof item === 'object' && item !== null && item.id) {
-                        await SQLDB[collection].create(item);
+        const db = await openDB();
+        const transaction = db.transaction(OBJECT_STORES.filter(s => s !== 'keyval'), 'readwrite');
+        const promises = [];
+        for (const storeName of OBJECT_STORES) {
+            if (storeName === 'keyval') continue;
+
+            const store = transaction.objectStore(storeName);
+            // This is a simple but potentially slow strategy: clear and write all.
+            // A more advanced strategy would diff the state.
+            await (new Promise(res => store.clear().onsuccess = res));
+
+            const dataToStore = state[storeName];
+            if (storeName === 'settings') {
+                if (dataToStore) {
+                    await (new Promise(res => store.put({key: 'appSettings', ...dataToStore}).onsuccess = res));
+                }
+            } else if (dataToStore && Array.isArray(dataToStore)) {
+                for(const item of dataToStore) {
+                    if(typeof item === 'object' && item !== null && item.id) {
+                       await (new Promise(res => store.put(item).onsuccess = res));
                     }
                 }
             }
         }
-        
-        // Handle settings separately
-        if (state.settings) {
-            for (const [key, value] of Object.entries(state.settings)) {
-                await SQLDB.settings.set(key, value);
-            }
-        }
-        
+        await transaction.done;
         applySettings();
-    } catch (error) {
-        console.error('Failed to persist data:', error);
-        throw error;
-    }
+    } catch (error) { console.error('Failed to persist state to IndexedDB:', error); }
 }
 
-async function loadStateFromSQL() {
-    try {
-        const state = {};
-        
-        // Load all collections from SQL
-        const collections = ['customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments', 'partnerDebts', 'safes', 'transfers', 'auditLog', 'vouchers', 'brokerDues', 'brokers', 'partnerGroups'];
-        
-        for (const collection of collections) {
-            state[collection] = await SQLDB[collection].getAll();
-        }
-        
-        // Load settings
-        state.settings = await SQLDB.settings.getAll();
-        
-        return state;
-    } catch (error) {
-        console.error('Failed to load state from SQL:', error);
-        // Return empty state if loading fails
-        return {
-            customers: [], units: [], partners: [], unitPartners: [], contracts: [],
-            installments: [], partnerDebts: [], safes: [], transfers: [], auditLog: [],
-            vouchers: [], brokerDues: [], brokers: [], partnerGroups: [],
-            settings: {theme:'dark',font:16, pass:null}, locked: false
-        };
-    }
-}
-
-async function migrateFromLocalStorageToSQL(localStorageState) {
-    try {
-        // Migrate each collection
-        const collections = ['customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments', 'partnerDebts', 'safes', 'transfers', 'auditLog', 'vouchers', 'brokerDues', 'brokers', 'partnerGroups'];
-        
-        for (const collection of collections) {
-            const data = localStorageState[collection];
-            if (data && Array.isArray(data)) {
-                for (const item of data) {
-                    if (typeof item === 'object' && item !== null && item.id) {
-                        await SQLDB[collection].create(item);
-                    }
+async function loadStateFromDB() {
+    const newState = {};
+    const db = await openDB();
+    const transaction = db.transaction(OBJECT_STORES.filter(s => s !== 'keyval'), 'readonly');
+    const promises = [];
+    for (const storeName of OBJECT_STORES) {
+        if (storeName === 'keyval') continue;
+        const store = transaction.objectStore(storeName);
+        promises.push(new Promise((resolve, reject) => {
+            const req = store.getAll();
+            req.onsuccess = () => {
+                if (storeName === 'settings') {
+                    newState.settings = req.result.length > 0 ? req.result[0] : {theme:'dark',font:16, pass:null};
+                } else {
+                    newState[storeName] = req.result;
                 }
-            }
-        }
-        
-        // Migrate settings
-        if (localStorageState.settings) {
-            for (const [key, value] of Object.entries(localStorageState.settings)) {
-                await SQLDB.settings.set(key, value);
-            }
-        }
-        
-        console.log('Migration from localStorage to SQL completed');
-    } catch (error) {
-        console.error('Migration failed:', error);
-        throw error;
+                resolve();
+            };
+            req.onerror = (e) => reject(e.target.error);
+        }));
     }
+    await Promise.all(promises);
+    return newState;
 }
 
 function loadFromLocalStorage(){
@@ -219,12 +184,7 @@ function setupGlobalEventListeners() {
 /* ===== UTILS & HELPERS ===== */
 function uid(p){ return p+'-'+Math.random().toString(36).slice(2,9); }
 function today(){ return new Date().toISOString().slice(0,10); }
-async function logAction(description, details = {}) { 
-    if (!state.auditLog) state.auditLog = []; 
-    const logEntry = { id: uid('LOG'), timestamp: new Date().toISOString(), description, details };
-    state.auditLog.push(logEntry);
-    await SQLDB.auditLog.create(logEntry);
-}
+function logAction(description, details = {}) { if (!state.auditLog) state.auditLog = []; state.auditLog.push({ id: uid('LOG'), timestamp: new Date().toISOString(), description, details }); }
 const fmt = new Intl.NumberFormat('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 function egp(v){ v=Number(v||0); return isFinite(v)?fmt.format(v)+' ج.م':'' }
 function applySettings(){ if(state && state.settings) { document.documentElement.setAttribute('data-theme', state.settings.theme||'dark'); document.documentElement.style.fontSize=(state.settings.font||16)+'px'; } }
@@ -3758,4 +3718,3 @@ window.openContractDetails = function(id) {
 
     view.innerHTML = html;
 };
-

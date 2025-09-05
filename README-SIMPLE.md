@@ -1,4 +1,4 @@
-# 🏠 نظام إدارة العقارات
+# 🏠 نظام إدارة العقارات - النسخة المبسطة
 
 نظام إدارة عقارات شامل ومتقدم، مصمم خصيصاً للعمل على Netlify بدون مشاكل.
 
@@ -24,15 +24,15 @@
 ## 📁 الملفات المهمة
 
 ```
-├── index.html              # الصفحة الرئيسية
-├── app.js                  # التطبيق الرئيسي مع localStorage
-├── style.css               # التصميم
-├── manifest.json           # PWA manifest
-├── sw.js                   # Service Worker
-├── netlify.toml            # إعدادات Netlify
-├── _redirects              # توجيهات URL
-├── _headers                # إعدادات الأمان
-└── package.json            # معلومات المشروع
+├── index-simple.html      # الصفحة الرئيسية المبسطة
+├── app-simple.js         # التطبيق الرئيسي مع localStorage
+├── style.css             # التصميم
+├── manifest.json         # PWA manifest
+├── sw.js                 # Service Worker
+├── netlify.toml          # إعدادات Netlify
+├── _redirects            # توجيهات URL
+├── _headers              # إعدادات الأمان
+└── package.json          # معلومات المشروع
 ```
 
 ## 🚀 النشر على Netlify
@@ -41,7 +41,7 @@
 
 1. **تشغيل سكريبت الإعداد:**
    ```bash
-   ./deploy.sh
+   ./deploy-simple.sh
    ```
 
 2. **النشر على Netlify:**
@@ -64,7 +64,7 @@
    - اضغط "New site from Git"
    - اختر GitHub وحدد المستودع
    - اضبط إعدادات البناء:
-     - Build command: `./deploy.sh`
+     - Build command: `./deploy-simple.sh`
      - Publish directory: `dist`
    - اضغط "Deploy site"
 
@@ -135,4 +135,4 @@ php -S localhost:8000
 
 ---
 
-**ملاحظة**: هذه النسخة تستخدم localStorage لضمان التوافق مع Netlify.
+**ملاحظة**: هذه النسخة المبسطة تستخدم localStorage بدلاً من SQL.js لضمان التوافق مع Netlify.

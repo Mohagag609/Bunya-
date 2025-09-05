@@ -1,0 +1,27 @@
+# Global owners
+* @your-username
+
+# Core files
+/index.html @your-username
+/app-sql.js @your-username
+/sql-db-complete.js @your-username
+/style.css @your-username
+
+# Configuration files
+/netlify.toml @your-username
+/_redirects @your-username
+/_headers @your-username
+/package.json @your-username
+
+# Documentation
+/README.md @your-username
+/NETLIFY-DEPLOY.md @your-username
+/DEPLOYMENT-GUIDE.md @your-username
+/CONTRIBUTING.md @your-username
+/SECURITY.md @your-username
+/CODE_OF_CONDUCT.md @your-username
+/SUPPORT.md @your-username
+/CHANGELOG.md @your-username
+
+# GitHub templates
+/.github/ @your-username

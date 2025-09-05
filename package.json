@@ -1,0 +1,47 @@
+{
+  "name": "estate-management-system",
+  "version": "2.0.0",
+  "description": "نظام إدارة الاستثمار العقاري مع قاعدة بيانات SQL",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve . -l 3000",
+    "dev": "npx serve . -l 3000",
+    "build": "echo 'No build step required for static site'",
+    "deploy": "netlify deploy --prod",
+    "deploy:preview": "netlify deploy",
+    "test": "echo 'No tests specified'",
+    "lint": "echo 'No linting configured'",
+    "prepare": "bash deploy.sh"
+  },
+  "keywords": [
+    "real-estate",
+    "management",
+    "sql",
+    "arabic",
+    "property",
+    "estate",
+    "investment",
+    "property-management",
+    "sqlite",
+    "pwa"
+  ],
+  "author": "Estate Management Team",
+  "license": "MIT",
+  "devDependencies": {
+    "serve": "^14.2.1"
+  },
+  "dependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/estate-management-system.git"
+  },
+  "homepage": "https://your-app-name.netlify.app",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ]
+}

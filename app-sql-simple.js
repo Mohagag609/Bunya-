@@ -19,27 +19,9 @@ async function initializeApp() {
     }
 
     try {
-        // Initialize SQL database
-        await SQLDB.init();
-        
-        const migrationComplete = await SQLDB.keyval.get('migrationComplete');
-        if (migrationComplete) {
-            console.log("Loading state from SQL database...");
-            state = await loadStateFromSQL();
-        } else {
-            console.log("Checking for localStorage data to migrate...");
-            const localStorageState = loadFromLocalStorage();
-            if (localStorageState && localStorageState.customers && localStorageState.customers.length > 0) {
-                console.log("Migrating data from localStorage to SQL...");
-                await migrateFromLocalStorageToSQL(localStorageState);
-                state = await loadStateFromSQL();
-                console.log("Migration successful.");
-            } else {
-                console.log("No data to migrate, loading fresh state from SQL.");
-                state = await loadStateFromSQL(); // Load empty state
-            }
-            await SQLDB.keyval.set('migrationComplete', 'true');
-        }
+        // Load from localStorage
+        console.log("Loading state from localStorage...");
+        state = await loadStateFromLocalStorage();
 
         // Ensure state has default empty arrays for all stores if they are null/undefined
         const COLLECTIONS = ['customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments', 'partnerDebts', 'safes', 'transfers', 'auditLog', 'vouchers', 'brokerDues', 'brokers', 'partnerGroups'];
@@ -75,52 +57,64 @@ async function initializeApp() {
 /* ===== DATA PERSISTENCE & MIGRATION ===== */
 async function persist() {
     try {
-        // Persist all collections to SQL database
-        const collections = ['customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments', 'partnerDebts', 'safes', 'transfers', 'auditLog', 'vouchers', 'brokerDues', 'brokers', 'partnerGroups'];
-        
-        for (const collection of collections) {
-            const data = state[collection];
-            if (data && Array.isArray(data)) {
-                // Insert/update each item
-                for (const item of data) {
-                    if (typeof item === 'object' && item !== null && item.id) {
-                        await SQLDB[collection].create(item);
-                    }
-                }
-            }
-        }
-        
-        // Handle settings separately
-        if (state.settings) {
-            for (const [key, value] of Object.entries(state.settings)) {
-                await SQLDB.settings.set(key, value);
-            }
-        }
-        
+        // Save to localStorage
+        localStorage.setItem('estate_pro_state', JSON.stringify(state));
         applySettings();
-    } catch (error) {
-        console.error('Failed to persist data:', error);
-        throw error;
+    } catch (error) { 
+        console.error('Failed to persist state to localStorage:', error); 
     }
 }
 
-async function loadStateFromSQL() {
+async function loadStateFromLocalStorage() {
     try {
-        const state = {};
-        
-        // Load all collections from SQL
-        const collections = ['customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments', 'partnerDebts', 'safes', 'transfers', 'auditLog', 'vouchers', 'brokerDues', 'brokers', 'partnerGroups'];
-        
-        for (const collection of collections) {
-            state[collection] = await SQLDB[collection].getAll();
+        const stored = localStorage.getItem('estate_pro_state');
+        if (!stored) {
+            return {
+                customers: [], units: [], partners: [], unitPartners: [], contracts: [],
+                installments: [], partnerDebts: [], safes: [], transfers: [], auditLog: [],
+                vouchers: [], brokerDues: [], brokers: [], partnerGroups: [],
+                settings: {theme:'dark',font:16, pass:null}, locked: false
+            };
         }
         
-        // Load settings
-        state.settings = await SQLDB.settings.getAll();
+        const data = JSON.parse(stored);
         
-        return state;
+        // Handle migration from old data structure
+        if (data.payments && data.payments.length > 0 && data.vouchers.length === 0) {
+            console.log('Migrating payments to vouchers...');
+            data.payments.forEach(p => {
+                const unit = data.units.find(u => u.id === p.unitId);
+                const contract = data.contracts.find(c => c.unitId === p.unitId);
+                const customer = contract ? data.customers.find(cust => cust.id === contract.customerId) : null;
+                data.vouchers.push({
+                    id: uid('V'), type: 'receipt', date: p.date, amount: p.amount,
+                    safeId: p.safeId, description: `دفعة للوحدة ${unit ? unit.code : 'غير معروفة'}`,
+                    payer: customer ? customer.name : 'غير محدد', linked_ref: p.unitId
+                });
+            });
+            data.contracts.forEach(c => {
+                if (c.brokerAmount > 0) {
+                    const unit = data.units.find(u => u.id === c.unitId);
+                    data.vouchers.push({
+                        id: uid('V'), type: 'payment', date: c.start, amount: c.brokerAmount,
+                        safeId: c.commissionSafeId, description: `عمولة سمسار للوحدة ${unit ? unit.code : 'غير معروفة'}`,
+                        beneficiary: c.brokerName || 'سمسار', linked_ref: c.id
+                    });
+                }
+            });
+        }
+        
+        if (data.brokers.length === 0 && (data.contracts.some(c => c.brokerName) || data.brokerDues.some(d => d.brokerName))) {
+            console.log('Populating brokers list from existing data...');
+            const brokerNames = new Set([...data.contracts.map(c => c.brokerName), ...data.brokerDues.map(d => d.brokerName)].filter(Boolean));
+            brokerNames.forEach(name => {
+                data.brokers.push({ id: uid('B'), name: name, phone: '', notes: '' });
+            });
+        }
+        
+        return data;
     } catch (error) {
-        console.error('Failed to load state from SQL:', error);
+        console.error('Failed to load state from localStorage:', error);
         // Return empty state if loading fails
         return {
             customers: [], units: [], partners: [], unitPartners: [], contracts: [],
@@ -128,36 +122,6 @@ async function loadStateFromSQL() {
             vouchers: [], brokerDues: [], brokers: [], partnerGroups: [],
             settings: {theme:'dark',font:16, pass:null}, locked: false
         };
-    }
-}
-
-async function migrateFromLocalStorageToSQL(localStorageState) {
-    try {
-        // Migrate each collection
-        const collections = ['customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments', 'partnerDebts', 'safes', 'transfers', 'auditLog', 'vouchers', 'brokerDues', 'brokers', 'partnerGroups'];
-        
-        for (const collection of collections) {
-            const data = localStorageState[collection];
-            if (data && Array.isArray(data)) {
-                for (const item of data) {
-                    if (typeof item === 'object' && item !== null && item.id) {
-                        await SQLDB[collection].create(item);
-                    }
-                }
-            }
-        }
-        
-        // Migrate settings
-        if (localStorageState.settings) {
-            for (const [key, value] of Object.entries(localStorageState.settings)) {
-                await SQLDB.settings.set(key, value);
-            }
-        }
-        
-        console.log('Migration from localStorage to SQL completed');
-    } catch (error) {
-        console.error('Migration failed:', error);
-        throw error;
     }
 }
 
@@ -223,7 +187,7 @@ async function logAction(description, details = {}) {
     if (!state.auditLog) state.auditLog = []; 
     const logEntry = { id: uid('LOG'), timestamp: new Date().toISOString(), description, details };
     state.auditLog.push(logEntry);
-    await SQLDB.auditLog.create(logEntry);
+    await persist();
 }
 const fmt = new Intl.NumberFormat('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 function egp(v){ v=Number(v||0); return isFinite(v)?fmt.format(v)+' ج.م':'' }
@@ -3758,4 +3722,3 @@ window.openContractDetails = function(id) {
 
     view.innerHTML = html;
 };
-

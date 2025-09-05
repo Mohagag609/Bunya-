@@ -1,0 +1,14 @@
+# Netlify redirects file
+# Redirect all routes to index.html for SPA behavior
+/*    /index.html   200
+
+# Specific redirects
+/migrate    /migrate-to-sql.html    301
+/admin      /index.html             200
+/dashboard  /index.html             200
+/login      /index.html             200
+/settings   /index.html             200
+/reports    /index.html             200
+
+# API redirects (if needed in future)
+/api/*      /functions/:splat         200

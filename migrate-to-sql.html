@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migration Tool - IndexedDB to SQL</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        .progress {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-bar {
+            height: 100%;
+            background: #007bff;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>أداة التحويل من IndexedDB إلى SQL</h1>
+        <p>هذه الأداة تساعدك في تحويل البيانات من IndexedDB إلى قاعدة بيانات SQL.</p>
+        
+        <div id="status" class="status info">
+            جاهز للبدء. اضغط على "بدء التحويل" لتحويل البيانات.
+        </div>
+        
+        <div class="progress">
+            <div id="progressBar" class="progress-bar"></div>
+        </div>
+        
+        <div id="progressText">0%</div>
+        
+        <div>
+            <button id="startMigration" onclick="startMigration()">بدء التحويل</button>
+            <button id="backupData" onclick="backupData()">نسخ احتياطي للبيانات</button>
+            <button id="restoreData" onclick="restoreData()">استعادة البيانات</button>
+            <button id="clearData" onclick="clearData()">مسح البيانات</button>
+        </div>
+        
+        <div id="log" style="margin-top: 20px; max-height: 300px; overflow-y: auto; background: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px;">
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
+    <script>
+        let db = null;
+        let SQL = null;
+        
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${timestamp}] ${message}<br>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+        
+        function updateProgress(percent) {
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            progressBar.style.width = percent + '%';
+            progressText.textContent = Math.round(percent) + '%';
+        }
+        
+        async function initSQL() {
+            return new Promise((resolve, reject) => {
+                if (window.SQL) {
+                    SQL = window.SQL;
+                    resolve();
+                } else {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js';
+                    script.onload = () => {
+                        SQL = window.SQL;
+                        resolve();
+                    };
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                }
+            });
+        }
+        
+        async function startMigration() {
+            try {
+                updateStatus('جاري تهيئة قاعدة البيانات SQL...', 'info');
+                log('بدء عملية التحويل...');
+                
+                await initSQL();
+                
+                const initSqlJs = SQL;
+                const sqlDb = await initSqlJs({
+                    locateFile: file => `https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/${file}`
+                });
+                
+                db = new sqlDb.Database();
+                log('تم تهيئة قاعدة البيانات SQL بنجاح');
+                
+                // Load schema
+                updateStatus('جاري تحميل هيكل قاعدة البيانات...', 'info');
+                await loadSchema();
+                log('تم تحميل هيكل قاعدة البيانات');
+                
+                // Load data from localStorage
+                updateStatus('جاري تحميل البيانات من localStorage...', 'info');
+                const data = loadFromLocalStorage();
+                if (!data) {
+                    throw new Error('لا توجد بيانات في localStorage للتحويل');
+                }
+                log('تم تحميل البيانات من localStorage');
+                
+                // Migrate data
+                updateStatus('جاري تحويل البيانات...', 'info');
+                await migrateData(data);
+                log('تم تحويل البيانات بنجاح');
+                
+                // Save to localStorage as SQL backup
+                updateStatus('جاري حفظ النسخة الاحتياطية...', 'info');
+                const dbData = db.export();
+                localStorage.setItem('estate_pro_sql_backup', JSON.stringify(Array.from(dbData)));
+                log('تم حفظ النسخة الاحتياطية');
+                
+                updateStatus('تم التحويل بنجاح! يمكنك الآن استخدام النسخة الجديدة.', 'success');
+                updateProgress(100);
+                
+            } catch (error) {
+                log('خطأ: ' + error.message);
+                updateStatus('فشل في التحويل: ' + error.message, 'error');
+            }
+        }
+        
+        async function loadSchema() {
+            const schema = `
+                PRAGMA foreign_keys = ON;
+                
+                CREATE TABLE IF NOT EXISTS settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                );
+                
+                CREATE TABLE IF NOT EXISTS customers (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    phone TEXT,
+                    national_id TEXT,
+                    address TEXT,
+                    status TEXT DEFAULT 'نشط',
+                    notes TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                
+                CREATE TABLE IF NOT EXISTS partners (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    phone TEXT,
+                    national_id TEXT,
+                    address TEXT,
+                    notes TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                
+                CREATE TABLE IF NOT EXISTS partner_groups (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                
+                CREATE TABLE IF NOT EXISTS partner_group_members (
+                    id TEXT PRIMARY KEY,
+                    group_id TEXT NOT NULL,
+                    partner_id TEXT NOT NULL,
+                    percent DECIMAL(5,2) NOT NULL DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (group_id) REFERENCES partner_groups(id) ON DELETE CASCADE,
+                    FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE CASCADE,
+                    UNIQUE(group_id, partner_id)
+                );
+                
+                CREATE TABLE IF NOT EXISTS brokers (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    phone TEXT,
+                    notes TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                
+                CREATE TABLE IF NOT EXISTS units (
+                    id TEXT PRIMARY KEY,
+                    code TEXT UNIQUE NOT NULL,
+                    name TEXT,
+                    status TEXT DEFAULT 'متاحة',
+                    area DECIMAL(10,2),
+                    floor TEXT,
+                    building TEXT,
+                    total_price DECIMAL(15,2) NOT NULL DEFAULT 0,
+                    unit_type TEXT,
+                    notes TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                
+                CREATE TABLE IF NOT EXISTS unit_partners (
+                    id TEXT PRIMARY KEY,
+                    unit_id TEXT NOT NULL,
+                    partner_id TEXT NOT NULL,
+                    percent DECIMAL(5,2) NOT NULL DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE CASCADE,
+                    FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE CASCADE,
+                    UNIQUE(unit_id, partner_id)
+                );
+                
+                CREATE TABLE IF NOT EXISTS contracts (
+                    id TEXT PRIMARY KEY,
+                    code TEXT UNIQUE NOT NULL,
+                    unit_id TEXT NOT NULL,
+                    customer_id TEXT NOT NULL,
+                    total_price DECIMAL(15,2) NOT NULL,
+                    down_payment DECIMAL(15,2) DEFAULT 0,
+                    discount_amount DECIMAL(15,2) DEFAULT 0,
+                    maintenance_deposit DECIMAL(15,2) DEFAULT 0,
+                    broker_name TEXT,
+                    broker_percent DECIMAL(5,2) DEFAULT 0,
+                    broker_amount DECIMAL(15,2) DEFAULT 0,
+                    commission_safe_id TEXT,
+                    type TEXT NOT NULL,
+                    count INTEGER DEFAULT 0,
+                    extra_annual INTEGER DEFAULT 0,
+                    annual_payment_value DECIMAL(15,2) DEFAULT 0,
+                    start_date DATE NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                
+                CREATE TABLE IF NOT EXISTS installments (
+                    id TEXT PRIMARY KEY,
+                    unit_id TEXT NOT NULL,
+                    type TEXT NOT NULL,
+                    amount DECIMAL(15,2) NOT NULL,
+                    original_amount DECIMAL(15,2) NOT NULL,
+                    due_date DATE,
+                    payment_date DATE,
+                    status TEXT DEFAULT 'غير مدفوع',
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                
+                CREATE TABLE IF NOT EXISTS safes (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    balance DECIMAL(15,2) DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                
+                CREATE TABLE IF NOT EXISTS vouchers (
+                    id TEXT PRIMARY KEY,
+                    type TEXT NOT NULL,
+                    date DATE NOT NULL,
+                    amount DECIMAL(15,2) NOT NULL,
+                    safe_id TEXT NOT NULL,
+                    description TEXT,
+                    payer TEXT,
+                    beneficiary TEXT,
+                    linked_ref TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                
+                CREATE TABLE IF NOT EXISTS broker_dues (
+                    id TEXT PRIMARY KEY,
+                    contract_id TEXT NOT NULL,
+                    broker_name TEXT NOT NULL,
+                    amount DECIMAL(15,2) NOT NULL,
+                    due_date DATE NOT NULL,
+                    status TEXT DEFAULT 'due',
+                    payment_date DATE,
+                    paid_from_safe_id TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                
+                CREATE TABLE IF NOT EXISTS partner_debts (
+                    id TEXT PRIMARY KEY,
+                    partner_id TEXT NOT NULL,
+                    amount DECIMAL(15,2) NOT NULL,
+                    due_date DATE NOT NULL,
+                    status TEXT DEFAULT 'due',
+                    payment_date DATE,
+                    notes TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                
+                CREATE TABLE IF NOT EXISTS transfers (
+                    id TEXT PRIMARY KEY,
+                    from_safe_id TEXT NOT NULL,
+                    to_safe_id TEXT NOT NULL,
+                    amount DECIMAL(15,2) NOT NULL,
+                    date DATE NOT NULL,
+                    description TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                
+                CREATE TABLE IF NOT EXISTS audit_log (
+                    id TEXT PRIMARY KEY,
+                    timestamp DATETIME NOT NULL,
+                    description TEXT NOT NULL,
+                    details TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                
+                CREATE TABLE IF NOT EXISTS keyval (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                );
+                
+                -- Insert default data
+                INSERT OR IGNORE INTO safes (id, name, balance) VALUES ('S-default', 'الخزنة الرئيسية', 0);
+                INSERT OR IGNORE INTO settings (key, value) VALUES 
+                    ('theme', 'dark'),
+                    ('font', '16'),
+                    ('pass', NULL),
+                    ('migrationComplete', 'true');
+            `;
+            
+            db.exec(schema);
+        }
+        
+        function loadFromLocalStorage() {
+            try {
+                const stored = localStorage.getItem('estate_pro_state');
+                if (!stored) return null;
+                return JSON.parse(stored);
+            } catch (e) {
+                log('خطأ في تحميل البيانات من localStorage: ' + e.message);
+                return null;
+            }
+        }
+        
+        async function migrateData(data) {
+            const collections = [
+                'customers', 'units', 'partners', 'unitPartners', 'contracts',
+                'installments', 'partnerDebts', 'safes', 'transfers', 'auditLog',
+                'vouchers', 'brokerDues', 'brokers', 'partnerGroups'
+            ];
+            
+            let totalItems = 0;
+            let processedItems = 0;
+            
+            // Count total items
+            collections.forEach(collection => {
+                if (data[collection] && Array.isArray(data[collection])) {
+                    totalItems += data[collection].length;
+                }
+            });
+            
+            if (data.settings) {
+                totalItems += Object.keys(data.settings).length;
+            }
+            
+            log(`إجمالي العناصر للتحويل: ${totalItems}`);
+            
+            // Migrate each collection
+            for (const collection of collections) {
+                const items = data[collection];
+                if (items && Array.isArray(items)) {
+                    log(`تحويل ${collection}: ${items.length} عنصر`);
+                    
+                    for (const item of items) {
+                        if (item && item.id) {
+                            await insertItem(collection, item);
+                            processedItems++;
+                            updateProgress((processedItems / totalItems) * 100);
+                        }
+                    }
+                }
+            }
+            
+            // Migrate settings
+            if (data.settings) {
+                log(`تحويل الإعدادات: ${Object.keys(data.settings).length} إعداد`);
+                for (const [key, value] of Object.entries(data.settings)) {
+                    await insertItem('settings', { key, value });
+                    processedItems++;
+                    updateProgress((processedItems / totalItems) * 100);
+                }
+            }
+        }
+        
+        function insertItem(table, item) {
+            try {
+                const columns = Object.keys(item);
+                const values = Object.values(item);
+                const placeholders = columns.map(() => '?').join(', ');
+                
+                const sql = `INSERT OR REPLACE INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`;
+                const stmt = db.prepare(sql);
+                stmt.run(values);
+                stmt.free();
+            } catch (error) {
+                log(`خطأ في إدراج عنصر في ${table}: ${error.message}`);
+            }
+        }
+        
+        function backupData() {
+            try {
+                const data = localStorage.getItem('estate_pro_state');
+                if (data) {
+                    const blob = new Blob([data], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'estate_pro_backup_' + new Date().toISOString().slice(0,10) + '.json';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    log('تم إنشاء النسخة الاحتياطية');
+                } else {
+                    log('لا توجد بيانات للنسخ الاحتياطي');
+                }
+            } catch (error) {
+                log('خطأ في إنشاء النسخة الاحتياطية: ' + error.message);
+            }
+        }
+        
+        function restoreData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = JSON.parse(e.target.result);
+                            localStorage.setItem('estate_pro_state', JSON.stringify(data));
+                            log('تم استعادة البيانات بنجاح');
+                        } catch (error) {
+                            log('خطأ في استعادة البيانات: ' + error.message);
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            input.click();
+        }
+        
+        function clearData() {
+            if (confirm('هل أنت متأكد من مسح جميع البيانات؟')) {
+                localStorage.removeItem('estate_pro_state');
+                localStorage.removeItem('estate_pro_sql_backup');
+                log('تم مسح جميع البيانات');
+            }
+        }
+    </script>
+</body>
+</html>

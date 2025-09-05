@@ -36,7 +36,7 @@ async function initializeApp() {
                 console.log("Migration successful.");
             } else {
                 console.log("No data to migrate, loading fresh state from SQL.");
-                state = await loadStateFromSQL(); // Load empty state
+                state = await loadStateFromSQL();
             }
             await SQLDB.keyval.set('migrationComplete', 'true');
         }
@@ -3758,4 +3758,3 @@ window.openContractDetails = function(id) {
 
     view.innerHTML = html;
 };
-
