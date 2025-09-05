@@ -2,6 +2,13 @@
 // It replaces the original IndexedDB logic but keeps the same function names
 // to minimize changes in the main application logic (app.js).
 
+// This global constant is required by app.js to know which data stores to load.
+const OBJECT_STORES = [
+    'customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments',
+    'partnerDebts', 'safes', 'transfers', 'auditLog', 'vouchers', 'brokerDues',
+    'brokers', 'partnerGroups', 'settings', 'keyval'
+];
+
 const API_BASE_URL = 'http://localhost:8000/api';
 
 /**
