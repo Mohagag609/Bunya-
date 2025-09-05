@@ -177,6 +177,210 @@ app.get('/api/reports/dashboard', async (req, res) => {
     }
 });
 
+// Customers API
+app.get('/api/customers', async (req, res) => {
+    try {
+        const result = await query('SELECT * FROM customers ORDER BY created_at DESC');
+        res.json({ customers: result.rows });
+    } catch (error) {
+        console.error('Customers fetch error:', error);
+        res.status(500).json({ error: 'Failed to fetch customers' });
+    }
+});
+
+app.post('/api/customers', async (req, res) => {
+    try {
+        const { name, phone, national_id, address, status, notes } = req.body;
+        
+        if (!name || !phone) {
+            return res.status(400).json({ error: 'Name and phone are required' });
+        }
+
+        const result = await query(
+            'INSERT INTO customers (id, name, phone, national_id, address, status, notes) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6) RETURNING *',
+            [name, phone, national_id || null, address || null, status || 'active', notes || null]
+        );
+
+        res.status(201).json({ customer: result.rows[0] });
+    } catch (error) {
+        console.error('Customer creation error:', error);
+        res.status(500).json({ error: 'Failed to create customer' });
+    }
+});
+
+app.put('/api/customers/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, phone, national_id, address, status, notes } = req.body;
+        
+        const result = await query(
+            'UPDATE customers SET name = $1, phone = $2, national_id = $3, address = $4, status = $5, notes = $6, updated_at = NOW() WHERE id = $7 RETURNING *',
+            [name, phone, national_id, address, status, notes, id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Customer not found' });
+        }
+
+        res.json({ customer: result.rows[0] });
+    } catch (error) {
+        console.error('Customer update error:', error);
+        res.status(500).json({ error: 'Failed to update customer' });
+    }
+});
+
+app.delete('/api/customers/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const result = await query('DELETE FROM customers WHERE id = $1 RETURNING *', [id]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Customer not found' });
+        }
+
+        res.json({ message: 'Customer deleted successfully' });
+    } catch (error) {
+        console.error('Customer deletion error:', error);
+        res.status(500).json({ error: 'Failed to delete customer' });
+    }
+});
+
+// Units API
+app.get('/api/units', async (req, res) => {
+    try {
+        const result = await query(`
+            SELECT u.*, p.name as partner_name 
+            FROM units u 
+            LEFT JOIN partners p ON u.partner_id = p.id 
+            ORDER BY u.created_at DESC
+        `);
+        res.json({ units: result.rows });
+    } catch (error) {
+        console.error('Units fetch error:', error);
+        res.status(500).json({ error: 'Failed to fetch units' });
+    }
+});
+
+app.post('/api/units', async (req, res) => {
+    try {
+        const { name, type, area, price, location, partner_id, status, notes } = req.body;
+        
+        if (!name || !type || !area || !price) {
+            return res.status(400).json({ error: 'Name, type, area, and price are required' });
+        }
+
+        const result = await query(
+            'INSERT INTO units (name, type, area, price, location, partner_id, status, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+            [name, type, area, price, location || null, partner_id || null, status || 'available', notes || null]
+        );
+
+        res.status(201).json({ unit: result.rows[0] });
+    } catch (error) {
+        console.error('Unit creation error:', error);
+        res.status(500).json({ error: 'Failed to create unit' });
+    }
+});
+
+// Partners API
+app.get('/api/partners', async (req, res) => {
+    try {
+        const result = await query('SELECT * FROM partners ORDER BY created_at DESC');
+        res.json({ partners: result.rows });
+    } catch (error) {
+        console.error('Partners fetch error:', error);
+        res.status(500).json({ error: 'Failed to fetch partners' });
+    }
+});
+
+app.post('/api/partners', async (req, res) => {
+    try {
+        const { name, phone, email, address, share_percentage, notes } = req.body;
+        
+        if (!name || !phone) {
+            return res.status(400).json({ error: 'Name and phone are required' });
+        }
+
+        const result = await query(
+            'INSERT INTO partners (name, phone, email, address, share_percentage, notes) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [name, phone, email || null, address || null, share_percentage || 0, notes || null]
+        );
+
+        res.status(201).json({ partner: result.rows[0] });
+    } catch (error) {
+        console.error('Partner creation error:', error);
+        res.status(500).json({ error: 'Failed to create partner' });
+    }
+});
+
+// Safes API
+app.get('/api/safes', async (req, res) => {
+    try {
+        const result = await query('SELECT * FROM safes ORDER BY created_at DESC');
+        res.json({ safes: result.rows });
+    } catch (error) {
+        console.error('Safes fetch error:', error);
+        res.status(500).json({ error: 'Failed to fetch safes' });
+    }
+});
+
+app.post('/api/safes', async (req, res) => {
+    try {
+        const { name, balance, currency, notes } = req.body;
+        
+        if (!name) {
+            return res.status(400).json({ error: 'Name is required' });
+        }
+
+        const result = await query(
+            'INSERT INTO safes (name, balance, currency, notes) VALUES ($1, $2, $3, $4) RETURNING *',
+            [name, balance || 0, currency || 'EGP', notes || null]
+        );
+
+        res.status(201).json({ safe: result.rows[0] });
+    } catch (error) {
+        console.error('Safe creation error:', error);
+        res.status(500).json({ error: 'Failed to create safe' });
+    }
+});
+
+// Vouchers API
+app.get('/api/vouchers', async (req, res) => {
+    try {
+        const result = await query(`
+            SELECT v.*, s.name as safe_name, c.name as customer_name 
+            FROM vouchers v 
+            LEFT JOIN safes s ON v.safe_id = s.id 
+            LEFT JOIN customers c ON v.customer_id = c.id 
+            ORDER BY v.created_at DESC
+        `);
+        res.json({ vouchers: result.rows });
+    } catch (error) {
+        console.error('Vouchers fetch error:', error);
+        res.status(500).json({ error: 'Failed to fetch vouchers' });
+    }
+});
+
+app.post('/api/vouchers', async (req, res) => {
+    try {
+        const { type, amount, description, safe_id, customer_id, notes } = req.body;
+        
+        if (!type || !amount || !safe_id) {
+            return res.status(400).json({ error: 'Type, amount, and safe are required' });
+        }
+
+        const result = await query(
+            'INSERT INTO vouchers (type, amount, description, safe_id, customer_id, notes) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [type, amount, description || null, safe_id, customer_id || null, notes || null]
+        );
+
+        res.status(201).json({ voucher: result.rows[0] });
+    } catch (error) {
+        console.error('Voucher creation error:', error);
+        res.status(500).json({ error: 'Failed to create voucher' });
+    }
+});
+
 // Full API Routes (commented out for now)
 // app.use('/api/auth', authRoutes);
 // app.use('/api/customers', customerRoutes);
@@ -198,7 +402,7 @@ app.get('/api/health', (req, res) => {
 
 // Serve the main application
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'fixed.html'));
+    res.sendFile(path.join(__dirname, 'public', 'real.html'));
 });
 
 // Serve the simple application
