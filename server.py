@@ -27,8 +27,24 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 # Initialize database
 db = SQLAlchemy(app)
 
-# CORS configuration - Allow all origins for now
-CORS(app, origins="*", methods=["GET", "PUT", "POST", "DELETE", "OPTIONS"], supports_credentials=False)
+# CORS configuration
+allowed_origins = [
+    "http://localhost:3000", 
+    "http://localhost:8000", 
+    "http://127.0.0.1:3000", 
+    "http://127.0.0.1:8000", 
+    "https://estate-pro-a62r.onrender.com",
+    "https://estate-manager-backend-vwop.onrender.com",
+    "https://estate-manager-frontend.onrender.com"
+]
+
+# Add current domain for production
+if 'RENDER' in os.environ:
+    service_url = os.environ.get('RENDER_EXTERNAL_URL', '')
+    if service_url:
+        allowed_origins.append(service_url)
+
+CORS(app, origins=allowed_origins, methods=["GET", "PUT", "POST", "DELETE", "OPTIONS"], supports_credentials=True)
 
 # Handle OPTIONS requests for CORS
 @app.before_request
