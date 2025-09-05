@@ -13,9 +13,10 @@ DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://user:password@localh
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
-# Enable CORS for all origins and all routes. This is more permissive and can
-# help diagnose issues in proxied environments like Render.
-CORS(app)
+# Configure CORS to only allow requests from the deployed frontend URL.
+# This is the correct and secure way to handle CORS.
+frontend_url = "https://estate-pro-a62r.onrender.com"
+CORS(app, resources={r"/api/*": {"origins": frontend_url}})
 
 # --- Dynamic CRUD API Creation ---
 
