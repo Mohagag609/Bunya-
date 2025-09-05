@@ -7,10 +7,6 @@ set -e
 
 echo "🚀 Starting build process for Estate Manager..."
 
-# Upgrade pip first
-echo "📦 Upgrading pip..."
-pip install --upgrade pip
-
 # Install requirements for Python 3.11
 echo "📦 Installing requirements for Python 3.11..."
 pip install -r requirements-py311.txt
