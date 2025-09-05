@@ -33,6 +33,10 @@ async function initializeApp() {
         if (typeof state.settings !== 'object' || state.settings === null) {
             state.settings = { theme: 'dark', font: 16, pass: null };
         }
+        // Ensure settings has a key for saving
+        if (!state.settings.key) {
+            state.settings.key = 'main';
+        }
         if (!state.locked) { state.locked = false; }
 
         // If no safes exist, create the main one. This should ideally be seeded in the DB.
@@ -145,19 +149,22 @@ function setupGlobalEventListeners() {
     document.getElementById('themeSel').addEventListener('change', async (e) => {
         console.log('Theme changed to:', e.target.value);
         state.settings.theme = e.target.value;
-        await put('settings', state.settings).catch(err => alert(err.message));
+        const settingsToSave = { key: 'main', ...state.settings };
+        await put('settings', settingsToSave).catch(err => alert(err.message));
         applySettings(); // Apply the new theme immediately
     });
     document.getElementById('fontSel').addEventListener('change', async (e) => {
         state.settings.font = Number(e.target.value);
-        await put('settings', state.settings).catch(err => alert(err.message));
+        const settingsToSave = { key: 'main', ...state.settings };
+        await put('settings', settingsToSave).catch(err => alert(err.message));
         applySettings(); // Apply the new font size immediately
     });
     document.getElementById('lockBtn').addEventListener('click', async () => {
         const pass = prompt('ضع كلمة مرور أو اتركها فارغة لإلغاء القفل', '');
         state.locked = !!pass;
         state.settings.pass = pass || null;
-        await put('settings', state.settings).catch(err => alert(err.message));
+        const settingsToSave = { key: 'main', ...state.settings };
+        await put('settings', settingsToSave).catch(err => alert(err.message));
         alert(state.locked ? 'تم تفعيل القفل' : 'تم إلغاء القفل');
         checkLock();
     });
