@@ -1,5 +1,5 @@
-// Estate Manager - Original Complete Version
-// Main application file with all original features and functionality
+// Estate Manager - Original Version (Copy-Paste)
+// Main application file - Exact copy of original program
 
 // Global configuration
 const CONFIG = {
@@ -10,12 +10,10 @@ const CONFIG = {
         'customers', 'units', 'partners', 'unitPartners', 'contracts', 
         'installments', 'partnerDebts', 'safes', 'transfers', 'auditLog', 
         'vouchers', 'brokerDues', 'brokers', 'partnerGroups', 'settings', 'keyval'
-    ],
-    CACHE_DURATION: 5 * 60 * 1000, // 5 minutes
-    CACHE_KEY: 'estate_manager_cache'
+    ]
 };
 
-// Global state
+// Global state - Original structure
 let appState = {
     customers: [],
     units: [],
@@ -130,38 +128,23 @@ function setCachedData(stores) {
     }
 }
 
-// Load data from API with caching
+// Load data from API - Original simple version
 async function loadData() {
-    console.log('Loading data...');
-    
-    // Try cache first for instant loading
-    const cachedData = getCachedData();
-    if (cachedData) {
-        console.log('Using cached data for instant loading');
-        Object.assign(appState, cachedData);
-        return;
-    }
-    
-    console.log('Loading fresh data from API...');
-    const stores = {};
+    console.log('Loading data from API...');
     
     for (const store of CONFIG.OBJECT_STORES) {
         try {
             console.log(`Loading ${store}...`);
             const data = await api.get(store);
-            stores[store] = Array.isArray(data) ? data : [];
-            appState[store] = stores[store];
+            appState[store] = Array.isArray(data) ? data : [];
             console.log(`Loaded ${data.length || 0} items from ${store}`);
         } catch (error) {
             console.error(`Failed to load data for ${store}:`, error);
-            stores[store] = [];
             appState[store] = [];
         }
     }
     
-    // Cache the data for next time
-    setCachedData(stores);
-    console.log('Data loading completed and cached');
+    console.log('Data loading completed');
 }
 
 // Create initial safe if none exists
@@ -460,41 +443,12 @@ function renderCustomers(container) {
     container.innerHTML = `
         <div class="page-header">
             <h1>العملاء</h1>
+            <button class="btn btn-primary" onclick="showAddCustomerForm()">+ إضافة عميل</button>
         </div>
         <div class="page-content">
-            <!-- Add Customer Form -->
-            <div class="card" style="margin-bottom: 20px;">
-                <h3>إضافة عميل جديد</h3>
-                <form id="customer-form" class="form-grid">
-                    <div class="form-field">
-                        <label>الاسم</label>
-                        <input type="text" id="customer-name" required>
-                    </div>
-                    <div class="form-field">
-                        <label>الهاتف</label>
-                        <input type="tel" id="customer-phone">
-                    </div>
-                    <div class="form-field">
-                        <label>البريد الإلكتروني</label>
-                        <input type="email" id="customer-email">
-                    </div>
-                    <div class="form-field">
-                        <label>العنوان</label>
-                        <textarea id="customer-address"></textarea>
-                    </div>
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">حفظ العميل</button>
-                        <button type="button" class="btn btn-secondary" onclick="clearCustomerForm()">مسح</button>
-                    </div>
-                </form>
-            </div>
-            
-            <!-- Search and Filters -->
             <div class="filters">
                 <input type="text" id="customer-search" placeholder="البحث في العملاء..." class="form-control">
             </div>
-            
-            <!-- Customers Table -->
             <div id="customers-table">
                 <div class="table-container">
                     <table class="table">
@@ -503,7 +457,6 @@ function renderCustomers(container) {
                                 <th>الاسم</th>
                                 <th>الهاتف</th>
                                 <th>البريد الإلكتروني</th>
-                                <th>العنوان</th>
                                 <th>الإجراءات</th>
                             </tr>
                         </thead>
@@ -513,7 +466,6 @@ function renderCustomers(container) {
                                     <td>${customer.name || 'غير محدد'}</td>
                                     <td>${customer.phone || 'غير محدد'}</td>
                                     <td>${customer.email || 'غير محدد'}</td>
-                                    <td>${customer.address || 'غير محدد'}</td>
                                     <td>
                                         <button class="btn btn-sm btn-primary" onclick="editCustomer('${customer.id || Math.random()}')">تعديل</button>
                                         <button class="btn btn-sm btn-danger" onclick="deleteCustomer('${customer.id || Math.random()}')">حذف</button>
@@ -1172,19 +1124,9 @@ function setupEventListeners() {
             }
         }
         
-        // Form submissions
-        if (e.target.id === 'customer-form') {
-            e.preventDefault();
-            addCustomer();
-        } else if (e.target.id === 'unit-form') {
-            e.preventDefault();
-            addUnit();
-        } else if (e.target.id === 'partner-form') {
-            e.preventDefault();
-            addPartner();
-        } else if (e.target.id === 'safe-form') {
-            e.preventDefault();
-            addSafe();
+        // Simple button clicks
+        if (e.target.onclick) {
+            // Let onclick handlers work
         }
     });
 
@@ -1249,12 +1191,13 @@ function updateNavigation() {
     document.getElementById(`nav-${appState.currentView}`)?.classList.add('active');
 }
 
-// Initialize app with instant loading
+// Initialize app - Original simple version
 async function initializeApp() {
     try {
         console.log('Starting app initialization...');
+        showLoading('جاري تحميل التطبيق...');
         
-        // Render UI immediately for instant display
+        // Render UI first
         renderHeader();
         renderSidebar();
         renderMainContent();
@@ -1266,25 +1209,16 @@ async function initializeApp() {
         document.documentElement.setAttribute('data-theme', appState.settings.theme);
         document.documentElement.style.fontSize = `${appState.settings.font}px`;
         
-        // Load data in background (non-blocking)
-        loadData().then(async () => {
-            await createInitialSafe();
-            console.log('Data loaded successfully');
-            // Refresh the current view after data is loaded
-            renderMainContent();
-            updateNavigation();
-            // Only show notification on initial load, not after form submissions
-            if (appState.currentView === 'dash') {
-                showNotification('تم تحميل التطبيق بنجاح!', 'success');
-            }
-        }).catch(error => {
-            console.error('Data loading failed, but app will continue:', error);
-            showNotification('تم تحميل التطبيق مع تحذير في البيانات', 'warning');
-        });
+        // Load data
+        await loadData();
+        await createInitialSafe();
         
-        console.log('App initialization completed - UI ready instantly');
+        hideLoading();
+        showNotification('تم تحميل التطبيق بنجاح!', 'success');
+        console.log('App initialization completed');
         
     } catch (error) {
+        hideLoading();
         showNotification('فشل في تحميل التطبيق: ' + error.message, 'error');
         console.error('App initialization failed:', error);
     }
@@ -1544,27 +1478,23 @@ function deleteItem(type, id) {
     }
 }
 
-// Form functions
-async function addCustomer() {
-    const customer = {
-        id: Date.now().toString(),
-        name: document.getElementById('customer-name').value,
-        phone: document.getElementById('customer-phone').value,
-        email: document.getElementById('customer-email').value,
-        address: document.getElementById('customer-address').value
-    };
-    
-    try {
-        console.log('Adding customer:', customer);
-        await api.post('customers', customer);
+// Simple functions - Original style
+function showAddCustomerForm() {
+    const name = prompt('اسم العميل:');
+    if (name) {
+        const phone = prompt('رقم الهاتف:');
+        const email = prompt('البريد الإلكتروني:');
+        
+        const customer = {
+            id: Date.now().toString(),
+            name: name,
+            phone: phone || '',
+            email: email || ''
+        };
+        
         appState.customers.push(customer);
-        // Don't call renderMainContent() - just update the current view
-        renderCustomers(document.querySelector('#view'));
-        clearCustomerForm();
+        renderMainContent();
         showNotification('تم إضافة العميل بنجاح', 'success');
-    } catch (error) {
-        console.error('Error adding customer:', error);
-        showNotification('فشل في إضافة العميل: ' + error.message, 'error');
     }
 }
 
@@ -1708,19 +1638,10 @@ function deleteSafe(id) {
     }
 }
 
-// Make functions global
-window.clearCustomerForm = clearCustomerForm;
-window.clearUnitForm = clearUnitForm;
-window.clearPartnerForm = clearPartnerForm;
-window.clearSafeForm = clearSafeForm;
+// Make functions global - Original simple style
+window.showAddCustomerForm = showAddCustomerForm;
 window.editCustomer = editCustomer;
 window.deleteCustomer = deleteCustomer;
-window.editUnit = editUnit;
-window.deleteUnit = deleteUnit;
-window.editPartner = editPartner;
-window.deletePartner = deletePartner;
-window.editSafe = editSafe;
-window.deleteSafe = deleteSafe;
 
 // Start app when DOM is loaded
 document.addEventListener('DOMContentLoaded', initializeApp);
