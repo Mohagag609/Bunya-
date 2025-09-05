@@ -55,7 +55,7 @@ git push -u origin main
 
 ```
 ├── index.html              # الصفحة الرئيسية
-├── app-sql.js             # التطبيق الرئيسي مع SQL
+├── app-sql-complete.js    # التطبيق الرئيسي مع SQL
 ├── sql-db-complete.js     # مكتبة قاعدة البيانات
 ├── style.css              # التصميم
 ├── manifest.json          # PWA manifest
