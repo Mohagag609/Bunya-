@@ -218,6 +218,19 @@ function applySettings(){
     }
 }
 function checkLock(){ if(state.locked){ const p=prompt('اكتب كلمة المرور للدخول'); if(p!==state.settings.pass){ alert('كلمة مرور غير صحيحة'); location.reload(); } } }
+
+// دالة مساعدة لإعادة رسم الصفحة الحالية بعد الإضافة
+function refreshCurrentView() {
+    if (currentView && typeof window[`render${currentView.charAt(0).toUpperCase() + currentView.slice(1)}`] === 'function') {
+        const renderFunction = window[`render${currentView.charAt(0).toUpperCase() + currentView.slice(1)}`];
+        renderFunction();
+    } else if (currentView && typeof window[currentView] === 'function') {
+        window[currentView]();
+    } else {
+        // إذا لم نجد دالة الرسم، نعيد رسم الصفحة الحالية
+        nav(currentView, currentParam);
+    }
+}
 function unitById(id){ return state.units.find(u=>u.id===id); }
 function custById(id){ return state.customers.find(c=>c.id===id); }
 function partnerById(id){ return state.partners.find(p=>p.id===id); }
@@ -822,7 +835,8 @@ function renderCustomers(){
         document.getElementById('c-address').value = '';
         document.getElementById('c-notes').value = '';
 
-        draw();
+        // إعادة رسم الصفحة الحالية
+        refreshCurrentView();
     } catch(err) {
         alert("فشل حفظ العميل: " + err.message);
     }
@@ -1162,7 +1176,12 @@ function renderUnits(){
         }
         logAction('ربط مجموعة شركاء بوحدة', { unitId: newUnit.id, partnerGroupId });
 
-        nav('unit-details', newUnit.id);
+        // إعادة رسم صفحة الوحدات
+        if (currentView === 'units') {
+            draw();
+        } else {
+            nav('unit-details', newUnit.id);
+        }
         alert('تم حفظ الوحدة وربط مجموعة الشركاء بنجاح.');
     } catch (err) {
         alert("فشل حفظ الوحدة: " + err.message);
@@ -1316,7 +1335,8 @@ function renderSafes(){
 
           document.getElementById('s-name').value = '';
           document.getElementById('s-balance').value = '0';
-          draw();
+          // إعادة رسم الصفحة الحالية
+          refreshCurrentView();
       } catch (err) {
           alert("فشل إضافة الخزنة: " + err.message);
       }
@@ -1973,7 +1993,8 @@ function renderBrokers() {
         state.brokers.push(newBroker);
         logAction('إضافة سمسار جديد', { id: newBroker.id, name: newBroker.name });
         persist();
-        draw();
+        // إعادة رسم الصفحة الحالية
+        refreshCurrentView();
         document.getElementById('b-name').value = '';
         document.getElementById('b-phone').value = '';
         document.getElementById('b-notes').value = '';
@@ -2353,7 +2374,12 @@ function showAddExpenseModal() {
             await put('vouchers', newVoucher);
             state.vouchers.push(newVoucher);
             logAction('إضافة سند صرف يدوي', newVoucher);
-            nav('vouchers');
+            // إعادة رسم صفحة السندات إذا كانت مفتوحة
+            if (currentView === 'vouchers') {
+                draw();
+            } else {
+                nav('vouchers');
+            }
             return true;
         } catch(err) {
             alert("فشل إضافة السند: " + err.message);
@@ -2618,7 +2644,8 @@ function renderPartners(){
         saveState();
         logAction('إضافة شريك جديد', { partnerId: savedPartner.id, name });
         state.partners.push(savedPartner);
-        draw();
+        // إعادة رسم الصفحة الحالية
+        refreshCurrentView();
     } catch(err) {
         alert("فشل إضافة الشريك: " + err.message);
     }
@@ -2635,7 +2662,12 @@ function renderPartners(){
         saveState();
         state.partnerGroups.push(savedGroup);
         logAction('إنشاء مجموعة شركاء جديدة', { groupId: savedGroup.id, name });
-        nav('partner-group-details', newGroup.id);
+        // إعادة رسم صفحة الشركاء إذا كانت مفتوحة
+        if (currentView === 'partners') {
+            draw();
+        } else {
+            nav('partner-group-details', newGroup.id);
+        }
     } catch(err) {
         alert("فشل إنشاء المجموعة: " + err.message);
     }
@@ -3448,7 +3480,12 @@ function renderTransfers(){
 
     persist();
     alert('تم تنفيذ التحويل بنجاح!');
-    nav('transfers'); // Refresh the view
+    // إعادة رسم صفحة التحويلات إذا كانت مفتوحة
+    if (currentView === 'transfers') {
+        draw();
+    } else {
+        nav('transfers');
+    }
   };
 
   draw();
