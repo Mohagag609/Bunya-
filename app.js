@@ -316,15 +316,36 @@ function checkLock(){ if(state.locked){ const p=prompt('اكتب كلمة الم
 
 // دالة مساعدة لإعادة رسم الصفحة الحالية بعد الإضافة
 function refreshCurrentView() {
-    if (currentView && typeof window[`render${currentView.charAt(0).toUpperCase() + currentView.slice(1)}`] === 'function') {
-        const renderFunction = window[`render${currentView.charAt(0).toUpperCase() + currentView.slice(1)}`];
-        renderFunction();
-    } else if (currentView && typeof window[currentView] === 'function') {
-        window[currentView]();
-    } else {
-        // إذا لم نجد دالة الرسم، نعيد رسم الصفحة الحالية
-        nav(currentView, currentParam);
+    console.log('Refreshing current view:', currentView);
+    
+    // قائمة الدوال المتاحة للرسم
+    const renderFunctions = {
+        'brokers': 'renderBrokers',
+        'safes': 'renderSafes', 
+        'customers': 'renderCustomers',
+        'units': 'renderUnits',
+        'contracts': 'renderContracts',
+        'partners': 'renderPartners',
+        'dash': 'renderDashboard'
+    };
+    
+    if (currentView && renderFunctions[currentView]) {
+        const functionName = renderFunctions[currentView];
+        if (typeof window[functionName] === 'function') {
+            console.log('Calling render function:', functionName);
+            try {
+                window[functionName]();
+                console.log('Render function called successfully');
+                return;
+            } catch (error) {
+                console.error('Error calling render function:', error);
+            }
+        }
     }
+    
+    // إذا لم نجد دالة الرسم، نعيد رسم الصفحة الحالية
+    console.log('Falling back to nav:', currentView);
+    nav(currentView, currentParam);
 }
 function unitById(id){ return state.units.find(u=>u.id===id); }
 function custById(id){ return state.customers.find(c=>c.id===id); }
@@ -1427,6 +1448,7 @@ function renderSafes(){
           saveState();
           logAction('إضافة خزنة جديدة', { safeId: savedSafe.id, name, initialBalance: balance });
           state.safes.push(savedSafe);
+          persist(); // إضافة persist() بعد put()
 
           document.getElementById('s-name').value = '';
           document.getElementById('s-balance').value = '0';
@@ -2074,7 +2096,7 @@ function renderBrokers() {
         };
     });
 
-    window.addBroker = () => {
+    window.addBroker = async () => {
         const name = document.getElementById('b-name').value.trim();
         const phone = document.getElementById('b-phone').value.trim();
         const notes = document.getElementById('b-notes').value.trim();
@@ -2083,16 +2105,24 @@ function renderBrokers() {
         if (state.brokers.some(b => b.name.toLowerCase() === name.toLowerCase())) {
             return alert('هذا السمسار موجود بالفعل.');
         }
-        saveState();
+        
         const newBroker = { id: uid('B'), name, phone, notes };
-        state.brokers.push(newBroker);
-        logAction('إضافة سمسار جديد', { id: newBroker.id, name: newBroker.name });
-        persist();
-        // إعادة رسم الصفحة الحالية
-        refreshCurrentView();
-        document.getElementById('b-name').value = '';
-        document.getElementById('b-phone').value = '';
-        document.getElementById('b-notes').value = '';
+        
+        try {
+            const savedBroker = await put('brokers', newBroker);
+            saveState();
+            logAction('إضافة سمسار جديد', { id: savedBroker.id, name: savedBroker.name });
+            state.brokers.push(savedBroker);
+            persist(); // إضافة persist() بعد put()
+            
+            // إعادة رسم الصفحة الحالية
+            refreshCurrentView();
+            document.getElementById('b-name').value = '';
+            document.getElementById('b-phone').value = '';
+            document.getElementById('b-notes').value = '';
+        } catch (err) {
+            alert("فشل إضافة السمسار: " + err.message);
+        }
     };
 
     draw();
