@@ -106,8 +106,11 @@ async function loadData() {
         } catch (error) {
             console.error(`Failed to load data for ${store}:`, error);
             appState[store] = [];
+            // Don't throw error, just log it and continue
         }
     }
+    
+    console.log('Data loading completed');
 }
 
 // Create initial safe if none exists
@@ -251,6 +254,17 @@ function renderSidebar() {
 function renderMainContent() {
     const view = document.querySelector('#view');
     if (!view) return;
+
+    // Show loading state initially
+    if (appState.currentView === 'dash' && appState.customers.length === 0 && appState.units.length === 0) {
+        view.innerHTML = `
+            <div class="loading-container">
+                <div class="spinner"></div>
+                <p>جاري تحميل البيانات...</p>
+            </div>
+        `;
+        return;
+    }
 
     switch (appState.currentView) {
         case 'dash':
@@ -738,15 +752,10 @@ function updateNavigation() {
 // Initialize app
 async function initializeApp() {
     try {
+        console.log('Starting app initialization...');
         showLoading('جاري تحميل التطبيق...');
         
-        // Load data from API
-        await loadData();
-        
-        // Create initial safe if needed
-        await createInitialSafe();
-        
-        // Render UI
+        // Render UI first
         renderHeader();
         renderSidebar();
         renderMainContent();
@@ -758,8 +767,20 @@ async function initializeApp() {
         document.documentElement.setAttribute('data-theme', appState.settings.theme);
         document.documentElement.style.fontSize = `${appState.settings.font}px`;
         
+        // Load data from API (non-blocking)
+        try {
+            await loadData();
+            await createInitialSafe();
+            console.log('Data loaded successfully');
+            // Refresh the current view after data is loaded
+            renderMainContent();
+        } catch (error) {
+            console.error('Data loading failed, but app will continue:', error);
+        }
+        
         hideLoading();
         showNotification('تم تحميل التطبيق بنجاح!', 'success');
+        console.log('App initialization completed');
         
     } catch (error) {
         hideLoading();

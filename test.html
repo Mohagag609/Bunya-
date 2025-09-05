@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار التطبيق</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-item {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        .loading { background: #fff3cd; border-color: #ffeaa7; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        #results { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 اختبار مدير الاستثمار العقاري</h1>
+        
+        <div>
+            <button onclick="testBackend()">اختبار Backend</button>
+            <button onclick="testFrontend()">اختبار Frontend</button>
+            <button onclick="testAPI()">اختبار API</button>
+            <button onclick="clearResults()">مسح النتائج</button>
+        </div>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'https://estate-manager-backend-vwop.onrender.com/api';
+        
+        function addResult(message, type = 'loading') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-item ${type}`;
+            div.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            results.appendChild(div);
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        async function testBackend() {
+            addResult('🔍 اختبار Backend...', 'loading');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult(`✅ Backend يعمل! الحالة: ${data.status}`, 'success');
+                } else {
+                    addResult(`❌ Backend خطأ: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Backend فشل: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testAPI() {
+            addResult('🔍 اختبار API endpoints...', 'loading');
+            
+            const endpoints = ['safes', 'customers', 'units', 'contracts'];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/${endpoint}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        addResult(`✅ ${endpoint}: ${data.length || 0} عنصر`, 'success');
+                    } else {
+                        addResult(`❌ ${endpoint}: خطأ ${response.status}`, 'error');
+                    }
+                } catch (error) {
+                    addResult(`❌ ${endpoint}: ${error.message}`, 'error');
+                }
+            }
+        }
+        
+        function testFrontend() {
+            addResult('🔍 اختبار Frontend...', 'loading');
+            
+            // Test if we can access the main app
+            try {
+                // Check if we can load the main page
+                fetch('/')
+                    .then(response => {
+                        if (response.ok) {
+                            addResult('✅ Frontend HTML محمل بنجاح', 'success');
+                            
+                            // Test if we can load the CSS
+                            fetch('/style.css')
+                                .then(cssResponse => {
+                                    if (cssResponse.ok) {
+                                        addResult('✅ CSS محمل بنجاح', 'success');
+                                    } else {
+                                        addResult('❌ CSS فشل في التحميل', 'error');
+                                    }
+                                });
+                            
+                            // Test if we can load the JS
+                            fetch('/app.js')
+                                .then(jsResponse => {
+                                    if (jsResponse.ok) {
+                                        addResult('✅ JavaScript محمل بنجاح', 'success');
+                                        addResult('🎉 Frontend جاهز للاستخدام!', 'success');
+                                    } else {
+                                        addResult('❌ JavaScript فشل في التحميل', 'error');
+                                    }
+                                });
+                        } else {
+                            addResult('❌ Frontend HTML فشل في التحميل', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        addResult(`❌ Frontend خطأ: ${error.message}`, 'error');
+                    });
+            } catch (error) {
+                addResult(`❌ Frontend فشل: ${error.message}`, 'error');
+            }
+        }
+        
+        // Auto-run tests on page load
+        window.addEventListener('load', () => {
+            addResult('🚀 بدء الاختبارات التلقائية...', 'loading');
+            setTimeout(() => testBackend(), 1000);
+            setTimeout(() => testAPI(), 2000);
+            setTimeout(() => testFrontend(), 3000);
+        });
+    </script>
+</body>
+</html>
