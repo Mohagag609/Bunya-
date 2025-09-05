@@ -29,6 +29,10 @@ async function handleResponse(response) {
             errorData = { error: 'An unknown server error occurred. The response was not valid JSON.' };
         }
         const errorMessage = errorData.message || errorData.error || `HTTP error! status: ${response.status}`;
+        
+        // Log error for debugging
+        console.error(`API Error: ${response.status} - ${errorMessage}`);
+        
         throw new Error(errorMessage);
     }
 
@@ -41,12 +45,53 @@ async function handleResponse(response) {
 }
 
 /**
+ * Enhanced fetch with retry logic and timeout
+ * @param {string} url - The URL to fetch
+ * @param {object} options - Fetch options
+ * @returns {Promise<Response>} - The response
+ */
+async function fetchWithRetry(url, options = {}, retries = 3) {
+    const timeout = 10000; // 10 seconds timeout
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    
+    try {
+        const response = await fetch(url, {
+            ...options,
+            signal: controller.signal,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+        
+        clearTimeout(timeoutId);
+        return response;
+    } catch (error) {
+        clearTimeout(timeoutId);
+        
+        if (error.name === 'AbortError') {
+            throw new Error('Request timeout');
+        }
+        
+        if (retries > 0) {
+            console.warn(`Request failed, retrying... (${retries} retries left)`);
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+            return fetchWithRetry(url, options, retries - 1);
+        }
+        
+        throw error;
+    }
+}
+
+/**
  * Fetches all records from a given store (API endpoint).
  * @param {string} storeName - The name of the data store (e.g., 'customers').
  * @returns {Promise<Array<any>>} - A promise that resolves with an array of records.
  */
 function getAll(storeName) {
-    return fetch(`${API_BASE_URL}/${storeName}`).then(handleResponse);
+    return fetchWithRetry(`${API_BASE_URL}/${storeName}`).then(handleResponse);
 }
 
 /**
@@ -63,11 +108,8 @@ function put(storeName, item) {
         return Promise.reject(new Error(`Item must have a primary key ('${pkName}') to be saved.`));
     }
 
-    return fetch(`${API_BASE_URL}/${storeName}/${itemId}`, {
+    return fetchWithRetry(`${API_BASE_URL}/${storeName}/${itemId}`, {
         method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
         body: JSON.stringify(item),
     }).then(handleResponse);
 }
@@ -79,7 +121,7 @@ function put(storeName, item) {
  * @returns {Promise<any>} - A promise that resolves when the deletion is successful.
  */
 function deleteItem(storeName, itemId) {
-    return fetch(`${API_BASE_URL}/${storeName}/${itemId}`, {
+    return fetchWithRetry(`${API_BASE_URL}/${storeName}/${itemId}`, {
         method: 'DELETE',
     }).then(handleResponse);
 }
@@ -91,7 +133,7 @@ function deleteItem(storeName, itemId) {
  */
 async function getKeyVal(key) {
     try {
-        const result = await fetch(`${API_BASE_URL}/keyval/${key}`).then(handleResponse);
+        const result = await fetchWithRetry(`${API_BASE_URL}/keyval/${key}`).then(handleResponse);
         // The backend model stores the value inside the 'data' field.
         return result.data.value;
     } catch (error) {
