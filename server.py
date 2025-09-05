@@ -233,22 +233,33 @@ def health_check():
             'error': str(e)
         }), 503
 
+# Root route
+@app.route('/')
+def home():
+    return jsonify({
+        'message': 'Estate Manager API is running!',
+        'version': '2.0.0',
+        'endpoints': {
+            'health': '/api/health',
+            'customers': '/api/customers',
+            'units': '/api/units',
+            'contracts': '/api/contracts',
+            'safes': '/api/safes'
+        }
+    })
+
 # Static file serving
-@app.route('/', defaults={'path': 'index.html'})
 @app.route('/<path:path>')
 def serve_static(path):
     try:
-        safe_path = os.path.abspath(os.path.join(app.static_folder, path))
-        if not safe_path.startswith(app.static_folder):
-            return "Not Found", 404
+        # Check if it's an API route
+        if path.startswith('api/'):
+            return "API endpoint not found", 404
         
-        if os.path.exists(safe_path):
-            return send_from_directory(app.static_folder, path)
-        else:
-            # Serve index.html for SPA routing
-            return send_from_directory(app.static_folder, 'index.html')
+        # For other routes, serve index.html (for SPA)
+        return send_from_directory('.', 'index.html')
     except Exception as e:
-        logger.error(f"Error serving static file {path}: {e}")
+        logger.error(f"Error serving file {path}: {e}")
         return "Not Found", 404
 
 # CLI commands
