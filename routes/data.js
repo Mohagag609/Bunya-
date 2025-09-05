@@ -72,8 +72,8 @@ const createCrudRoutes = (entityName, tableName) => {
       return res.json({
         data: [],
         pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
+          page: parseInt(req.query.page || 1),
+          limit: parseInt(req.query.limit || 100),
           total: 0,
           pages: 0
         }

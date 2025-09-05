@@ -29,12 +29,16 @@ async function testConnection() {
 // Initialize database tables
 async function initialize() {
   try {
-    await testConnection();
-    await createTables();
-    console.log('Database initialized successfully');
+    const connected = await testConnection();
+    if (connected) {
+      await createTables();
+      console.log('Database initialized successfully');
+    } else {
+      console.log('Database not connected, but server will continue...');
+    }
   } catch (error) {
     console.error('Database initialization failed:', error);
-    throw error;
+    console.log('Server will continue without database...');
   }
 }
 
