@@ -19,37 +19,20 @@ function showLoadingIndicator() {
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            background: rgba(0, 0, 0, 0.8);
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
             z-index: 9999;
-            font-family: 'Cairo', system-ui, Segoe UI, Roboto;
         ">
             <div style="
-                width: 80px;
-                height: 80px;
-                border: 4px solid rgba(255, 255, 255, 0.1);
-                border-top: 4px solid #667eea;
+                width: 40px;
+                height: 40px;
+                border: 3px solid rgba(255, 255, 255, 0.1);
+                border-top: 3px solid #667eea;
                 border-radius: 50%;
                 animation: spin 1s linear infinite;
-                margin-bottom: 20px;
             "></div>
-            <h2 style="
-                color: #ffffff;
-                font-size: 24px;
-                margin: 0;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                background-clip: text;
-            ">جاري التحميل...</h2>
-            <p style="
-                color: rgba(255, 255, 255, 0.7);
-                font-size: 16px;
-                margin: 10px 0 0 0;
-            ">مدير الاستثمار العقاري</p>
         </div>
         <style>
             @keyframes spin {
@@ -64,18 +47,11 @@ function showLoadingIndicator() {
 function hideLoadingIndicator() {
     const loadingOverlay = document.getElementById('loading-overlay');
     if (loadingOverlay) {
-        loadingOverlay.style.opacity = '0';
-        loadingOverlay.style.transition = 'opacity 0.5s ease';
-        setTimeout(() => {
-            loadingOverlay.remove();
-        }, 500);
+        loadingOverlay.remove();
     }
 }
 
 async function initializeApp() {
-    // Show loading indicator
-    showLoadingIndicator();
-
     // Register Service Worker
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
@@ -129,14 +105,8 @@ async function initializeApp() {
         
         // Show UI immediately
         nav('dash');
-        
-        // Hide loading indicator after a short delay to ensure UI is ready
-        setTimeout(() => {
-            hideLoadingIndicator();
-        }, 500);
     } catch (error) {
         console.error("Failed to initialize the application:", error);
-        hideLoadingIndicator();
         const viewEl = document.getElementById('view');
         if (viewEl) {
             viewEl.innerHTML = `<div class="card warn"><h3>خطأ فادح</h3><p>لم يتمكن التطبيق من الاتصال بالخادم الخلفي.</p><pre>${error.message}</pre></div>`;
@@ -158,52 +128,23 @@ async function loadStateFromAPI() {
         throw new Error("Fatal: OBJECT_STORES is not defined.");
     }
 
-    // Load critical data first (settings, customers, units, contracts)
-    const criticalStores = ['settings', 'customers', 'units', 'contracts'];
-    const otherStores = window.OBJECT_STORES.filter(store => !criticalStores.includes(store));
-
-    // Load critical data first with timeout
-    const criticalPromises = criticalStores.map(storeName =>
-        Promise.race([
-            getAll(storeName),
-            new Promise((_, reject) => 
-                setTimeout(() => reject(new Error(`Timeout loading ${storeName}`)), 5000)
-            )
-        ]).catch(e => {
-            console.error(`Failed to load critical data for ${storeName}:`, e);
-            return [];
-        })
-    );
-
-    const criticalResults = await Promise.all(criticalPromises);
-    
-    // Process critical data immediately
-    criticalStores.forEach((storeName, index) => {
-        if (storeName === 'settings') {
-            newState.settings = criticalResults[index].length > 0 ? criticalResults[index][0] : {theme:'dark',font:16, pass:null};
-        } else {
-            newState[storeName] = criticalResults[index];
-        }
-    });
-
-    // Load other data in background with timeout
-    const otherPromises = otherStores.map(storeName =>
-        Promise.race([
-            getAll(storeName),
-            new Promise((_, reject) => 
-                setTimeout(() => reject(new Error(`Timeout loading ${storeName}`)), 10000)
-            )
-        ]).catch(e => {
+    // Load all data at once
+    const promises = window.OBJECT_STORES.map(storeName =>
+        getAll(storeName).catch(e => {
             console.error(`Failed to load data for ${storeName}:`, e);
             return [];
         })
     );
 
-    const otherResults = await Promise.all(otherPromises);
+    const results = await Promise.all(promises);
     
-    // Process other data
-    otherStores.forEach((storeName, index) => {
-        newState[storeName] = otherResults[index];
+    // Process all data
+    window.OBJECT_STORES.forEach((storeName, index) => {
+        if (storeName === 'settings') {
+            newState.settings = results[index].length > 0 ? results[index][0] : {theme:'dark',font:16, pass:null};
+        } else {
+            newState[storeName] = results[index];
+        }
     });
 
     console.log("State loaded successfully from API.", newState);
@@ -375,7 +316,7 @@ function showNotification(message, type = 'info') {
         padding: 16px;
         border-radius: 12px;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        backdrop-filter: blur(20px);
+        backdrop-filter: blur(10px);
         border: 1px solid rgba(255, 255, 255, 0.1);
         animation: slideInRight 0.3s ease-out;
         font-family: 'Cairo', system-ui, sans-serif;
@@ -399,13 +340,13 @@ function showNotification(message, type = 'info') {
     // إضافة الإشعار للصفحة
     document.body.appendChild(notification);
     
-    // إزالة الإشعار تلقائياً بعد 5 ثوان
+    // إزالة الإشعار تلقائياً بعد 3 ثوان
     setTimeout(() => {
         if (notification.parentElement) {
             notification.style.animation = 'slideOutRight 0.3s ease-in';
             setTimeout(() => notification.remove(), 300);
         }
-    }, 5000);
+    }, 3000);
     
     // إضافة الأنماط المتحركة
     if (!document.getElementById('notification-styles')) {
@@ -1977,22 +1918,11 @@ function renderContracts(){
     }
 
     if (paymentType === 'installment') {
-        console.log('Generating installments for contract:', ct.id);
         const installmentBase = total - (ct.maintenanceDeposit || 0);
         const totalAfterDown = installmentBase - discount - down;
         const totalAnnualPayments = extra * annualBonusValue;
         const amountForRegularInstallments = totalAfterDown - totalAnnualPayments;
         const months={'شهري':1,'ربع سنوي':3,'نصف سنوي':6,'سنوي':12}[type]||1;
-        
-        console.log('Installment details:', {
-            installmentBase,
-            totalAfterDown,
-            totalAnnualPayments,
-            amountForRegularInstallments,
-            count,
-            extra,
-            months
-        });
         
         if (count > 0) {
             const baseAmount = Math.floor((amountForRegularInstallments / count) * 100) / 100;
@@ -2001,47 +1931,34 @@ function renderContracts(){
               const d = new Date(start); d.setMonth(d.getMonth() + months * (i + 1));
               const amount = (i === count - 1) ? Math.round((amountForRegularInstallments - accumulatedAmount) * 100) / 100 : baseAmount;
               accumulatedAmount += amount;
-              const installment = {id:uid('I'),unitId,type,amount,originalAmount:amount,dueDate:d.toISOString().slice(0,10),paymentDate:null,status:'غير مدفوع'};
-              itemsToCreate.installments.push(installment);
-              console.log('Created installment:', installment);
+              itemsToCreate.installments.push({id:uid('I'),unitId,type,amount,originalAmount:amount,dueDate:d.toISOString().slice(0,10),paymentDate:null,status:'غير مدفوع'});
             }
         }
         for(let j=0; j<extra; j++){
           const d = new Date(start); d.setMonth(d.getMonth() + 12 * (j + 1));
-          const installment = {id:uid('I'),unitId,type:'دفعة سنوية',amount:annualBonusValue,originalAmount:annualBonusValue,dueDate:d.toISOString().slice(0,10),paymentDate:null,status:'غير مدفوع'};
-          itemsToCreate.installments.push(installment);
-          console.log('Created annual installment:', installment);
+          itemsToCreate.installments.push({id:uid('I'),unitId,type:'دفعة سنوية',amount:annualBonusValue,originalAmount:annualBonusValue,dueDate:d.toISOString().slice(0,10),paymentDate:null,status:'غير مدفوع'});
         }
         if (ct.maintenanceDeposit > 0) {
             const allNewInstallments = itemsToCreate.installments;
             const lastInstallment = allNewInstallments.sort((a, b) => (b.dueDate || '').localeCompare(a.dueDate || ''))[0];
             const lastDate = new Date(lastInstallment ? lastInstallment.dueDate : startStr);
             lastDate.setMonth(lastDate.getMonth() + months);
-            const installment = {id:uid('I'),unitId,type:'دفعة صيانة',amount:ct.maintenanceDeposit,originalAmount:ct.maintenanceDeposit,dueDate:lastDate.toISOString().slice(0,10),paymentDate:null,status:'غير مدفوع'};
-            itemsToCreate.installments.push(installment);
-            console.log('Created maintenance installment:', installment);
+            itemsToCreate.installments.push({id:uid('I'),unitId,type:'دفعة صيانة',amount:ct.maintenanceDeposit,originalAmount:ct.maintenanceDeposit,dueDate:lastDate.toISOString().slice(0,10),paymentDate:null,status:'غير مدفوع'});
         }
-        
-        console.log('Total installments created:', itemsToCreate.installments.length);
     }
 
     const u=unitById(unitId); if(u) { u.status='مباعة'; itemsToUpdate.units.push(u); }
 
     // --- 3. Execute all API calls ---
     try {
-        console.log('Saving items to API...');
         for(const coll in itemsToCreate) {
-            console.log(`Saving ${itemsToCreate[coll].length} items to ${coll}`);
             for(const item of itemsToCreate[coll]) {
-                const result = await put(coll, item);
-                console.log(`Saved ${coll} item:`, result);
+                await put(coll, item);
             }
         }
         for(const coll in itemsToUpdate) {
-            console.log(`Updating ${itemsToUpdate[coll].length} items in ${coll}`);
             for(const item of itemsToUpdate[coll]) {
-                const result = await put(coll, item);
-                console.log(`Updated ${coll} item:`, result);
+                await put(coll, item);
             }
         }
 
@@ -2056,23 +1973,13 @@ function renderContracts(){
                 if (index !== -1) state[coll][index] = item;
             });
         }
-        
-        // تحقق من حفظ الأقساط في الحالة المحلية
-        const localInstallments = state.installments.filter(i => i.unitId === unitId);
-        console.log('Local installments count after save:', localInstallments.length);
-        
-        // إضافة persist() لضمان الحفظ
-        persist();
 
         logAction('إنشاء عقد جديد', { contractId: ct.id, unitId, customerId, price: total });
         
-        // تحقق من حفظ الأقساط
-        const savedInstallments = state.installments.filter(i => i.unitId === unitId);
-        console.log('Saved installments count:', savedInstallments.length);
-        
         let successMessage = "تم إنشاء العقد بنجاح.";
         if (paymentType === 'installment') {
-            successMessage += ` تم توليد ${localInstallments.length} قسط.`;
+            const installmentsCount = itemsToCreate.installments.length;
+            successMessage += ` تم توليد ${installmentsCount} قسط.`;
         }
         if (brokerAmt > 0) {
             successMessage += ` تم إضافة عمولة السمسار.`;
@@ -2081,40 +1988,8 @@ function renderContracts(){
             successMessage += ` تم إضافة المقدم.`;
         }
         
-        // تحقق إضافي من الأقساط
-        if (paymentType === 'installment' && localInstallments.length === 0) {
-            showNotification("تحذير: لم يتم توليد أي أقساط! يرجى مراجعة البيانات.", 'warning');
-        }
-        
         showNotification(successMessage, 'success');
         
-        // إعادة تحميل البيانات من الخادم للتأكد
-        setTimeout(async () => {
-            try {
-                const freshData = await loadStateFromAPI();
-                Object.keys(freshData).forEach(key => {
-                    if (freshData[key]) state[key] = freshData[key];
-                });
-                console.log('Data refreshed from server');
-                
-                // تحقق من الأقساط بعد إعادة التحميل
-                const refreshedInstallments = state.installments.filter(i => i.unitId === unitId);
-                console.log('Refreshed installments count:', refreshedInstallments.length);
-                
-                if (paymentType === 'installment' && refreshedInstallments.length > 0) {
-                    showNotification(`تم تأكيد حفظ ${refreshedInstallments.length} قسط بنجاح!`, 'success');
-                } else if (paymentType === 'installment' && refreshedInstallments.length === 0) {
-                    showNotification("تحذير: لم يتم العثور على أقساط بعد إعادة التحميل!", 'warning');
-                }
-                
-                // إعادة رسم الصفحة بعد التحديث
-                if (currentView === 'contracts') {
-                    renderContracts();
-                }
-            } catch (err) {
-                console.error('Failed to refresh data:', err);
-            }
-        }, 1000);
         
         nav('contracts'); // إعادة رسم صفحة العقود بدلاً من draw() المحلية
     } catch(err) {
