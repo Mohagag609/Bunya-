@@ -9,7 +9,9 @@ const OBJECT_STORES = [
     'brokers', 'partnerGroups', 'settings', 'keyval'
 ];
 
-const API_BASE_URL = 'http://localhost:8000/api';
+// Use a relative URL for the API base. This allows the frontend to work correctly
+// whether it's served locally or from a production environment like Render.
+const API_BASE_URL = '/api';
 
 /**
  * A helper function to handle fetch responses, check for errors, and parse JSON.
