@@ -10,6 +10,76 @@ let currentParam = null;
 /* ===== CORE APP INITIALIZATION ===== */
 document.addEventListener('DOMContentLoaded', initializeApp);
 
+/* ===== WEBSOCKET CONNECTION ===== */
+let socket = null;
+
+function initWebSocket() {
+    try {
+        // Connect to WebSocket server
+        socket = io();
+        
+        socket.on('connect', () => {
+            console.log('WebSocket connected:', socket.id);
+        });
+        
+        socket.on('disconnect', () => {
+            console.log('WebSocket disconnected');
+        });
+        
+        socket.on('sync_update', (data) => {
+            console.log('Sync update received:', data);
+            // Handle sync updates
+            handleSyncUpdate(data);
+        });
+        
+        socket.on('status', (data) => {
+            console.log('WebSocket status:', data);
+        });
+        
+    } catch (error) {
+        console.error('WebSocket connection failed:', error);
+    }
+}
+
+function handleSyncUpdate(data) {
+    // Handle sync updates from server
+    if (data.type === 'data_update') {
+        // Refresh data if needed
+        console.log('Data update received:', data.data);
+    }
+}
+
+function sendSyncRequest(data) {
+    if (socket && socket.connected) {
+        socket.emit('sync_request', data);
+    }
+}
+
+// API Sync function
+async function syncWithAPI(data) {
+    try {
+        const response = await fetch('/api/sync', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            console.log('Sync successful:', result);
+            return result;
+        } else {
+            console.error('Sync failed:', response.status, response.statusText);
+            return null;
+        }
+    } catch (error) {
+        console.error('Sync error:', error);
+        return null;
+    }
+}
+
 // Loading indicator functions
 function showLoadingIndicator() {
     // Quick check if already exists
@@ -109,6 +179,9 @@ async function initializeApp() {
     
     // تنظيف سريع
     cleanupBackgroundElements();
+    
+    // Initialize WebSocket
+    initWebSocket();
     
     // Register Service Worker
     if ('serviceWorker' in navigator) {

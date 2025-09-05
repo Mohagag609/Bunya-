@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Sync Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .log { background-color: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        button { padding: 10px 20px; margin: 5px; }
+        input, textarea { width: 100%; padding: 10px; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <h1>API Sync Test</h1>
+    
+    <div>
+        <label>Sync Type:</label>
+        <input type="text" id="syncType" value="test" placeholder="sync type">
+    </div>
+    
+    <div>
+        <label>Sync Data (JSON):</label>
+        <textarea id="syncData" rows="4" placeholder='{"message": "Hello from client"}'>{"message": "Hello from client", "timestamp": "2024-01-01"}</textarea>
+    </div>
+    
+    <div>
+        <button onclick="testSync()">Test POST /api/sync</button>
+        <button onclick="testHealth()">Test /health</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+    
+    <div id="log" class="log"></div>
+    
+    <script>
+        function log(message, isError = false) {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            const className = isError ? 'error' : 'success';
+            logDiv.innerHTML += `<div class="${className}">[${time}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        async function testSync() {
+            const syncType = document.getElementById('syncType').value;
+            const syncDataText = document.getElementById('syncData').value;
+            
+            let syncData;
+            try {
+                syncData = JSON.parse(syncDataText);
+            } catch (e) {
+                log('Invalid JSON in sync data: ' + e.message, true);
+                return;
+            }
+            
+            const payload = {
+                type: syncType,
+                data: syncData
+            };
+            
+            log('Sending sync request: ' + JSON.stringify(payload));
+            
+            try {
+                const response = await fetch('/api/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    log('Sync successful: ' + JSON.stringify(result));
+                } else {
+                    log('Sync failed: ' + response.status + ' ' + response.statusText, true);
+                    const errorText = await response.text();
+                    log('Error details: ' + errorText, true);
+                }
+            } catch (error) {
+                log('Sync error: ' + error.message, true);
+            }
+        }
+        
+        async function testHealth() {
+            log('Testing /health endpoint...');
+            
+            try {
+                const response = await fetch('/health');
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    log('Health check successful: ' + JSON.stringify(result));
+                } else {
+                    log('Health check failed: ' + response.status + ' ' + response.statusText, true);
+                }
+            } catch (error) {
+                log('Health check error: ' + error.message, true);
+            }
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+    </script>
+</body>
+</html>

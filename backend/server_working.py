@@ -1,7 +1,9 @@
 from flask import Flask, send_from_directory, jsonify, request
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit, join_room, leave_room
 import os
 import click
+from datetime import datetime
 
 # Import the db instance and the dictionary of models using a relative import
 from models import db, models
@@ -30,6 +32,9 @@ if 'RENDER' in os.environ:
         allowed_origins.append(service_url)
 
 CORS(app, origins=allowed_origins, methods=["GET", "PUT", "POST", "DELETE"], supports_credentials=True)
+
+# Initialize SocketIO
+socketio = SocketIO(app, cors_allowed_origins=allowed_origins, logger=True, engineio_logger=True)
 
 # --- Dynamic CRUD API Creation ---
 
@@ -126,6 +131,74 @@ def health_check():
             'error': str(e)
         }), 503
 
+# API Sync endpoint
+@app.route('/api/sync', methods=['POST'])
+def api_sync():
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        # Process sync data
+        sync_type = data.get('type', 'unknown')
+        sync_data = data.get('data', {})
+        
+        # Emit sync event to connected clients
+        socketio.emit('sync_update', {
+            'type': sync_type,
+            'data': sync_data,
+            'timestamp': str(datetime.now())
+        })
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Sync data processed',
+            'timestamp': str(datetime.now())
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e),
+            'timestamp': str(datetime.now())
+        }), 500
+
+# --- WebSocket Routes ---
+@app.route('/ws')
+def websocket_route():
+    return "WebSocket endpoint available at /socket.io/"
+
+# --- WebSocket Handlers ---
+@socketio.on('connect')
+def handle_connect():
+    print(f'Client connected: {request.sid}')
+    emit('status', {'msg': 'Connected to server'})
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print(f'Client disconnected: {request.sid}')
+
+@socketio.on('join_room')
+def handle_join_room(data):
+    room = data.get('room', 'default')
+    join_room(room)
+    emit('status', {'msg': f'Joined room: {room}'})
+
+@socketio.on('leave_room')
+def handle_leave_room(data):
+    room = data.get('room', 'default')
+    leave_room(room)
+    emit('status', {'msg': f'Left room: {room}'})
+
+@socketio.on('sync_request')
+def handle_sync_request(data):
+    # Handle sync request from client
+    emit('sync_response', {
+        'status': 'success',
+        'data': data,
+        'timestamp': str(datetime.now())
+    })
+
 # --- Static File Serving ---
 @app.route('/', defaults={'path': 'index.html'})
 @app.route('/<path:path>')
@@ -145,4 +218,27 @@ def init_db_command():
     click.echo("Initialized the database.")
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=8000)
+    with app.app_context():
+        # Create all tables
+        db.create_all()
+        
+        # Create default safe if none exists
+        try:
+            from models import Safe
+            if Safe.query.count() == 0:
+                default_safe = Safe(
+                    id='S-default',
+                    data={
+                        'name': 'الخزنة الرئيسية',
+                        'balance': 0,
+                        'description': 'الخزنة الافتراضية للنظام'
+                    }
+                )
+                db.session.add(default_safe)
+                db.session.commit()
+                print("Created default safe: الخزنة الرئيسية")
+        except Exception as e:
+            print(f"Error creating default safe: {e}")
+    
+    # Run with SocketIO
+    socketio.run(app, debug=True, host='0.0.0.0', port=8000)

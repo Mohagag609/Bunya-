@@ -2,7 +2,7 @@ services:
   - type: web
     name: estate-manager
     env: python
-    buildCommand: pip install -r backend/requirements_final.txt
+    buildCommand: pip install -r requirements-py311.txt
     startCommand: python backend/server_working.py
     healthCheckPath: /health
     envVars:
@@ -12,3 +12,5 @@ services:
           property: connectionString
       - key: PYTHON_VERSION
         value: 3.11.0
+      - key: FLASK_SOCKETIO_ASYNC_MODE
+        value: threading
