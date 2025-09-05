@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__, static_folder='..')
 
 # Database configuration
-DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://neondb_owner:npg_7NGtZKAk8BCU@ep-polished-glitter-adyad3gu-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require')
+DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///estate_manager.db')
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
