@@ -13,6 +13,7 @@ const OBJECT_STORES = [
 // This is a more robust way to ensure the frontend calls the correct backend,
 // especially in environments with complex proxying.
 // For local development, use port 8000 for the backend API
+// For production (Render), use the same origin
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
     ? `http://${window.location.hostname}:8000/api`
     : `${window.location.origin}/api`;
