@@ -46,13 +46,7 @@ async function handleResponse(response) {
  * @returns {Promise<Array<any>>} - A promise that resolves with an array of records.
  */
 function getAll(storeName) {
-    return fetch(`${API_BASE_URL}/${storeName}`, {
-        method: 'GET',
-        headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-        }
-    }).then(handleResponse);
+    return fetch(`${API_BASE_URL}/${storeName}`).then(handleResponse);
 }
 
 /**

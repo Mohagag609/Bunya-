@@ -3,19 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-<meta name="cache-control" content="no-cache">
-<meta name="expires" content="0">
-<meta name="pragma" content="no-cache">
+<meta http-equiv="Cache-Control" content="max-age=3600">
 <title>مدير الاستثمار العقاري — النسخة النهائية (محلي) — محدثة</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
 <script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style2026.css">
+<link rel="stylesheet" href="style.css">
 <style>
 /* CSS مباشر للتأكد من التطبيق */
 :root{
@@ -204,37 +199,6 @@ h1{font-size:24px;margin:0;font-weight:600;background:var(--brand);-webkit-backg
 </div>
 
 <script>
-// Force complete cache clearing
-(function() {
-    // Clear all caches
-    if ('caches' in window) {
-        caches.keys().then(function(names) {
-            names.forEach(function(name) {
-                caches.delete(name);
-            });
-        });
-    }
-    
-    // Force reload every time
-    const timestamp = new Date().getTime();
-    const currentUrl = window.location.href;
-    if (currentUrl.indexOf('?') === -1) {
-        window.location.href = currentUrl + '?t=' + timestamp;
-    }
-    
-    // Disable browser back/forward cache
-    window.addEventListener('pageshow', function(event) {
-        if (event.persisted) {
-            window.location.reload();
-        }
-    });
-    
-    // Force reload on focus
-    window.addEventListener('focus', function() {
-        window.location.reload();
-    });
-})();
-
 // Define OBJECT_STORES globally before any other scripts
 window.OBJECT_STORES = [
     'customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments',
@@ -243,7 +207,7 @@ window.OBJECT_STORES = [
 ];
 console.log('OBJECT_STORES defined:', window.OBJECT_STORES);
 </script>
-<script src="db.js?v=2026" onload="this.src=this.src.split('?')[0]+'?v='+Date.now()"></script>
-<script src="app.js?v=2026" defer onload="this.src=this.src.split('?')[0]+'?v='+Date.now()"></script>
+<script src="db.js"></script>
+<script src="app.js" defer></script>
 </body>
 </html>

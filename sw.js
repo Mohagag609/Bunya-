@@ -1,4 +1,4 @@
-const CACHE_NAME = 'estate-pro-cache-v' + Date.now(); // Dynamic cache name
+const CACHE_NAME = 'estate-pro-cache-v3'; // Static cache name
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -41,21 +41,21 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
     event.respondWith(
-        // Always fetch from network first, never use cache
-        fetch(event.request)
+        caches.match(event.request)
             .then((response) => {
-                // Update cache with fresh content
-                if (response.status === 200) {
-                    const responseClone = response.clone();
-                    caches.open(CACHE_NAME).then((cache) => {
-                        cache.put(event.request, responseClone);
-                    });
+                if (response) {
+                    return response; // Serve from cache
                 }
-                return response;
-            })
-            .catch(() => {
-                // Only use cache as fallback if network fails
-                return caches.match(event.request);
+                return fetch(event.request).then((response) => {
+                    // Update cache with fresh content
+                    if (response.status === 200) {
+                        const responseClone = response.clone();
+                        caches.open(CACHE_NAME).then((cache) => {
+                            cache.put(event.request, responseClone);
+                        });
+                    }
+                    return response;
+                });
             })
     );
 });
