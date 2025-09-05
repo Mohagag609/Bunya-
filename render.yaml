@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: estate-management
+    env: node
+    plan: free
+    buildCommand: npm install && npm run migrate
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DB_HOST
+        fromDatabase:
+          name: estate-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: estate-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: estate-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: estate-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: estate-db
+          property: password
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: https://estate-management.onrender.com
+
+databases:
+  - name: estate-db
+    plan: free
+    databaseName: estate_management
+    user: estate_user

@@ -4,12 +4,8 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Create database (run this separately)
--- CREATE DATABASE estate_management;
--- \c estate_management;
-
 -- Users table for authentication
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
@@ -22,7 +18,7 @@ CREATE TABLE users (
 );
 
 -- Customers table
-CREATE TABLE customers (
+CREATE TABLE IF NOT EXISTS customers (
     id VARCHAR(50) PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     phone VARCHAR(20),
@@ -35,7 +31,7 @@ CREATE TABLE customers (
 );
 
 -- Partners table
-CREATE TABLE partners (
+CREATE TABLE IF NOT EXISTS partners (
     id VARCHAR(50) PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     phone VARCHAR(20),
@@ -44,7 +40,7 @@ CREATE TABLE partners (
 );
 
 -- Partner Groups table
-CREATE TABLE partner_groups (
+CREATE TABLE IF NOT EXISTS partner_groups (
     id VARCHAR(50) PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -52,7 +48,7 @@ CREATE TABLE partner_groups (
 );
 
 -- Units table
-CREATE TABLE units (
+CREATE TABLE IF NOT EXISTS units (
     id VARCHAR(50) PRIMARY KEY,
     code VARCHAR(50) UNIQUE NOT NULL,
     name VARCHAR(100),
@@ -68,7 +64,7 @@ CREATE TABLE units (
 );
 
 -- Unit Partners relationship table
-CREATE TABLE unit_partners (
+CREATE TABLE IF NOT EXISTS unit_partners (
     id VARCHAR(50) PRIMARY KEY,
     unit_id VARCHAR(50) REFERENCES units(id) ON DELETE CASCADE,
     partner_id VARCHAR(50) REFERENCES partners(id) ON DELETE CASCADE,
@@ -78,7 +74,7 @@ CREATE TABLE unit_partners (
 );
 
 -- Contracts table
-CREATE TABLE contracts (
+CREATE TABLE IF NOT EXISTS contracts (
     id VARCHAR(50) PRIMARY KEY,
     code VARCHAR(50) UNIQUE NOT NULL,
     unit_id VARCHAR(50) REFERENCES units(id) ON DELETE CASCADE,
@@ -101,7 +97,7 @@ CREATE TABLE contracts (
 );
 
 -- Installments table
-CREATE TABLE installments (
+CREATE TABLE IF NOT EXISTS installments (
     id VARCHAR(50) PRIMARY KEY,
     contract_id VARCHAR(50) REFERENCES contracts(id) ON DELETE CASCADE,
     amount DECIMAL(15,2) NOT NULL,
@@ -114,7 +110,7 @@ CREATE TABLE installments (
 );
 
 -- Safes table
-CREATE TABLE safes (
+CREATE TABLE IF NOT EXISTS safes (
     id VARCHAR(50) PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     balance DECIMAL(15,2) DEFAULT 0,
@@ -123,7 +119,7 @@ CREATE TABLE safes (
 );
 
 -- Vouchers table
-CREATE TABLE vouchers (
+CREATE TABLE IF NOT EXISTS vouchers (
     id VARCHAR(50) PRIMARY KEY,
     type VARCHAR(20) NOT NULL CHECK (type IN ('receipt', 'payment')),
     date DATE NOT NULL,
@@ -132,13 +128,13 @@ CREATE TABLE vouchers (
     description TEXT,
     payer VARCHAR(100),
     beneficiary VARCHAR(100),
-    linked_ref VARCHAR(50), -- Reference to related entity (unit, contract, etc.)
+    linked_ref VARCHAR(50),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Transfers table
-CREATE TABLE transfers (
+CREATE TABLE IF NOT EXISTS transfers (
     id VARCHAR(50) PRIMARY KEY,
     from_safe_id VARCHAR(50) REFERENCES safes(id) ON DELETE SET NULL,
     to_safe_id VARCHAR(50) REFERENCES safes(id) ON DELETE SET NULL,
@@ -150,7 +146,7 @@ CREATE TABLE transfers (
 );
 
 -- Partner Debts table
-CREATE TABLE partner_debts (
+CREATE TABLE IF NOT EXISTS partner_debts (
     id VARCHAR(50) PRIMARY KEY,
     partner_id VARCHAR(50) REFERENCES partners(id) ON DELETE CASCADE,
     amount DECIMAL(15,2) NOT NULL,
@@ -161,7 +157,7 @@ CREATE TABLE partner_debts (
 );
 
 -- Brokers table
-CREATE TABLE brokers (
+CREATE TABLE IF NOT EXISTS brokers (
     id VARCHAR(50) PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     phone VARCHAR(20),
@@ -171,7 +167,7 @@ CREATE TABLE brokers (
 );
 
 -- Broker Dues table
-CREATE TABLE broker_dues (
+CREATE TABLE IF NOT EXISTS broker_dues (
     id VARCHAR(50) PRIMARY KEY,
     broker_id VARCHAR(50) REFERENCES brokers(id) ON DELETE CASCADE,
     amount DECIMAL(15,2) NOT NULL,
@@ -182,7 +178,7 @@ CREATE TABLE broker_dues (
 );
 
 -- Audit Log table
-CREATE TABLE audit_log (
+CREATE TABLE IF NOT EXISTS audit_log (
     id VARCHAR(50) PRIMARY KEY,
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     action VARCHAR(100) NOT NULL,
@@ -192,7 +188,7 @@ CREATE TABLE audit_log (
 );
 
 -- Settings table
-CREATE TABLE settings (
+CREATE TABLE IF NOT EXISTS settings (
     key VARCHAR(100) PRIMARY KEY,
     value JSONB NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -200,19 +196,19 @@ CREATE TABLE settings (
 );
 
 -- Create indexes for better performance
-CREATE INDEX idx_customers_name ON customers(name);
-CREATE INDEX idx_customers_phone ON customers(phone);
-CREATE INDEX idx_customers_national_id ON customers(national_id);
-CREATE INDEX idx_units_code ON units(code);
-CREATE INDEX idx_units_status ON units(status);
-CREATE INDEX idx_contracts_customer_id ON contracts(customer_id);
-CREATE INDEX idx_contracts_unit_id ON contracts(unit_id);
-CREATE INDEX idx_installments_contract_id ON installments(contract_id);
-CREATE INDEX idx_installments_due_date ON installments(due_date);
-CREATE INDEX idx_vouchers_date ON vouchers(date);
-CREATE INDEX idx_vouchers_type ON vouchers(type);
-CREATE INDEX idx_audit_log_timestamp ON audit_log(timestamp);
-CREATE INDEX idx_audit_log_user_id ON audit_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name);
+CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
+CREATE INDEX IF NOT EXISTS idx_customers_national_id ON customers(national_id);
+CREATE INDEX IF NOT EXISTS idx_units_code ON units(code);
+CREATE INDEX IF NOT EXISTS idx_units_status ON units(status);
+CREATE INDEX IF NOT EXISTS idx_contracts_customer_id ON contracts(customer_id);
+CREATE INDEX IF NOT EXISTS idx_contracts_unit_id ON contracts(unit_id);
+CREATE INDEX IF NOT EXISTS idx_installments_contract_id ON installments(contract_id);
+CREATE INDEX IF NOT EXISTS idx_installments_due_date ON installments(due_date);
+CREATE INDEX IF NOT EXISTS idx_vouchers_date ON vouchers(date);
+CREATE INDEX IF NOT EXISTS idx_vouchers_type ON vouchers(type);
+CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log(timestamp);
+CREATE INDEX IF NOT EXISTS idx_audit_log_user_id ON audit_log(user_id);
 
 -- Create triggers for updated_at timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -224,17 +220,75 @@ END;
 $$ language 'plpgsql';
 
 -- Apply triggers to all tables with updated_at column
-CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_customers_updated_at BEFORE UPDATE ON customers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_partners_updated_at BEFORE UPDATE ON partners FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_partner_groups_updated_at BEFORE UPDATE ON partner_groups FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_units_updated_at BEFORE UPDATE ON units FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_contracts_updated_at BEFORE UPDATE ON contracts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_installments_updated_at BEFORE UPDATE ON installments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_safes_updated_at BEFORE UPDATE ON safes FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_vouchers_updated_at BEFORE UPDATE ON vouchers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_transfers_updated_at BEFORE UPDATE ON transfers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_partner_debts_updated_at BEFORE UPDATE ON partner_debts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_brokers_updated_at BEFORE UPDATE ON brokers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_broker_dues_updated_at BEFORE UPDATE ON broker_dues FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_settings_updated_at BEFORE UPDATE ON settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DO $$
+BEGIN
+    -- Users trigger
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_users_updated_at') THEN
+        CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    
+    -- Customers trigger
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_customers_updated_at') THEN
+        CREATE TRIGGER update_customers_updated_at BEFORE UPDATE ON customers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    
+    -- Partners trigger
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_partners_updated_at') THEN
+        CREATE TRIGGER update_partners_updated_at BEFORE UPDATE ON partners FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    
+    -- Partner Groups trigger
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_partner_groups_updated_at') THEN
+        CREATE TRIGGER update_partner_groups_updated_at BEFORE UPDATE ON partner_groups FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    
+    -- Units trigger
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_units_updated_at') THEN
+        CREATE TRIGGER update_units_updated_at BEFORE UPDATE ON units FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    
+    -- Contracts trigger
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_contracts_updated_at') THEN
+        CREATE TRIGGER update_contracts_updated_at BEFORE UPDATE ON contracts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    
+    -- Installments trigger
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_installments_updated_at') THEN
+        CREATE TRIGGER update_installments_updated_at BEFORE UPDATE ON installments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    
+    -- Safes trigger
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_safes_updated_at') THEN
+        CREATE TRIGGER update_safes_updated_at BEFORE UPDATE ON safes FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    
+    -- Vouchers trigger
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_vouchers_updated_at') THEN
+        CREATE TRIGGER update_vouchers_updated_at BEFORE UPDATE ON vouchers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    
+    -- Transfers trigger
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_transfers_updated_at') THEN
+        CREATE TRIGGER update_transfers_updated_at BEFORE UPDATE ON transfers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    
+    -- Partner Debts trigger
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_partner_debts_updated_at') THEN
+        CREATE TRIGGER update_partner_debts_updated_at BEFORE UPDATE ON partner_debts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    
+    -- Brokers trigger
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_brokers_updated_at') THEN
+        CREATE TRIGGER update_brokers_updated_at BEFORE UPDATE ON brokers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    
+    -- Broker Dues trigger
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_broker_dues_updated_at') THEN
+        CREATE TRIGGER update_broker_dues_updated_at BEFORE UPDATE ON broker_dues FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    
+    -- Settings trigger
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_settings_updated_at') THEN
+        CREATE TRIGGER update_settings_updated_at BEFORE UPDATE ON settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+END $$;

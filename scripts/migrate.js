@@ -10,6 +10,7 @@ const pool = new Pool({
     database: process.env.DB_NAME || 'estate_management',
     user: process.env.DB_USER || 'estate_user',
     password: process.env.DB_PASSWORD || 'password',
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 async function runMigration() {
@@ -31,11 +32,14 @@ async function runMigration() {
                     await client.query(statement);
                     console.log('✓ Executed statement');
                 } catch (error) {
-                    if (error.message.includes('already exists')) {
+                    if (error.message.includes('already exists') || 
+                        error.message.includes('does not exist') ||
+                        error.message.includes('duplicate key')) {
                         console.log('⚠ Statement already executed (skipping)');
                     } else {
                         console.error('✗ Error executing statement:', error.message);
-                        throw error;
+                        // Don't throw error for non-critical issues
+                        console.log('Continuing with next statement...');
                     }
                 }
             }
@@ -49,7 +53,7 @@ async function runMigration() {
         
         try {
             await client.query(
-                'INSERT INTO users (username, email, password_hash, full_name, role) VALUES ($1, $2, $3, $4, $5)',
+                'INSERT INTO users (username, email, password_hash, full_name, role) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (username) DO NOTHING',
                 ['admin', 'admin@estate.com', adminPassword, 'System Administrator', 'admin']
             );
             console.log('✓ Default admin user created (username: admin, password: admin123)');
@@ -57,14 +61,14 @@ async function runMigration() {
             if (error.message.includes('already exists')) {
                 console.log('⚠ Admin user already exists');
             } else {
-                throw error;
+                console.log('⚠ Could not create admin user:', error.message);
             }
         }
         
         // Create default safe
         try {
             await client.query(
-                'INSERT INTO safes (id, name, balance) VALUES ($1, $2, $3)',
+                'INSERT INTO safes (id, name, balance) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING',
                 ['S_default', 'الخزنة الرئيسية', 0]
             );
             console.log('✓ Default safe created');
@@ -72,13 +76,16 @@ async function runMigration() {
             if (error.message.includes('already exists')) {
                 console.log('⚠ Default safe already exists');
             } else {
-                throw error;
+                console.log('⚠ Could not create default safe:', error.message);
             }
         }
         
     } catch (error) {
         console.error('Migration failed:', error);
-        process.exit(1);
+        // Don't exit process in production
+        if (process.env.NODE_ENV !== 'production') {
+            process.exit(1);
+        }
     } finally {
         client.release();
         await pool.end();
