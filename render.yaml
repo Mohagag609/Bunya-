@@ -12,7 +12,7 @@ services:
       python server.py
     envVars:
       - key: DATABASE_URL
-        value: postgresql://neondb_owner:npg_7NGtZKAk8BCU@ep-polished-glitter-adyad3gu-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+        value: postgresql://neondb_owner:npg_mCShrFRbkc16@ep-small-salad-ad85fh4s-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
       - key: FLASK_ENV
         value: production
       - key: FLASK_DEBUG

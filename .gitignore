@@ -132,6 +132,7 @@ temp/
 *.db
 *.sqlite
 *.sqlite3
+estate_manager.db
 
 # Backup files
 *.bak

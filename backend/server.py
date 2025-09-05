@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__, static_folder='..')
 
 # Database configuration
-DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://neondb_owner:npg_7NGtZKAk8BCU@ep-polished-glitter-adyad3gu-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require')
+DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://neondb_owner:npg_mCShrFRbkc16@ep-small-salad-ad85fh4s-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require')
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
@@ -121,7 +121,7 @@ def create_crud_routes(app, model_name, model_class):
     """Create CRUD routes for a model"""
     pk_name = db.inspect(model_class).primary_key[0].name
     
-    @app.route(f'/api/{model_name}', methods=['GET'])
+    @app.route(f'/api/{model_name}', methods=['GET'], endpoint=f'{model_name}_get_all')
     def get_all():
         try:
             items = model_class.query.all()
@@ -130,7 +130,7 @@ def create_crud_routes(app, model_name, model_class):
             logger.error(f"Error fetching {model_name}: {e}")
             raise APIError(f"Failed to fetch {model_name}", 500)
     
-    @app.route(f'/api/{model_name}/<item_id>', methods=['GET'])
+    @app.route(f'/api/{model_name}/<item_id>', methods=['GET'], endpoint=f'{model_name}_get_one')
     def get_one(item_id):
         try:
             item = model_class.query.get(item_id)
@@ -143,7 +143,7 @@ def create_crud_routes(app, model_name, model_class):
             logger.error(f"Error fetching {model_name} {item_id}: {e}")
             raise APIError(f"Failed to fetch {model_name}", 500)
     
-    @app.route(f'/api/{model_name}/<item_id>', methods=['PUT'])
+    @app.route(f'/api/{model_name}/<item_id>', methods=['PUT'], endpoint=f'{model_name}_upsert')
     def upsert(item_id):
         try:
             data = request.get_json()
@@ -183,7 +183,7 @@ def create_crud_routes(app, model_name, model_class):
             logger.error(f"Error upserting {model_name} {item_id}: {e}")
             raise APIError(f"Failed to save {model_name}", 500)
     
-    @app.route(f'/api/{model_name}/<item_id>', methods=['DELETE'])
+    @app.route(f'/api/{model_name}/<item_id>', methods=['DELETE'], endpoint=f'{model_name}_delete')
     def delete(item_id):
         try:
             item = model_class.query.get(item_id)
@@ -206,15 +206,19 @@ def create_crud_routes(app, model_name, model_class):
 # Register all model routes
 with app.app_context():
     for name, model_cls in models.items():
-        create_crud_routes(app, name, model_cls)
-        logger.info(f"Registered CRUD endpoints for: /api/{name}")
+        try:
+            create_crud_routes(app, name, model_cls)
+            logger.info(f"Registered CRUD endpoints for: /api/{name}")
+        except Exception as e:
+            logger.error(f"Failed to register routes for {name}: {e}")
 
 # Health check endpoint
 @app.route('/api/health', methods=['GET'])
 def health_check():
     try:
         # Test database connection
-        db.session.execute('SELECT 1')
+        from sqlalchemy import text
+        db.session.execute(text('SELECT 1'))
         return jsonify({
             'status': 'healthy',
             'timestamp': datetime.utcnow().isoformat(),
