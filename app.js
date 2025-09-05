@@ -76,6 +76,16 @@ function cleanupBackgroundElements() {
             }
         }
     });
+    
+    // Force cleanup of any remaining background elements
+    const allElements = document.querySelectorAll('*');
+    allElements.forEach(element => {
+        const style = window.getComputedStyle(element);
+        if (style.position === 'fixed' && style.zIndex === '-1') {
+            element.style.position = 'absolute';
+            element.style.zIndex = '0';
+        }
+    });
 }
 
 async function initializeApp() {
@@ -1459,6 +1469,11 @@ function nav(id, param = null){
   // Clean up any background elements first
   cleanupBackgroundElements();
   
+  // Force cleanup of background elements
+  setTimeout(() => {
+    cleanupBackgroundElements();
+  }, 100);
+  
   currentView = id; currentParam = param;
   const route = routes.find(x=>x.id===id); if(!route) return;
 
@@ -1468,6 +1483,12 @@ function nav(id, param = null){
   }
 
   route.render(param);
+  
+  // Final cleanup after rendering
+  setTimeout(() => {
+    cleanupBackgroundElements();
+  }, 200);
+  
   // htmx.process(view); // HTMX processing is now handled via attributes on tabs
 }
 
