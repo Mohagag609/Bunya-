@@ -11,8 +11,7 @@ echo "📋 التحقق من الملفات المطلوبة..."
 
 required_files=(
     "index.html"
-    "app-sql-complete.js"
-    "sql-db-complete.js"
+    "app-sql-simple.js"
     "style.css"
     "manifest.json"
     "sw.js"

@@ -46,7 +46,7 @@ git push -u origin main
 ## التقنيات المستخدمة 🛠️
 
 - **Frontend**: HTML5, CSS3, JavaScript (ES6+)
-- **Database**: SQLite مع SQL.js
+- **Database**: localStorage (مؤقتاً)
 - **Charts**: Chart.js
 - **Export**: XLSX.js للتصدير
 - **PWA**: Service Worker للعمل بدون إنترنت
@@ -55,8 +55,7 @@ git push -u origin main
 
 ```
 ├── index.html              # الصفحة الرئيسية
-├── app-sql-complete.js    # التطبيق الرئيسي مع SQL
-├── sql-db-complete.js     # مكتبة قاعدة البيانات
+├── app-sql-simple.js      # التطبيق الرئيسي مع localStorage
 ├── style.css              # التصميم
 ├── manifest.json          # PWA manifest
 ├── sw.js                  # Service Worker

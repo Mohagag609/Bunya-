@@ -1,4 +1,4 @@
-// Complete SQL Database Operations for Real Estate Management System
+// Fixed SQL Database Operations for Real Estate Management System
 // Uses SQL.js for client-side SQLite
 
 let db = null;
@@ -7,59 +7,56 @@ let SQL = null;
 // Initialize SQLite database
 async function initSQLite() {
     return new Promise((resolve, reject) => {
-        try {
-            // Check if SQL.js is already loaded
-            if (typeof window !== 'undefined' && window.SQL) {
-                SQL = window.SQL;
-                initializeDB();
-            } else {
-                // Load SQL.js from CDN
-                const script = document.createElement('script');
-                script.src = 'https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js';
-                script.onload = () => {
+        // Check if SQL.js is already loaded
+        if (typeof window !== 'undefined' && window.SQL) {
+            SQL = window.SQL;
+            initializeDB();
+        } else {
+            // Wait for SQL.js to load from the script tag in HTML
+            const checkSQL = setInterval(() => {
+                if (typeof window !== 'undefined' && window.SQL) {
+                    clearInterval(checkSQL);
                     SQL = window.SQL;
                     initializeDB();
-                };
-                script.onerror = (error) => {
-                    console.error('Failed to load SQL.js:', error);
-                    reject(error);
-                };
-                document.head.appendChild(script);
-            }
-            
-            function initializeDB() {
-                try {
-                    // Initialize SQL.js
-                    const initSqlJs = SQL;
-                    
-                    if (typeof initSqlJs !== 'function') {
-                        throw new Error('SQL.js not loaded properly');
-                    }
-                    
-                    initSqlJs({
-                        // You can load the wasm file from a CDN
-                        locateFile: file => `https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/${file}`
-                    }).then(SQL => {
-                        // Create a new database
-                        db = new SQL.Database();
-                        
-                        // Load schema
-                        loadSchema();
-                        
-                        // Load existing data from localStorage if available
-                        loadExistingData();
-                        
-                        console.log('SQLite database initialized successfully');
-                        resolve(db);
-                    }).catch(reject);
-                } catch (error) {
-                    console.error('Failed to initialize SQL.js:', error);
-                    reject(error);
                 }
+            }, 100);
+            
+            // Timeout after 10 seconds
+            setTimeout(() => {
+                clearInterval(checkSQL);
+                reject(new Error('SQL.js failed to load within 10 seconds'));
+            }, 10000);
+        }
+        
+        function initializeDB() {
+            try {
+                // Initialize SQL.js
+                const initSqlJs = SQL;
+                
+                if (typeof initSqlJs !== 'function') {
+                    throw new Error('SQL.js not loaded properly');
+                }
+                
+                initSqlJs({
+                    // You can load the wasm file from a CDN
+                    locateFile: file => `https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/${file}`
+                }).then(SQL => {
+                    // Create a new database
+                    db = new SQL.Database();
+                    
+                    // Load schema
+                    loadSchema();
+                    
+                    // Load existing data from localStorage if available
+                    loadExistingData();
+                    
+                    console.log('SQLite database initialized successfully');
+                    resolve(db);
+                }).catch(reject);
+            } catch (error) {
+                console.error('Failed to initialize SQL.js:', error);
+                reject(error);
             }
-        } catch (error) {
-            console.error('Failed to initialize SQLite:', error);
-            reject(error);
         }
     });
 }
@@ -68,228 +65,204 @@ function loadSchema() {
     if (!db) return;
     
     const schema = `
-    -- Real Estate Management System Database Schema
-    PRAGMA foreign_keys = ON;
-
-    -- Settings table (key-value store)
-    CREATE TABLE IF NOT EXISTS settings (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL
-    );
-
-    -- Customers table
-    CREATE TABLE IF NOT EXISTS customers (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        phone TEXT,
-        national_id TEXT,
-        address TEXT,
-        status TEXT DEFAULT 'نشط',
-        notes TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    -- Partners table
-    CREATE TABLE IF NOT EXISTS partners (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        phone TEXT,
-        national_id TEXT,
-        address TEXT,
-        notes TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    -- Partner Groups table
-    CREATE TABLE IF NOT EXISTS partner_groups (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        description TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    -- Partner Group Members table
-    CREATE TABLE IF NOT EXISTS partner_group_members (
-        id TEXT PRIMARY KEY,
-        group_id TEXT NOT NULL,
-        partner_id TEXT NOT NULL,
-        percent DECIMAL(5,2) NOT NULL DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (group_id) REFERENCES partner_groups(id) ON DELETE CASCADE,
-        FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE CASCADE,
-        UNIQUE(group_id, partner_id)
-    );
-
-    -- Brokers table
-    CREATE TABLE IF NOT EXISTS brokers (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        phone TEXT,
-        notes TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    -- Units table
-    CREATE TABLE IF NOT EXISTS units (
-        id TEXT PRIMARY KEY,
-        code TEXT UNIQUE NOT NULL,
-        name TEXT,
-        status TEXT DEFAULT 'متاحة',
-        area DECIMAL(10,2),
-        floor TEXT,
-        building TEXT,
-        total_price DECIMAL(15,2) NOT NULL DEFAULT 0,
-        unit_type TEXT,
-        notes TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    -- Unit Partners table
-    CREATE TABLE IF NOT EXISTS unit_partners (
-        id TEXT PRIMARY KEY,
-        unit_id TEXT NOT NULL,
-        partner_id TEXT NOT NULL,
-        percent DECIMAL(5,2) NOT NULL DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE CASCADE,
-        FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE CASCADE,
-        UNIQUE(unit_id, partner_id)
-    );
-
-    -- Contracts table
-    CREATE TABLE IF NOT EXISTS contracts (
-        id TEXT PRIMARY KEY,
-        code TEXT UNIQUE NOT NULL,
-        unit_id TEXT NOT NULL,
-        customer_id TEXT NOT NULL,
-        total_price DECIMAL(15,2) NOT NULL,
-        down_payment DECIMAL(15,2) DEFAULT 0,
-        discount_amount DECIMAL(15,2) DEFAULT 0,
-        maintenance_deposit DECIMAL(15,2) DEFAULT 0,
-        broker_name TEXT,
-        broker_percent DECIMAL(5,2) DEFAULT 0,
-        broker_amount DECIMAL(15,2) DEFAULT 0,
-        commission_safe_id TEXT,
-        type TEXT NOT NULL,
-        count INTEGER DEFAULT 0,
-        extra_annual INTEGER DEFAULT 0,
-        annual_payment_value DECIMAL(15,2) DEFAULT 0,
-        start_date DATE NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    -- Installments table
-    CREATE TABLE IF NOT EXISTS installments (
-        id TEXT PRIMARY KEY,
-        unit_id TEXT NOT NULL,
-        type TEXT NOT NULL,
-        amount DECIMAL(15,2) NOT NULL,
-        original_amount DECIMAL(15,2) NOT NULL,
-        due_date DATE,
-        payment_date DATE,
-        status TEXT DEFAULT 'غير مدفوع',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    -- Safes table
-    CREATE TABLE IF NOT EXISTS safes (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        balance DECIMAL(15,2) DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    -- Vouchers table
-    CREATE TABLE IF NOT EXISTS vouchers (
-        id TEXT PRIMARY KEY,
-        type TEXT NOT NULL,
-        date DATE NOT NULL,
-        amount DECIMAL(15,2) NOT NULL,
-        safe_id TEXT NOT NULL,
-        description TEXT,
-        payer TEXT,
-        beneficiary TEXT,
-        linked_ref TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    -- Broker Dues table
-    CREATE TABLE IF NOT EXISTS broker_dues (
-        id TEXT PRIMARY KEY,
-        contract_id TEXT NOT NULL,
-        broker_name TEXT NOT NULL,
-        amount DECIMAL(15,2) NOT NULL,
-        due_date DATE NOT NULL,
-        status TEXT DEFAULT 'due',
-        payment_date DATE,
-        paid_from_safe_id TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    -- Partner Debts table
-    CREATE TABLE IF NOT EXISTS partner_debts (
-        id TEXT PRIMARY KEY,
-        partner_id TEXT NOT NULL,
-        amount DECIMAL(15,2) NOT NULL,
-        due_date DATE NOT NULL,
-        status TEXT DEFAULT 'due',
-        payment_date DATE,
-        notes TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    -- Transfers table
-    CREATE TABLE IF NOT EXISTS transfers (
-        id TEXT PRIMARY KEY,
-        from_safe_id TEXT NOT NULL,
-        to_safe_id TEXT NOT NULL,
-        amount DECIMAL(15,2) NOT NULL,
-        date DATE NOT NULL,
-        description TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    -- Audit Log table
-    CREATE TABLE IF NOT EXISTS audit_log (
-        id TEXT PRIMARY KEY,
-        timestamp DATETIME NOT NULL,
-        description TEXT NOT NULL,
-        details TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    -- Key-Value store
-    CREATE TABLE IF NOT EXISTS keyval (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL
-    );
-
-    -- Indexes
-    CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name);
-    CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
-    CREATE INDEX IF NOT EXISTS idx_partners_name ON partners(name);
-    CREATE INDEX IF NOT EXISTS idx_units_code ON units(code);
-    CREATE INDEX IF NOT EXISTS idx_units_status ON units(status);
-    CREATE INDEX IF NOT EXISTS idx_contracts_unit_id ON contracts(unit_id);
-    CREATE INDEX IF NOT EXISTS idx_contracts_customer_id ON contracts(customer_id);
-    CREATE INDEX IF NOT EXISTS idx_installments_unit_id ON installments(unit_id);
-    CREATE INDEX IF NOT EXISTS idx_installments_due_date ON installments(due_date);
-    CREATE INDEX IF NOT EXISTS idx_installments_status ON installments(status);
-    CREATE INDEX IF NOT EXISTS idx_vouchers_date ON vouchers(date);
-    CREATE INDEX IF NOT EXISTS idx_vouchers_type ON vouchers(type);
-    CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log(timestamp);
+        -- Real Estate Management System Database Schema
+        PRAGMA foreign_keys = ON;
+        
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+        
+        CREATE TABLE IF NOT EXISTS customers (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            phone TEXT,
+            national_id TEXT,
+            address TEXT,
+            status TEXT DEFAULT 'نشط',
+            notes TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE TABLE IF NOT EXISTS partners (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            phone TEXT,
+            national_id TEXT,
+            address TEXT,
+            notes TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE TABLE IF NOT EXISTS partner_groups (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE TABLE IF NOT EXISTS partner_group_members (
+            id TEXT PRIMARY KEY,
+            group_id TEXT NOT NULL,
+            partner_id TEXT NOT NULL,
+            percent DECIMAL(5,2) NOT NULL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (group_id) REFERENCES partner_groups(id) ON DELETE CASCADE,
+            FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE CASCADE,
+            UNIQUE(group_id, partner_id)
+        );
+        
+        CREATE TABLE IF NOT EXISTS brokers (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            phone TEXT,
+            notes TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE TABLE IF NOT EXISTS units (
+            id TEXT PRIMARY KEY,
+            code TEXT UNIQUE NOT NULL,
+            name TEXT,
+            status TEXT DEFAULT 'متاحة',
+            area DECIMAL(10,2),
+            floor TEXT,
+            building TEXT,
+            total_price DECIMAL(15,2) NOT NULL DEFAULT 0,
+            unit_type TEXT,
+            notes TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE TABLE IF NOT EXISTS unit_partners (
+            id TEXT PRIMARY KEY,
+            unit_id TEXT NOT NULL,
+            partner_id TEXT NOT NULL,
+            percent DECIMAL(5,2) NOT NULL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE CASCADE,
+            FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE CASCADE,
+            UNIQUE(unit_id, partner_id)
+        );
+        
+        CREATE TABLE IF NOT EXISTS contracts (
+            id TEXT PRIMARY KEY,
+            code TEXT UNIQUE NOT NULL,
+            unit_id TEXT NOT NULL,
+            customer_id TEXT NOT NULL,
+            total_price DECIMAL(15,2) NOT NULL,
+            down_payment DECIMAL(15,2) DEFAULT 0,
+            discount_amount DECIMAL(15,2) DEFAULT 0,
+            maintenance_deposit DECIMAL(15,2) DEFAULT 0,
+            broker_name TEXT,
+            broker_percent DECIMAL(5,2) DEFAULT 0,
+            broker_amount DECIMAL(15,2) DEFAULT 0,
+            commission_safe_id TEXT,
+            type TEXT NOT NULL,
+            count INTEGER DEFAULT 0,
+            extra_annual INTEGER DEFAULT 0,
+            annual_payment_value DECIMAL(15,2) DEFAULT 0,
+            start_date DATE NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE TABLE IF NOT EXISTS installments (
+            id TEXT PRIMARY KEY,
+            unit_id TEXT NOT NULL,
+            type TEXT NOT NULL,
+            amount DECIMAL(15,2) NOT NULL,
+            original_amount DECIMAL(15,2) NOT NULL,
+            due_date DATE,
+            payment_date DATE,
+            status TEXT DEFAULT 'غير مدفوع',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE TABLE IF NOT EXISTS safes (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            balance DECIMAL(15,2) DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE TABLE IF NOT EXISTS vouchers (
+            id TEXT PRIMARY KEY,
+            type TEXT NOT NULL,
+            date DATE NOT NULL,
+            amount DECIMAL(15,2) NOT NULL,
+            safe_id TEXT NOT NULL,
+            description TEXT,
+            payer TEXT,
+            beneficiary TEXT,
+            linked_ref TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE TABLE IF NOT EXISTS broker_dues (
+            id TEXT PRIMARY KEY,
+            contract_id TEXT NOT NULL,
+            broker_name TEXT NOT NULL,
+            amount DECIMAL(15,2) NOT NULL,
+            due_date DATE NOT NULL,
+            status TEXT DEFAULT 'due',
+            payment_date DATE,
+            paid_from_safe_id TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE TABLE IF NOT EXISTS partner_debts (
+            id TEXT PRIMARY KEY,
+            partner_id TEXT NOT NULL,
+            amount DECIMAL(15,2) NOT NULL,
+            due_date DATE NOT NULL,
+            status TEXT DEFAULT 'due',
+            payment_date DATE,
+            notes TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE TABLE IF NOT EXISTS transfers (
+            id TEXT PRIMARY KEY,
+            from_safe_id TEXT NOT NULL,
+            to_safe_id TEXT NOT NULL,
+            amount DECIMAL(15,2) NOT NULL,
+            date DATE NOT NULL,
+            description TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id TEXT PRIMARY KEY,
+            timestamp DATETIME NOT NULL,
+            description TEXT NOT NULL,
+            details TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE TABLE IF NOT EXISTS keyval (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+        
+        -- Insert default data
+        INSERT OR IGNORE INTO safes (id, name, balance) VALUES ('S-default', 'الخزنة الرئيسية', 0);
+        INSERT OR IGNORE INTO settings (key, value) VALUES 
+            ('theme', 'dark'),
+            ('font', '16'),
+            ('pass', NULL),
+            ('migrationComplete', 'true');
     `;
     
     try {
