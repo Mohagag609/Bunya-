@@ -453,12 +453,41 @@ function renderCustomers(container) {
     container.innerHTML = `
         <div class="page-header">
             <h1>العملاء</h1>
-            <button class="btn btn-primary" id="add-customer-btn">+ إضافة عميل</button>
         </div>
         <div class="page-content">
+            <!-- Add Customer Form -->
+            <div class="card" style="margin-bottom: 20px;">
+                <h3>إضافة عميل جديد</h3>
+                <form id="customer-form" class="form-grid">
+                    <div class="form-field">
+                        <label>الاسم</label>
+                        <input type="text" id="customer-name" required>
+                    </div>
+                    <div class="form-field">
+                        <label>الهاتف</label>
+                        <input type="tel" id="customer-phone">
+                    </div>
+                    <div class="form-field">
+                        <label>البريد الإلكتروني</label>
+                        <input type="email" id="customer-email">
+                    </div>
+                    <div class="form-field">
+                        <label>العنوان</label>
+                        <textarea id="customer-address"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">حفظ العميل</button>
+                        <button type="button" class="btn btn-secondary" onclick="clearCustomerForm()">مسح</button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Search and Filters -->
             <div class="filters">
                 <input type="text" id="customer-search" placeholder="البحث في العملاء..." class="form-control">
             </div>
+            
+            <!-- Customers Table -->
             <div id="customers-table">
                 <div class="table-container">
                     <table class="table">
@@ -467,6 +496,7 @@ function renderCustomers(container) {
                                 <th>الاسم</th>
                                 <th>الهاتف</th>
                                 <th>البريد الإلكتروني</th>
+                                <th>العنوان</th>
                                 <th>الإجراءات</th>
                             </tr>
                         </thead>
@@ -476,9 +506,10 @@ function renderCustomers(container) {
                                     <td>${customer.name || 'غير محدد'}</td>
                                     <td>${customer.phone || 'غير محدد'}</td>
                                     <td>${customer.email || 'غير محدد'}</td>
+                                    <td>${customer.address || 'غير محدد'}</td>
                                     <td>
-                                        <button class="btn-edit" data-type="عميل" data-id="${customer.id || Math.random()}">تعديل</button>
-                                        <button class="btn-delete" data-type="عميل" data-id="${customer.id || Math.random()}">حذف</button>
+                                        <button class="btn btn-sm btn-primary" onclick="editCustomer('${customer.id || Math.random()}')">تعديل</button>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteCustomer('${customer.id || Math.random()}')">حذف</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -494,9 +525,50 @@ function renderUnits(container) {
     container.innerHTML = `
         <div class="page-header">
             <h1>الوحدات</h1>
-            <button class="btn btn-primary" id="add-unit-btn">+ إضافة وحدة</button>
         </div>
         <div class="page-content">
+            <!-- Add Unit Form -->
+            <div class="card" style="margin-bottom: 20px;">
+                <h3>إضافة وحدة جديدة</h3>
+                <form id="unit-form" class="form-grid">
+                    <div class="form-field">
+                        <label>رقم الوحدة</label>
+                        <input type="text" id="unit-number" required>
+                    </div>
+                    <div class="form-field">
+                        <label>النوع</label>
+                        <select id="unit-type" required>
+                            <option value="">اختر النوع</option>
+                            <option value="شقة">شقة</option>
+                            <option value="فيلا">فيلا</option>
+                            <option value="محل">محل</option>
+                            <option value="مكتب">مكتب</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label>المساحة (م²)</label>
+                        <input type="number" id="unit-area" required>
+                    </div>
+                    <div class="form-field">
+                        <label>السعر (ج.م)</label>
+                        <input type="number" id="unit-price" required>
+                    </div>
+                    <div class="form-field">
+                        <label>الحالة</label>
+                        <select id="unit-status" required>
+                            <option value="متاح">متاح</option>
+                            <option value="محجوز">محجوز</option>
+                            <option value="مباع">مباع</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">حفظ الوحدة</button>
+                        <button type="button" class="btn btn-secondary" onclick="clearUnitForm()">مسح</button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Units Table -->
             <div id="units-table">
                 <div class="table-container">
                     <table class="table">
@@ -519,8 +591,8 @@ function renderUnits(container) {
                                     <td>${(unit.price || 0).toLocaleString()} ج.م</td>
                                     <td>${unit.status || 'غير محدد'}</td>
                                     <td>
-                                        <button class="btn-edit" data-type="عميل" data-id="${customer.id || Math.random()}">تعديل</button>
-                                        <button class="btn-delete" data-type="عميل" data-id="${customer.id || Math.random()}">حذف</button>
+                                        <button class="btn btn-sm btn-primary" onclick="editUnit('${unit.id || Math.random()}')">تعديل</button>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteUnit('${unit.id || Math.random()}')">حذف</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -1039,42 +1111,19 @@ function setupEventListeners() {
             }
         }
         
-        // Add buttons
-        if (e.target.id === 'add-customer-btn') {
-            showAddCustomerModal();
-        } else if (e.target.id === 'add-unit-btn') {
-            showAddUnitModal();
-        } else if (e.target.id === 'add-contract-btn') {
-            showAddContractModal();
-        } else if (e.target.id === 'add-partner-btn') {
-            showAddPartnerModal();
-        } else if (e.target.id === 'add-safe-btn') {
-            showAddSafeModal();
-        } else if (e.target.id === 'add-transfer-btn') {
-            showAddTransferModal();
-        } else if (e.target.id === 'add-voucher-btn') {
-            showAddVoucherModal();
-        } else if (e.target.id === 'add-installment-btn') {
-            showAddInstallmentModal();
-        } else if (e.target.id === 'add-partner-group-btn') {
-            showAddPartnerGroupModal();
-        } else if (e.target.id === 'add-partner-debt-btn') {
-            showAddPartnerDebtModal();
-        } else if (e.target.id === 'add-broker-btn') {
-            showAddBrokerModal();
-        } else if (e.target.id === 'add-broker-due-btn') {
-            showAddBrokerDueModal();
-        }
-        
-        // Edit/Delete buttons
-        if (e.target.classList.contains('btn-edit')) {
-            const id = e.target.dataset.id;
-            const type = e.target.dataset.type;
-            showEditModal(type, id);
-        } else if (e.target.classList.contains('btn-delete')) {
-            const id = e.target.dataset.id;
-            const type = e.target.dataset.type;
-            deleteItem(type, id);
+        // Form submissions
+        if (e.target.id === 'customer-form') {
+            e.preventDefault();
+            addCustomer();
+        } else if (e.target.id === 'unit-form') {
+            e.preventDefault();
+            addUnit();
+        } else if (e.target.id === 'partner-form') {
+            e.preventDefault();
+            addPartner();
+        } else if (e.target.id === 'safe-form') {
+            e.preventDefault();
+            addSafe();
         }
     });
 
@@ -1430,6 +1479,143 @@ function deleteItem(type, id) {
         showNotification(`حذف ${type} - سيتم إضافته قريباً`, 'info');
     }
 }
+
+// Form functions
+async function addCustomer() {
+    const customer = {
+        name: document.getElementById('customer-name').value,
+        phone: document.getElementById('customer-phone').value,
+        email: document.getElementById('customer-email').value,
+        address: document.getElementById('customer-address').value
+    };
+    
+    try {
+        await api.put('customers', customer);
+        appState.customers.push(customer);
+        renderMainContent();
+        clearCustomerForm();
+        showNotification('تم إضافة العميل بنجاح', 'success');
+    } catch (error) {
+        showNotification('فشل في إضافة العميل', 'error');
+    }
+}
+
+async function addUnit() {
+    const unit = {
+        unitNumber: document.getElementById('unit-number').value,
+        type: document.getElementById('unit-type').value,
+        area: parseInt(document.getElementById('unit-area').value),
+        price: parseInt(document.getElementById('unit-price').value),
+        status: document.getElementById('unit-status').value
+    };
+    
+    try {
+        await api.put('units', unit);
+        appState.units.push(unit);
+        renderMainContent();
+        clearUnitForm();
+        showNotification('تم إضافة الوحدة بنجاح', 'success');
+    } catch (error) {
+        showNotification('فشل في إضافة الوحدة', 'error');
+    }
+}
+
+async function addPartner() {
+    const partner = {
+        name: document.getElementById('partner-name').value,
+        percentage: parseInt(document.getElementById('partner-percentage').value),
+        phone: document.getElementById('partner-phone').value,
+        email: document.getElementById('partner-email').value
+    };
+    
+    try {
+        await api.put('partners', partner);
+        appState.partners.push(partner);
+        renderMainContent();
+        clearPartnerForm();
+        showNotification('تم إضافة الشريك بنجاح', 'success');
+    } catch (error) {
+        showNotification('فشل في إضافة الشريك', 'error');
+    }
+}
+
+async function addSafe() {
+    const safe = {
+        name: document.getElementById('safe-name').value,
+        balance: parseInt(document.getElementById('safe-balance').value) || 0,
+        description: document.getElementById('safe-description').value
+    };
+    
+    try {
+        await api.put('safes', safe);
+        appState.safes.push(safe);
+        renderMainContent();
+        clearSafeForm();
+        showNotification('تم إضافة الخزنة بنجاح', 'success');
+    } catch (error) {
+        showNotification('فشل في إضافة الخزنة', 'error');
+    }
+}
+
+// Clear form functions
+function clearCustomerForm() {
+    document.getElementById('customer-name').value = '';
+    document.getElementById('customer-phone').value = '';
+    document.getElementById('customer-email').value = '';
+    document.getElementById('customer-address').value = '';
+}
+
+function clearUnitForm() {
+    document.getElementById('unit-number').value = '';
+    document.getElementById('unit-type').value = '';
+    document.getElementById('unit-area').value = '';
+    document.getElementById('unit-price').value = '';
+    document.getElementById('unit-status').value = 'متاح';
+}
+
+function clearPartnerForm() {
+    document.getElementById('partner-name').value = '';
+    document.getElementById('partner-percentage').value = '';
+    document.getElementById('partner-phone').value = '';
+    document.getElementById('partner-email').value = '';
+}
+
+function clearSafeForm() {
+    document.getElementById('safe-name').value = '';
+    document.getElementById('safe-balance').value = '0';
+    document.getElementById('safe-description').value = '';
+}
+
+// Edit/Delete functions
+function editCustomer(id) {
+    showNotification('تعديل العميل - سيتم إضافته قريباً', 'info');
+}
+
+function deleteCustomer(id) {
+    if (confirm('هل أنت متأكد من حذف العميل؟')) {
+        showNotification('حذف العميل - سيتم إضافته قريباً', 'info');
+    }
+}
+
+function editUnit(id) {
+    showNotification('تعديل الوحدة - سيتم إضافته قريباً', 'info');
+}
+
+function deleteUnit(id) {
+    if (confirm('هل أنت متأكد من حذف الوحدة؟')) {
+        showNotification('حذف الوحدة - سيتم إضافته قريباً', 'info');
+    }
+}
+
+// Make functions global
+window.clearCustomerForm = clearCustomerForm;
+window.clearUnitForm = clearUnitForm;
+window.clearPartnerForm = clearPartnerForm;
+window.clearSafeForm = clearSafeForm;
+window.editCustomer = editCustomer;
+window.deleteCustomer = deleteCustomer;
+window.editUnit = editUnit;
+window.deleteUnit = deleteUnit;
 
 // Start app when DOM is loaded
 document.addEventListener('DOMContentLoaded', initializeApp);
