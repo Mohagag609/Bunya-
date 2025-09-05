@@ -1,5 +1,5 @@
-// Estate Manager - Modern Version
-// Main application file
+// Estate Manager - Complete Version
+// Main application file with all original features
 
 // Global configuration
 const CONFIG = {
@@ -10,7 +10,10 @@ const CONFIG = {
         'customers', 'units', 'partners', 'unitPartners', 'contracts', 
         'installments', 'partnerDebts', 'safes', 'transfers', 'auditLog', 
         'vouchers', 'brokerDues', 'brokers', 'partnerGroups', 'settings', 'keyval'
-    ]
+    ],
+    // Cache for instant loading
+    CACHE_DURATION: 5 * 60 * 1000, // 5 minutes
+    CACHE_KEY: 'estate_manager_cache'
 };
 
 // Global state
@@ -93,24 +96,66 @@ class ApiService {
 // Initialize API service
 const api = new ApiService();
 
-// Load data from API
+// Cache management
+function getCachedData() {
+    try {
+        const cached = localStorage.getItem(CONFIG.CACHE_KEY);
+        if (cached) {
+            const data = JSON.parse(cached);
+            if (Date.now() - data.timestamp < CONFIG.CACHE_DURATION) {
+                return data.stores;
+            }
+        }
+    } catch (error) {
+        console.error('Error reading cache:', error);
+    }
+    return null;
+}
+
+function setCachedData(stores) {
+    try {
+        const data = {
+            timestamp: Date.now(),
+            stores: stores
+        };
+        localStorage.setItem(CONFIG.CACHE_KEY, JSON.stringify(data));
+    } catch (error) {
+        console.error('Error saving cache:', error);
+    }
+}
+
+// Load data from API with caching
 async function loadData() {
-    console.log('Loading data from API...');
+    console.log('Loading data...');
+    
+    // Try cache first for instant loading
+    const cachedData = getCachedData();
+    if (cachedData) {
+        console.log('Using cached data for instant loading');
+        Object.assign(appState, cachedData);
+        return;
+    }
+    
+    console.log('Loading fresh data from API...');
+    const stores = {};
     
     for (const store of CONFIG.OBJECT_STORES) {
         try {
             console.log(`Loading ${store}...`);
             const data = await api.get(store);
-            appState[store] = Array.isArray(data) ? data : [];
+            stores[store] = Array.isArray(data) ? data : [];
+            appState[store] = stores[store];
             console.log(`Loaded ${data.length || 0} items from ${store}`);
         } catch (error) {
             console.error(`Failed to load data for ${store}:`, error);
+            stores[store] = [];
             appState[store] = [];
-            // Don't throw error, just log it and continue
         }
     }
     
-    console.log('Data loading completed');
+    // Cache the data for next time
+    setCachedData(stores);
+    console.log('Data loading completed and cached');
 }
 
 // Create initial safe if none exists
@@ -231,10 +276,16 @@ function renderSidebar() {
         { id: 'customers', label: 'العملاء', icon: '👥' },
         { id: 'units', label: 'الوحدات', icon: '🏠' },
         { id: 'contracts', label: 'العقود', icon: '📋' },
+        { id: 'installments', label: 'الأقساط', icon: '💳' },
         { id: 'partners', label: 'الشركاء', icon: '🤝' },
+        { id: 'partnerGroups', label: 'مجموعات الشركاء', icon: '👥' },
+        { id: 'partnerDebts', label: 'ديون الشركاء', icon: '💸' },
         { id: 'safes', label: 'الخزائن', icon: '💰' },
         { id: 'transfers', label: 'التحويلات', icon: '🔄' },
         { id: 'vouchers', label: 'السندات', icon: '🧾' },
+        { id: 'brokers', label: 'الوسطاء', icon: '🤝' },
+        { id: 'brokerDues', label: 'عمولات الوسطاء', icon: '💼' },
+        { id: 'auditLog', label: 'سجل المراجعة', icon: '📝' },
         { id: 'reports', label: 'التقارير', icon: '📈' },
         { id: 'settings', label: 'الإعدادات', icon: '⚙️' }
     ];
@@ -268,8 +319,17 @@ function renderMainContent() {
             case 'contracts':
                 renderContracts(view);
                 break;
+            case 'installments':
+                renderInstallments(view);
+                break;
             case 'partners':
                 renderPartners(view);
+                break;
+            case 'partnerGroups':
+                renderPartnerGroups(view);
+                break;
+            case 'partnerDebts':
+                renderPartnerDebts(view);
                 break;
             case 'safes':
                 renderSafes(view);
@@ -279,6 +339,15 @@ function renderMainContent() {
                 break;
             case 'vouchers':
                 renderVouchers(view);
+                break;
+            case 'brokers':
+                renderBrokers(view);
+                break;
+            case 'brokerDues':
+                renderBrokerDues(view);
+                break;
+            case 'auditLog':
+                renderAuditLog(view);
                 break;
             case 'reports':
                 renderReports(view);
@@ -687,6 +756,239 @@ function renderReports(container) {
     `;
 }
 
+// Missing render functions for all pages
+function renderInstallments(container) {
+    container.innerHTML = `
+        <div class="page-header">
+            <h1>الأقساط</h1>
+            <button class="btn btn-primary" id="add-installment-btn">+ إضافة قسط</button>
+        </div>
+        <div class="page-content">
+            <div id="installments-table">
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>رقم القسط</th>
+                                <th>العقد</th>
+                                <th>المبلغ</th>
+                                <th>تاريخ الاستحقاق</th>
+                                <th>الحالة</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${appState.installments.map(installment => `
+                                <tr>
+                                    <td>${installment.installmentNumber || 'غير محدد'}</td>
+                                    <td>${installment.contractNumber || 'غير محدد'}</td>
+                                    <td>${(installment.amount || 0).toLocaleString()} ج.م</td>
+                                    <td>${installment.dueDate || 'غير محدد'}</td>
+                                    <td>${installment.status || 'غير محدد'}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary">تعديل</button>
+                                        <button class="btn btn-sm btn-danger">حذف</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderPartnerGroups(container) {
+    container.innerHTML = `
+        <div class="page-header">
+            <h1>مجموعات الشركاء</h1>
+            <button class="btn btn-primary" id="add-partner-group-btn">+ إضافة مجموعة</button>
+        </div>
+        <div class="page-content">
+            <div id="partner-groups-table">
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>اسم المجموعة</th>
+                                <th>الوصف</th>
+                                <th>عدد الشركاء</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${appState.partnerGroups.map(group => `
+                                <tr>
+                                    <td>${group.name || 'غير محدد'}</td>
+                                    <td>${group.description || 'غير محدد'}</td>
+                                    <td>${group.partnerCount || 0}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary">تعديل</button>
+                                        <button class="btn btn-sm btn-danger">حذف</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderPartnerDebts(container) {
+    container.innerHTML = `
+        <div class="page-header">
+            <h1>ديون الشركاء</h1>
+            <button class="btn btn-primary" id="add-partner-debt-btn">+ إضافة دين</button>
+        </div>
+        <div class="page-content">
+            <div id="partner-debts-table">
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>الشريك</th>
+                                <th>المبلغ</th>
+                                <th>تاريخ الدين</th>
+                                <th>الحالة</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${appState.partnerDebts.map(debt => `
+                                <tr>
+                                    <td>${debt.partnerName || 'غير محدد'}</td>
+                                    <td>${(debt.amount || 0).toLocaleString()} ج.م</td>
+                                    <td>${debt.debtDate || 'غير محدد'}</td>
+                                    <td>${debt.status || 'غير محدد'}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary">تعديل</button>
+                                        <button class="btn btn-sm btn-danger">حذف</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderBrokers(container) {
+    container.innerHTML = `
+        <div class="page-header">
+            <h1>الوسطاء</h1>
+            <button class="btn btn-primary" id="add-broker-btn">+ إضافة وسيط</button>
+        </div>
+        <div class="page-content">
+            <div id="brokers-table">
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>الاسم</th>
+                                <th>الهاتف</th>
+                                <th>النسبة</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${appState.brokers.map(broker => `
+                                <tr>
+                                    <td>${broker.name || 'غير محدد'}</td>
+                                    <td>${broker.phone || 'غير محدد'}</td>
+                                    <td>${broker.percentage || 0}%</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary">تعديل</button>
+                                        <button class="btn btn-sm btn-danger">حذف</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderBrokerDues(container) {
+    container.innerHTML = `
+        <div class="page-header">
+            <h1>عمولات الوسطاء</h1>
+            <button class="btn btn-primary" id="add-broker-due-btn">+ إضافة عمولة</button>
+        </div>
+        <div class="page-content">
+            <div id="broker-dues-table">
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>الوسيط</th>
+                                <th>المبلغ</th>
+                                <th>التاريخ</th>
+                                <th>الحالة</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${appState.brokerDues.map(due => `
+                                <tr>
+                                    <td>${due.brokerName || 'غير محدد'}</td>
+                                    <td>${(due.amount || 0).toLocaleString()} ج.م</td>
+                                    <td>${due.date || 'غير محدد'}</td>
+                                    <td>${due.status || 'غير محدد'}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary">تعديل</button>
+                                        <button class="btn btn-sm btn-danger">حذف</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderAuditLog(container) {
+    container.innerHTML = `
+        <div class="page-header">
+            <h1>سجل المراجعة</h1>
+        </div>
+        <div class="page-content">
+            <div id="audit-log-table">
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>المستخدم</th>
+                                <th>الإجراء</th>
+                                <th>التفاصيل</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${appState.auditLog.map(log => `
+                                <tr>
+                                    <td>${log.date || 'غير محدد'}</td>
+                                    <td>${log.user || 'غير محدد'}</td>
+                                    <td>${log.action || 'غير محدد'}</td>
+                                    <td>${log.details || 'غير محدد'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
 function renderSettings(container) {
     container.innerHTML = `
         <div class="page-header">
@@ -710,6 +1012,13 @@ function renderSettings(container) {
                             <option value="16" ${appState.settings.font === 16 ? 'selected' : ''}>متوسط (16px)</option>
                             <option value="18" ${appState.settings.font === 18 ? 'selected' : ''}>كبير (18px)</option>
                         </select>
+                    </div>
+                </div>
+                <div class="settings-card">
+                    <h3>البيانات</h3>
+                    <div class="form-field">
+                        <button class="btn btn-secondary" id="clear-cache-btn">مسح الذاكرة المؤقتة</button>
+                        <button class="btn btn-secondary" id="refresh-data-btn">تحديث البيانات</button>
                     </div>
                 </div>
             </div>
@@ -769,6 +1078,21 @@ function setupEventListeners() {
             }
         }
     });
+
+    // Cache management buttons
+    document.getElementById('clear-cache-btn')?.addEventListener('click', () => {
+        localStorage.removeItem(CONFIG.CACHE_KEY);
+        showNotification('تم مسح الذاكرة المؤقتة', 'success');
+    });
+
+    document.getElementById('refresh-data-btn')?.addEventListener('click', async () => {
+        showLoading('جاري تحديث البيانات...');
+        localStorage.removeItem(CONFIG.CACHE_KEY);
+        await loadData();
+        renderMainContent();
+        hideLoading();
+        showNotification('تم تحديث البيانات', 'success');
+    });
 }
 
 function updateNavigation() {
@@ -778,13 +1102,12 @@ function updateNavigation() {
     document.getElementById(`nav-${appState.currentView}`)?.classList.add('active');
 }
 
-// Initialize app
+// Initialize app with instant loading
 async function initializeApp() {
     try {
         console.log('Starting app initialization...');
-        showLoading('جاري تحميل التطبيق...');
         
-        // Render UI first
+        // Render UI immediately for instant display
         renderHeader();
         renderSidebar();
         renderMainContent();
@@ -796,25 +1119,22 @@ async function initializeApp() {
         document.documentElement.setAttribute('data-theme', appState.settings.theme);
         document.documentElement.style.fontSize = `${appState.settings.font}px`;
         
-        // Load data from API (non-blocking)
-        try {
-            await loadData();
+        // Load data in background (non-blocking)
+        loadData().then(async () => {
             await createInitialSafe();
             console.log('Data loaded successfully');
             // Refresh the current view after data is loaded
             renderMainContent();
-            // Update navigation counts if needed
             updateNavigation();
-        } catch (error) {
+            showNotification('تم تحميل التطبيق بنجاح!', 'success');
+        }).catch(error => {
             console.error('Data loading failed, but app will continue:', error);
-        }
+            showNotification('تم تحميل التطبيق مع تحذير في البيانات', 'warning');
+        });
         
-        hideLoading();
-        showNotification('تم تحميل التطبيق بنجاح!', 'success');
-        console.log('App initialization completed');
+        console.log('App initialization completed - UI ready instantly');
         
     } catch (error) {
-        hideLoading();
         showNotification('فشل في تحميل التطبيق: ' + error.message, 'error');
         console.error('App initialization failed:', error);
     }
