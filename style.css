@@ -248,22 +248,23 @@ hr{border:none;border-top:1px solid var(--line);margin:20px 0;opacity:0.5}
   z-index: 0;
 }
 
-/* منع العناصر المتقطعة في الخلفية */
+/* تحسين الأداء - منع العناصر المتقطعة */
 .container {
   position: relative;
   z-index: 1;
 }
 
-/* تنظيف العناصر العائمة */
+/* تحسين الأداء - العناصر العائمة */
 #loading-overlay,
 #dynamic-modal,
+#fast-loading,
 .modal,
-.loading-overlay,
-[style*="position: fixed"] {
+.loading-overlay {
   z-index: 10000 !important;
+  will-change: opacity, transform;
 }
 
-/* منع العناصر من الظهور في الخلفية */
+/* تحسين الأداء - العناصر الرئيسية */
 .tab,
 .btn,
 .card,
@@ -271,6 +272,41 @@ hr{border:none;border-top:1px solid var(--line);margin:20px 0;opacity:0.5}
 .content {
   position: relative;
   z-index: 2;
+  will-change: transform;
+}
+
+/* تحسين الأداء - الانتقالات السريعة */
+.tab {
+  transition: all 0.1s ease;
+}
+
+.btn {
+  transition: all 0.1s ease;
+}
+
+.card {
+  transition: all 0.1s ease;
+}
+
+/* تحسين الأداء - تسريع الرسم */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* تحسين الأداء - تسريع الانتقالات */
+.tab:hover {
+  transform: translateX(-2px) translateZ(0);
+}
+
+.btn:hover {
+  transform: translateY(-1px) translateZ(0);
+}
+
+/* تحسين الأداء - تسريع التحميل */
+.content {
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 /* تأثيرات بصرية للعناصر التفاعلية */

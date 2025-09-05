@@ -12,8 +12,8 @@ document.addEventListener('DOMContentLoaded', initializeApp);
 
 // Loading indicator functions
 function showLoadingIndicator() {
-    // Remove any existing loading overlays first
-    hideLoadingIndicator();
+    // Quick check if already exists
+    if (document.getElementById('loading-overlay')) return;
     
     const loadingHTML = `
         <div id="loading-overlay" style="
@@ -49,43 +49,47 @@ function hideLoadingIndicator() {
     }
 }
 
-// Clean up all background elements
+// Fast loading indicator for quick operations
+function showFastLoading() {
+    if (document.getElementById('fast-loading')) return;
+    
+    const loadingHTML = `
+        <div id="fast-loading" style="
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--card);
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            z-index: 10001;
+            font-size: 14px;
+            color: var(--ink);
+        ">
+            ⏳ جاري التحميل...
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', loadingHTML);
+}
+
+function hideFastLoading() {
+    const fastLoading = document.getElementById('fast-loading');
+    if (fastLoading) {
+        fastLoading.remove();
+    }
+}
+
+// Clean up all background elements - optimized for speed
 function cleanupBackgroundElements() {
-    // Remove all loading overlays
-    const loadingOverlays = document.querySelectorAll('#loading-overlay, .loading-overlay, [id*="loading"]');
-    loadingOverlays.forEach(overlay => {
-        if (overlay && overlay.parentNode) {
-            overlay.remove();
-        }
-    });
+    // Quick cleanup - only remove specific elements
+    const loadingOverlay = document.getElementById('loading-overlay');
+    if (loadingOverlay) loadingOverlay.remove();
     
-    // Remove all modals
-    const modals = document.querySelectorAll('#dynamic-modal, .modal, [id*="modal"]');
-    modals.forEach(modal => {
-        if (modal && modal.parentNode) {
-            modal.remove();
-        }
-    });
+    const modal = document.getElementById('dynamic-modal');
+    if (modal) modal.remove();
     
-    // Remove any other floating elements
-    const floatingElements = document.querySelectorAll('[style*="position: fixed"], [style*="position: absolute"]');
-    floatingElements.forEach(element => {
-        if (element && element.id && (element.id.includes('loading') || element.id.includes('modal') || element.id.includes('overlay'))) {
-            if (element.parentNode) {
-                element.remove();
-            }
-        }
-    });
-    
-    // Force cleanup of any remaining background elements
-    const allElements = document.querySelectorAll('*');
-    allElements.forEach(element => {
-        const style = window.getComputedStyle(element);
-        if (style.position === 'fixed' && style.zIndex === '-1') {
-            element.style.position = 'absolute';
-            element.style.zIndex = '0';
-        }
-    });
+    const fastLoading = document.getElementById('fast-loading');
+    if (fastLoading) fastLoading.remove();
 }
 
 async function initializeApp() {
@@ -1466,13 +1470,8 @@ const routes=[
 const tabs=document.getElementById('tabs'), view=document.getElementById('view');
 
 function nav(id, param = null){
-  // Clean up any background elements first
-  cleanupBackgroundElements();
-  
-  // Force cleanup of background elements
-  setTimeout(() => {
-    cleanupBackgroundElements();
-  }, 100);
+  // Show fast loading for quick feedback
+  showFastLoading();
   
   currentView = id; currentParam = param;
   const route = routes.find(x=>x.id===id); if(!route) return;
@@ -1482,12 +1481,13 @@ function nav(id, param = null){
     const tab = document.getElementById('tab-'+id); if(tab) tab.classList.add('active');
   }
 
+  // Render immediately
   route.render(param);
   
-  // Final cleanup after rendering
+  // Hide loading quickly
   setTimeout(() => {
-    cleanupBackgroundElements();
-  }, 200);
+    hideFastLoading();
+  }, 100);
   
   // htmx.process(view); // HTMX processing is now handled via attributes on tabs
 }
