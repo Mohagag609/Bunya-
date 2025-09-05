@@ -53,8 +53,8 @@ async function initializeApp() {
         }
 
         // Setup UI and global event listeners
-        applySettings();
         setupGlobalEventListeners();
+        applySettings(); // Apply settings after loading data
         checkLock();
         saveState(); // Save initial state for undo/redo
         updateUndoRedoButtons();
@@ -143,8 +143,7 @@ function updateUndoRedoButtons() { const undoBtn = document.getElementById('undo
 
 function setupGlobalEventListeners() {
     console.log('Setting up global event listeners, state.settings:', state.settings);
-    document.getElementById('themeSel').value = state.settings.theme || 'dark';
-    document.getElementById('fontSel').value = String(state.settings.font || 16);
+    // Don't set values here - let applySettings() handle it after data is loaded
 
     document.getElementById('themeSel').addEventListener('change', async (e) => {
         console.log('Theme changed to:', e.target.value);
@@ -189,11 +188,21 @@ const fmt = new Intl.NumberFormat('ar-EG', { minimumFractionDigits: 2, maximumFr
 function egp(v){ v=Number(v||0); return isFinite(v)?fmt.format(v)+' ج.م':'' }
 function applySettings(){ 
     if(state && state.settings) { 
-        document.documentElement.setAttribute('data-theme', state.settings.theme||'dark'); 
-        document.documentElement.style.fontSize=(state.settings.font||16)+'px'; 
-        console.log('Settings applied:', state.settings);
+        const theme = state.settings.theme || 'dark';
+        const fontSize = state.settings.font || 16;
+        
+        document.documentElement.setAttribute('data-theme', theme); 
+        document.documentElement.style.fontSize = fontSize + 'px';
+        
+        // Update the select elements to match the current settings
+        const themeSel = document.getElementById('themeSel');
+        const fontSel = document.getElementById('fontSel');
+        if (themeSel) themeSel.value = theme;
+        if (fontSel) fontSel.value = String(fontSize);
+        
+        console.log('Settings applied:', { theme, fontSize, settings: state.settings });
     } else {
-        console.log('Settings not available yet');
+        console.log('Settings not available yet, state:', state);
     }
 }
 function checkLock(){ if(state.locked){ const p=prompt('اكتب كلمة المرور للدخول'); if(p!==state.settings.pass){ alert('كلمة مرور غير صحيحة'); location.reload(); } } }
