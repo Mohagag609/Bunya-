@@ -3,13 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>مدير الاستثمار العقاري — النسخة النهائية (محلي) — محدثة</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
 <script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=2026">
 </head>
 <body>
 <div class="container">
@@ -31,6 +34,12 @@
 </div>
 
 <script>
+// Force refresh to prevent caching
+if (performance.navigation.type === 1) {
+    console.log('Page refreshed - clearing cache');
+    window.location.reload(true);
+}
+
 // Define OBJECT_STORES globally before any other scripts
 window.OBJECT_STORES = [
     'customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments',
@@ -39,7 +48,7 @@ window.OBJECT_STORES = [
 ];
 console.log('OBJECT_STORES defined:', window.OBJECT_STORES);
 </script>
-<script src="db.js"></script>
-<script src="app.js" defer></script>
+<script src="db.js?v=2026"></script>
+<script src="app.js?v=2026" defer></script>
 </body>
 </html>
