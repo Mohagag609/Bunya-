@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!exportBtn) {
         console.error('Export button not found!');
-        statusEl.textContent = 'خطأ: لم يتم العثور على زر التصدير.';
+        if (statusEl) statusEl.textContent = 'خطأ: لم يتم العثور على زر التصدير.';
         return;
     }
 
@@ -14,25 +14,27 @@ document.addEventListener('DOMContentLoaded', () => {
         statusEl.style.color = '#007bff';
 
         try {
-            // The openDB function is in db.js and returns a promise that resolves with the db instance.
-            // We need to make sure the database is open before proceeding.
+            // OBJECT_STORES is a global constant defined in db.original.js
+            if (typeof OBJECT_STORES === 'undefined' || !Array.isArray(OBJECT_STORES)) {
+                throw new Error('لم يتم العثور على قائمة مخازن الكائنات (OBJECT_STORES). تأكد من تحميل ملف db.original.js بشكل صحيح.');
+            }
+
+            // openDB is in db.original.js and ensures the DB connection is ready
             await openDB();
 
             const exportData = {};
-
-            // OBJECT_STORES is a global constant defined in db.js
-            if (typeof OBJECT_STORES === 'undefined' || !Array.isArray(OBJECT_STORES)) {
-                throw new Error('لم يتم العثور على قائمة مخازن الكائنات (OBJECT_STORES). تأكد من تحميل ملف db.js بشكل صحيح.');
-            }
-
             console.log(`Starting export for ${OBJECT_STORES.length} object stores...`);
 
             // Use Promise.all to fetch data from all stores concurrently
             const promises = OBJECT_STORES.map(async (storeName) => {
-                // The getAll function is defined in db.js
-                const data = await getAll(storeName);
-                exportData[storeName] = data;
-                console.log(`Successfully exported ${data.length} records from "${storeName}".`);
+                try {
+                    const data = await getAll(storeName);
+                    exportData[storeName] = data;
+                    console.log(`Successfully exported ${data.length} records from "${storeName}".`);
+                } catch (error) {
+                    console.error(`Could not export from ${storeName}. Skipping. Error:`, error);
+                    // Don't throw, just skip this store
+                }
             });
 
             await Promise.all(promises);
@@ -52,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
 
-            statusEl.textContent = 'اكتمل التصدير بنجاح! تم تنزيل الملف.';
+            statusEl.textContent = 'اكتمل التصدير بنجاح! تم تنزيل ملف database-export.json.';
             statusEl.style.color = 'green';
 
         } catch (error) {

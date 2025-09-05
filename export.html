@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تصدير قاعدة البيانات</title>
+    <title>أداة تصدير بيانات IndexedDB</title>
     <style>
         body {
             font-family: sans-serif;
@@ -14,6 +14,14 @@
             flex-direction: column;
             text-align: center;
             padding: 20px;
+            background-color: #f4f7f9;
+            color: #333;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
         button {
             padding: 15px 30px;
@@ -23,6 +31,10 @@
             color: white;
             border: none;
             border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
         }
         button:disabled {
             background-color: #ccc;
@@ -30,18 +42,21 @@
         #status {
             margin-top: 20px;
             font-size: 1.1em;
-            color: #333;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
-    <h1>أداة تصدير بيانات IndexedDB</h1>
-    <p>لاستخدام هذه الأداة، يجب عليك أولاً فتح التطبيق الرئيسي مرة واحدة على الأقل لضمان وجود البيانات في المتصفح.</p>
-    <p>اضغط على الزر أدناه لتصدير البيانات من IndexedDB وحفظها كملف JSON.</p>
-    <button id="export-btn">بدء التصدير</button>
-    <p id="status"></p>
+    <div class="container">
+        <h1>أداة تصدير بيانات IndexedDB</h1>
+        <p>هذه الأداة مخصصة للاستخدام لمرة واحدة فقط لترحيل بياناتك القديمة من المتصفح.</p>
+        <p>اضغط على الزر أدناه لتصدير البيانات وحفظها كملف <code>database-export.json</code>.</p>
+        <button id="export-btn">بدء تصدير البيانات القديمة</button>
+        <p id="status"></p>
+    </div>
 
-    <script src="db.js"></script>
+    <!-- We need the original IndexedDB logic for this to work -->
+    <script src="db.original.js"></script>
     <script src="export.js"></script>
 </body>
 </html>

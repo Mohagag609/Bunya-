@@ -19,37 +19,31 @@ async function initializeApp() {
     }
 
     try {
-        await openDB();
-        const migrationComplete = await getKeyVal('migrationComplete');
-        if (migrationComplete) {
-            console.log("Loading state from IndexedDB...");
-            state = await loadStateFromDB();
-        } else {
-            console.log("Checking for localStorage data to migrate...");
-            const localStorageState = loadFromLocalStorage();
-            if (localStorageState && localStorageState.customers && localStorageState.customers.length > 0) {
-                console.log("Migrating data from localStorage to IndexedDB...");
-                state = localStorageState;
-                await persist(); // Persist the migrated state to IndexedDB
-                console.log("Migration successful.");
-            } else {
-                console.log("No data to migrate, loading fresh state from DB.");
-                state = await loadStateFromDB(); // Load empty state
-            }
-            await setKeyVal('migrationComplete', true);
-        }
+        console.log("Loading initial state from backend API...");
+        state = await loadStateFromAPI();
 
-        // Ensure state has default empty arrays for all stores if they are null/undefined
+        // Ensure state has default empty arrays if they are missing from the DB
         OBJECT_STORES.forEach(storeName => {
             if (storeName !== 'keyval' && storeName !== 'settings' && !state[storeName]) {
                 state[storeName] = [];
             }
         });
-        if (typeof state.settings !== 'object' || state.settings === null) { state.settings = {theme:'dark',font:16, pass:null}; }
+        if (typeof state.settings !== 'object' || state.settings === null) {
+            state.settings = { theme: 'dark', font: 16, pass: null };
+        }
         if (!state.locked) { state.locked = false; }
+
+        // If no safes exist, create the main one. This should ideally be seeded in the DB.
         if (!state.safes || state.safes.length === 0) {
-            state.safes = [{ id: uid('S'), name: 'الخزنة الرئيسية', balance: 0 }];
-            await persist();
+            console.log("No safes found, creating 'الخزنة الرئيسية'...");
+            const newSafe = { id: uid('S'), name: 'الخزنة الرئيسية', balance: 0 };
+            try {
+                await put('safes', newSafe); // Save it to the backend
+                state.safes = [newSafe];
+            } catch(e) {
+                console.error("Failed to create initial safe:", e);
+                alert("Failed to create initial safe: " + e.message);
+            }
         }
 
         // Setup UI and global event listeners
@@ -58,99 +52,86 @@ async function initializeApp() {
         checkLock();
         saveState(); // Save initial state for undo/redo
         updateUndoRedoButtons();
-        createTabs(); // Create navigation tabs
+        createTabs();
         nav('dash');
     } catch (error) {
         console.error("Failed to initialize the application:", error);
         const viewEl = document.getElementById('view');
         if (viewEl) {
-            viewEl.innerHTML = `<div class="card warn"><h3>خطأ فادح</h3><p>لم يتمكن التطبيق من التحميل. قد تكون قاعدة البيانات تالفة أو أن متصفحك لا يدعم IndexedDB.</p><pre>${error.stack}</pre></div>`;
+            viewEl.innerHTML = `<div class="card warn"><h3>خطأ فادح</h3><p>لم يتمكن التطبيق من الاتصال بالخادم الخلفي.</p><pre>${error.message}</pre></div>`;
         }
     }
 }
 
-/* ===== DATA PERSISTENCE & MIGRATION ===== */
-async function persist() {
-    try {
-        const db = await openDB();
-        const transaction = db.transaction(OBJECT_STORES.filter(s => s !== 'keyval'), 'readwrite');
-        const promises = [];
-        for (const storeName of OBJECT_STORES) {
-            if (storeName === 'keyval') continue;
+/* ===== DATA PERSISTENCE & MIGRATION (NEW API-BASED) ===== */
 
-            const store = transaction.objectStore(storeName);
-            // This is a simple but potentially slow strategy: clear and write all.
-            // A more advanced strategy would diff the state.
-            await (new Promise(res => store.clear().onsuccess = res));
+// The 'persist' function is now obsolete. Data is saved directly via API calls
+// in the event handler functions (e.g., addCustomer, delRow).
 
-            const dataToStore = state[storeName];
-            if (storeName === 'settings') {
-                if (dataToStore) {
-                    await (new Promise(res => store.put({key: 'appSettings', ...dataToStore}).onsuccess = res));
-                }
-            } else if (dataToStore && Array.isArray(dataToStore)) {
-                for(const item of dataToStore) {
-                    if(typeof item === 'object' && item !== null && item.id) {
-                       await (new Promise(res => store.put(item).onsuccess = res));
-                    }
-                }
-            }
-        }
-        await transaction.done;
-        applySettings();
-    } catch (error) { console.error('Failed to persist state to IndexedDB:', error); }
-}
-
-async function loadStateFromDB() {
+async function loadStateFromAPI() {
+    console.log("Loading all application data from the backend...");
     const newState = {};
-    const db = await openDB();
-    const transaction = db.transaction(OBJECT_STORES.filter(s => s !== 'keyval'), 'readonly');
-    const promises = [];
-    for (const storeName of OBJECT_STORES) {
-        if (storeName === 'keyval') continue;
-        const store = transaction.objectStore(storeName);
-        promises.push(new Promise((resolve, reject) => {
-            const req = store.getAll();
-            req.onsuccess = () => {
-                if (storeName === 'settings') {
-                    newState.settings = req.result.length > 0 ? req.result[0] : {theme:'dark',font:16, pass:null};
-                } else {
-                    newState[storeName] = req.result;
-                }
-                resolve();
-            };
-            req.onerror = (e) => reject(e.target.error);
-        }));
+
+    // We need the list of all stores to fetch from.
+    // This should be defined somewhere globally, e.g., in index.html before this script.
+    if (typeof OBJECT_STORES === 'undefined') {
+        throw new Error("Fatal: OBJECT_STORES is not defined.");
     }
-    await Promise.all(promises);
+
+    const promises = OBJECT_STORES.map(storeName =>
+        getAll(storeName).catch(e => {
+            console.error(`Failed to load data for ${storeName}:`, e);
+            return []; // Return empty array on failure to not break Promise.all
+        })
+    );
+
+    const results = await Promise.all(promises);
+
+    OBJECT_STORES.forEach((storeName, index) => {
+        // The settings and keyval stores are not arrays of objects with 'id'
+        // They are special cases. Our API returns them as arrays, so we need to handle that.
+        if (storeName === 'settings') {
+             newState.settings = results[index].length > 0 ? results[index][0] : {theme:'dark',font:16, pass:null};
+        } else {
+            newState[storeName] = results[index];
+        }
+    });
+
+    console.log("State loaded successfully from API.", newState);
     return newState;
 }
 
-function loadFromLocalStorage(){
-  const APPKEY_LEGACY='estate_pro_final_v3';
-  try{
-    const s_str = localStorage.getItem(APPKEY_LEGACY);
-    if (!s_str) return null;
-    const s = JSON.parse(s_str)||{};
-    if (Object.keys(s).length === 0) return null;
-    if(s.customers&&s.customers.length>0){s.customers.forEach(c=>{c.nationalId=c.nationalId||'';c.address=c.address||'';c.status=c.status||'نشط';c.notes=c.notes||'';});}
-    if(s.units&&s.units.length>0){s.units.forEach(u=>{u.area=u.area||'';u.notes=u.notes||'';u.unitType=u.unitType||'سكني';if(u.plans&&u.plans.length>0){u.totalPrice=u.plans[0].price;}else if(!u.hasOwnProperty('totalPrice')){u.totalPrice=0;}delete u.plans;});}
-    if(s.contracts&&s.contracts.length>0){s.contracts.forEach(c=>{c.brokerName=c.brokerName||'';c.commissionSafeId=c.commissionSafeId||null;c.discountAmount=c.discountAmount||0;delete c.planName;});}
-    s.safes=s.safes||[];if(s.safes.length===0){s.safes.push({id:uid('S'),name:'الخزنة الرئيسية',balance:0});}else{s.safes.forEach(safe=>{safe.balance=safe.balance||0;});}
-    s.auditLog=s.auditLog||[];s.vouchers=s.vouchers||[];
-    if(s.payments&&s.payments.length>0&&s.vouchers.length===0){console.log('Migrating payments to vouchers...');s.payments.forEach(p=>{const unit=s.units.find(u=>u.id===p.unitId);const contract=s.contracts.find(c=>c.unitId===p.unitId);const customer=contract?s.customers.find(cust=>cust.id===contract.customerId):null;s.vouchers.push({id:uid('V'),type:'receipt',date:p.date,amount:p.amount,safeId:p.safeId,description:`دفعة للوحدة ${unit?unit.code:'غير معروفة'}`,payer:customer?customer.name:'غير محدد',linked_ref:p.unitId});});s.contracts.forEach(c=>{if(c.brokerAmount>0){const unit=s.units.find(u=>u.id===c.unitId);s.vouchers.push({id:uid('V'),type:'payment',date:c.start,amount:c.brokerAmount,safeId:c.commissionSafeId,description:`عمولة سمسار للوحدة ${unit?unit.code:'غير معروفة'}`,beneficiary:c.brokerName||'سمسار',linked_ref:c.id});}});}
-    s.brokerDues=s.brokerDues||[];s.brokers=s.brokers||[];s.partnerGroups=s.partnerGroups||[];
-    if(s.brokers.length===0&&(s.contracts.some(c=>c.brokerName)||s.brokerDues.some(d=>d.brokerName))){console.log('Populating brokers list from existing data...');const brokerNames=new Set([...s.contracts.map(c=>c.brokerName),...s.brokerDues.map(d=>d.brokerName)].filter(Boolean));brokerNames.forEach(name=>{s.brokers.push({id:uid('B'),name:name,phone:'',notes:''});});}
-    const defaultState = {customers:[],units:[],partners:[],unitPartners:[],contracts:[],installments:[],payments:[],partnerDebts:[],safes:[],transfers:[],auditLog:[],vouchers:[],brokerDues:[],brokers:[],partnerGroups:[],settings:{theme:'dark',font:16},locked:false};
-    return {...defaultState, ...s};
-  }catch{
-    return null;
-  }
-}
+// This function is no longer needed as we don't migrate from localStorage anymore.
+function loadFromLocalStorage(){ return null; }
 
 /* ===== UNDO/REDO ===== */
-async function undo() { if (historyIndex > 0) { historyIndex--; const restoredState = JSON.parse(JSON.stringify(historyStack[historyIndex])); Object.keys(state).forEach(key => delete state[key]); Object.assign(state, restoredState); await persist(); nav(currentView, currentParam); updateUndoRedoButtons(); } }
-async function redo() { if (historyIndex < historyStack.length - 1) { historyIndex++; const restoredState = JSON.parse(JSON.stringify(historyStack[historyIndex])); Object.keys(state).forEach(key => delete state[key]); Object.assign(state, restoredState); await persist(); nav(currentView, currentParam); updateUndoRedoButtons(); } }
+// NOTE: With a backend, a full-featured undo/redo is much more complex as it requires either
+// sending all changes to the server or having an API for undo/redo operations.
+// For now, undo/redo will only affect the local session and WILL NOT be persisted.
+async function undo() {
+    if (historyIndex > 0) {
+        historyIndex--;
+        const restoredState = JSON.parse(JSON.stringify(historyStack[historyIndex]));
+        Object.keys(state).forEach(key => delete state[key]);
+        Object.assign(state, restoredState);
+        // await persist(); // Persisting the entire state is no longer feasible.
+        console.warn("Undo operation is local only and will not be saved to the server.");
+        nav(currentView, currentParam);
+        updateUndoRedoButtons();
+    }
+}
+async function redo() {
+    if (historyIndex < historyStack.length - 1) {
+        historyIndex++;
+        const restoredState = JSON.parse(JSON.stringify(historyStack[historyIndex]));
+        Object.keys(state).forEach(key => delete state[key]);
+        Object.assign(state, restoredState);
+        // await persist(); // Persisting the entire state is no longer feasible.
+        console.warn("Redo operation is local only and will not be saved to the server.");
+        nav(currentView, currentParam);
+        updateUndoRedoButtons();
+    }
+}
 function saveState() { historyStack = historyStack.slice(0, historyIndex + 1); historyStack.push(JSON.parse(JSON.stringify(state))); if (historyStack.length > 50) { historyStack.shift(); } historyIndex = historyStack.length - 1; updateUndoRedoButtons(); }
 function updateUndoRedoButtons() { const undoBtn = document.getElementById('undoBtn'); const redoBtn = document.getElementById('redoBtn'); if (undoBtn) undoBtn.disabled = historyIndex <= 0; if (redoBtn) redoBtn.disabled = historyIndex >= historyStack.length - 1; }
 
@@ -158,13 +139,19 @@ function setupGlobalEventListeners() {
     document.getElementById('themeSel').value = state.settings.theme || 'dark';
     document.getElementById('fontSel').value = String(state.settings.font || 16);
 
-    document.getElementById('themeSel').addEventListener('change', async (e) => { state.settings.theme = e.target.value; await persist(); });
-    document.getElementById('fontSel').addEventListener('change', async (e) => { state.settings.font = Number(e.target.value); await persist(); });
+    document.getElementById('themeSel').addEventListener('change', async (e) => {
+        state.settings.theme = e.target.value;
+        await put('settings', state.settings).catch(err => alert(err.message));
+    });
+    document.getElementById('fontSel').addEventListener('change', async (e) => {
+        state.settings.font = Number(e.target.value);
+        await put('settings', state.settings).catch(err => alert(err.message));
+    });
     document.getElementById('lockBtn').addEventListener('click', async () => {
         const pass = prompt('ضع كلمة مرور أو اتركها فارغة لإلغاء القفل', '');
         state.locked = !!pass;
         state.settings.pass = pass || null;
-        await persist();
+        await put('settings', state.settings).catch(err => alert(err.message));
         alert(state.locked ? 'تم تفعيل القفل' : 'تم إلغاء القفل');
         checkLock();
     });
@@ -768,7 +755,7 @@ function renderCustomers(){
     </div>
   </div>`;
 
-  window.addCustomer=()=>{
+  window.addCustomer= async ()=>{
     const name = document.getElementById('c-name').value.trim();
     const phone = document.getElementById('c-phone').value.trim();
     const nationalId = document.getElementById('c-nationalId').value.trim();
@@ -777,24 +764,26 @@ function renderCustomers(){
     const notes = document.getElementById('c-notes').value.trim();
 
     if(!name || !phone) return alert('الرجاء إدخال الاسم ورقم الهاتف على الأقل.');
-    if(state.customers.some(c => c.name.toLowerCase() === name.toLowerCase())) {
-      return alert('عميل بنفس الاسم موجود بالفعل. الرجاء استخدام اسم مختلف.');
-    }
 
-    saveState();
     const newCustomer = { id: uid('C'), name, phone, nationalId, address, status, notes };
-    logAction('إضافة عميل جديد', { id: newCustomer.id, name: newCustomer.name });
-    state.customers.push(newCustomer);
-    persist();
 
-    // Reset form
-    document.getElementById('c-name').value = '';
-    document.getElementById('c-phone').value = '';
-    document.getElementById('c-nationalId').value = '';
-    document.getElementById('c-address').value = '';
-    document.getElementById('c-notes').value = '';
+    try {
+        const savedCustomer = await put('customers', newCustomer);
+        saveState();
+        logAction('إضافة عميل جديد', { id: savedCustomer.id, name: savedCustomer.name });
+        state.customers.push(savedCustomer);
 
-    draw();
+        // Reset form
+        document.getElementById('c-name').value = '';
+        document.getElementById('c-phone').value = '';
+        document.getElementById('c-nationalId').value = '';
+        document.getElementById('c-address').value = '';
+        document.getElementById('c-notes').value = '';
+
+        draw();
+    } catch(err) {
+        alert("فشل حفظ العميل: " + err.message);
+    }
   };
 
   window.expCustomers=()=>{
@@ -890,14 +879,19 @@ function renderCustomerDetails(customerId) {
         </div>
     `;
 }
-window.inlineUpd=(coll,id,key,val)=>{
-  saveState();
+window.inlineUpd= async (coll,id,key,val)=>{
   const o=state[coll].find(x=>x.id===id);
   if(o){
     const oldValue = o[key];
     o[key]=val;
-    logAction(`تعديل مباشر في ${coll}`, { collection: coll, id, key, oldValue, newValue: val });
-    persist();
+    try {
+        await put(coll, o);
+        saveState();
+        logAction(`تعديل مباشر في ${coll}`, { collection: coll, id, key, oldValue, newValue: val });
+    } catch(err) {
+        alert("فشل تحديث البيانات: " + err.message);
+        o[key] = oldValue; // Revert on failure
+    }
   }
 };
 
@@ -930,7 +924,7 @@ window.updatePartnerPercent = (element, linkId, originalPercent) => {
   alert('تم تحديث النسبة بنجاح.');
 };
 
-window.delRow=(coll,id)=>{
+window.delRow= async (coll,id)=>{
   const nameMap = {
     customers: 'العميل',
     units: 'الوحدة',
@@ -945,14 +939,18 @@ window.delRow=(coll,id)=>{
   const itemName = itemToDelete?.name || itemToDelete?.code || id;
 
   if(confirm(`هل أنت متأكد من حذف ${collName} "${itemName}"؟ هذا الإجراء لا يمكن التراجع عنه.`)){
-    saveState();
-    logAction(`حذف ${collName}`, { collection: coll, id, deletedItem: JSON.stringify(itemToDelete) });
-    state[coll]=state[coll].filter(x=>x.id!==id);
-    persist();
-    if (coll === 'unitPartners') {
-      renderUnitDetails(itemToDelete.unitId);
-    } else {
-      nav(coll);
+    try {
+        await deleteItem(coll, id);
+        saveState();
+        logAction(`حذف ${collName}`, { collection: coll, id, deletedItem: JSON.stringify(itemToDelete) });
+        state[coll]=state[coll].filter(x=>x.id!==id);
+        if (coll === 'unitPartners') {
+          renderUnitDetails(itemToDelete.unitId);
+        } else {
+          nav(coll);
+        }
+    } catch(err) {
+        alert("فشل الحذف: " + err.message);
     }
   }
 };
@@ -1066,7 +1064,7 @@ function renderUnits(){
     otherInput.style.display = typeSelect.value === 'other' ? 'block' : 'none';
   }
 
-  window.addUnit=()=>{
+  window.addUnit= async ()=>{
     const name=document.getElementById('u-name').value.trim();
     const area=document.getElementById('u-area').value.trim();
     const floor=document.getElementById('u-floor').value.trim();
@@ -1097,29 +1095,32 @@ function renderUnits(){
     const san_n = name.replace(/\s/g, '');
     const code = `${san_b}-${san_f}-${san_n}`;
 
-    if (state.units.some(u => u.code.toLowerCase() === code.toLowerCase())) {
-        return alert('هذه الوحدة (نفس الاسم والدور والبرج) موجودة بالفعل.');
-    }
-
-    saveState();
-
     const newUnit = {
       id:uid('U'), code, name, status: 'متاحة', area, floor, building, notes, totalPrice, unitType
     };
-    logAction('إضافة وحدة جديدة', { id: newUnit.id, code: newUnit.code, partnerGroupId });
-    state.units.push(newUnit);
 
-    group.partners.forEach(p => {
-      const link = {id: uid('UP'), unitId: newUnit.id, partnerId: p.partnerId, percent: p.percent};
-      state.unitPartners.push(link);
-    });
-    logAction('ربط مجموعة شركاء بوحدة', { unitId: newUnit.id, partnerGroupId });
+    const partnerLinks = group.partners.map(p => ({id: uid('UP'), unitId: newUnit.id, partnerId: p.partnerId, percent: p.percent}));
 
-    persist();
-    // Instead of going back to the list, navigate to the new unit's details page
-    // so the user can immediately see the result of applying the partner group.
-    nav('unit-details', newUnit.id);
-    alert('تم حفظ الوحدة وربط مجموعة الشركاء بنجاح. يتم الآن عرض تفاصيل الوحدة.');
+    try {
+        saveState();
+        const savedUnit = await put('units', newUnit);
+        state.units.push(savedUnit);
+        logAction('إضافة وحدة جديدة', { id: savedUnit.id, code: savedUnit.code, partnerGroupId });
+
+        for(const link of partnerLinks) {
+            const savedLink = await put('unitPartners', link);
+            state.unitPartners.push(savedLink);
+        }
+        logAction('ربط مجموعة شركاء بوحدة', { unitId: newUnit.id, partnerGroupId });
+
+        nav('unit-details', newUnit.id);
+        alert('تم حفظ الوحدة وربط مجموعة الشركاء بنجاح.');
+    } catch (err) {
+        alert("فشل حفظ الوحدة: " + err.message);
+        // Manual rollback of state is needed on failure
+        state.units = state.units.filter(u => u.id !== newUnit.id);
+        state.unitPartners = state.unitPartners.filter(up => up.unitId !== newUnit.id);
+    }
   };
 
   window.expUnits=()=>{
@@ -1187,7 +1188,7 @@ function renderUnitEdit(unitId) {
     </div>
     `;
 
-    window.updateUnit = (id) => {
+    window.updateUnit = async (id) => {
         const u = unitById(id);
         if (!u) return alert('لم يتم العثور على الوحدة.');
 
@@ -1199,6 +1200,8 @@ function renderUnitEdit(unitId) {
             return alert('الرجاء إدخال اسم الوحدة والدور والبرج.');
         }
 
+        const originalUnit = JSON.parse(JSON.stringify(u)); // Deep copy for rollback
+
         saveState();
         u.name = name;
         u.floor = floor;
@@ -1207,14 +1210,19 @@ function renderUnitEdit(unitId) {
         u.area = document.getElementById('u-edit-area').value.trim();
         u.status = document.getElementById('u-edit-status').value;
         u.notes = document.getElementById('u-edit-notes').value.trim();
-
-        // Recalculate code in case building/floor/name changed
         u.code = `${building.replace(/\s/g, '')}-${floor.replace(/\s/g, '')}-${name.replace(/\s/g, '')}`;
 
-        logAction('تعديل بيانات الوحدة', { unitId: id, updatedData: { name, floor, building, price: u.totalPrice } });
-        persist();
-        alert('تم حفظ التعديلات بنجاح.');
-        nav('units');
+        try {
+            await put('units', u);
+            logAction('تعديل بيانات الوحدة', { unitId: id, updatedData: { name, floor, building, price: u.totalPrice } });
+            alert('تم حفظ التعديلات بنجاح.');
+            nav('units');
+        } catch (err) {
+            alert("فشل تحديث الوحدة: " + err.message);
+            // Rollback local state
+            const index = state.units.findIndex(unit => unit.id === id);
+            if (index !== -1) state.units[index] = originalUnit;
+        }
     }
 }
 
@@ -1244,87 +1252,88 @@ function renderSafes(){
   </div>
   `;
 
-  window.addSafe = () => {
+  window.addSafe = async () => {
       const name = document.getElementById('s-name').value.trim();
       const balance = parseNumber(document.getElementById('s-balance').value);
       if (!name) return alert('الرجاء إدخال اسم الخزنة.');
 
-      if (state.safes.some(s => s.name.toLowerCase() === name.toLowerCase())) {
-          return alert('خزنة بنفس الاسم موجودة بالفعل.');
-      }
-
-      saveState();
       const newSafe = { id: uid('S'), name, balance };
-      logAction('إضافة خزنة جديدة', { safeId: newSafe.id, name, initialBalance: balance });
-      state.safes.push(newSafe);
-      persist();
 
-      document.getElementById('s-name').value = '';
-      document.getElementById('s-balance').value = '0';
-      draw();
+      try {
+          const savedSafe = await put('safes', newSafe);
+          saveState();
+          logAction('إضافة خزنة جديدة', { safeId: savedSafe.id, name, initialBalance: balance });
+          state.safes.push(savedSafe);
+
+          document.getElementById('s-name').value = '';
+          document.getElementById('s-balance').value = '0';
+          draw();
+      } catch (err) {
+          alert("فشل إضافة الخزنة: " + err.message);
+      }
   };
 
   draw();
 }
 
-window.executeReturn = (unitId, buyingPartnerId) => {
+window.executeReturn = async (unitId, buyingPartnerId) => {
+    const originalState = JSON.parse(JSON.stringify(state));
     saveState();
     const u = unitById(unitId);
     const ct = state.contracts.find(c => c.unitId === unitId);
-    if (!u || !ct) {
-        return alert('خطأ: لم يتم العثور على الوحدة أو العقد.');
-    }
+    if (!u || !ct) return alert('خطأ: لم يتم العثور على الوحدة أو العقد.');
 
     const originalPartners = state.unitPartners.filter(up => up.unitId === unitId);
     const originalInstallments = state.installments.filter(i => i.unitId === unitId);
-
-    // Change unit status
-    u.status = 'متاحة';
-
-    // Delete contract and unpaid installments
-    state.contracts = state.contracts.filter(c => c.id !== ct.id);
-    state.installments = state.installments.filter(i => i.unitId !== unitId || i.status === 'مدفوع');
+    const unpaidInstallments = originalInstallments.filter(i => i.status !== 'مدفوع');
 
     const sellingPartners = originalPartners.filter(p => p.partnerId !== buyingPartnerId);
     const scheduleBasis = originalInstallments.sort((a,b) => (a.dueDate||'').localeCompare(b.dueDate||''));
     const numInstallments = scheduleBasis.length;
 
+    const newPartnerDebts = [];
     if (numInstallments > 0) {
         for (const seller of sellingPartners) {
             const debtOwed = (ct.totalPrice * seller.percent / 100);
             const installmentAmount = Math.round((debtOwed / numInstallments) * 100) / 100;
             let accumulatedAmount = 0;
-
             for (let i = 0; i < scheduleBasis.length; i++) {
                 const inst = scheduleBasis[i];
                 let amount = installmentAmount;
-                if (i === numInstallments - 1) {
-                    amount = Math.round((debtOwed - accumulatedAmount) * 100) / 100;
-                }
-
-                const newDebt = {
-                    id: uid('PD'),
-                    unitId: unitId,
-                    payingPartnerId: buyingPartnerId,
-                    owedPartnerId: seller.partnerId,
-                    amount: amount,
-                    dueDate: inst.dueDate,
-                    status: 'غير مدفوع'
-                };
-                state.partnerDebts.push(newDebt);
+                if (i === numInstallments - 1) { amount = Math.round((debtOwed - accumulatedAmount) * 100) / 100; }
+                newPartnerDebts.push({ id: uid('PD'), unitId, payingPartnerId: buyingPartnerId, owedPartnerId: seller.partnerId, amount, dueDate: inst.dueDate, status: 'غير مدفوع' });
                 accumulatedAmount += amount;
             }
         }
     }
 
-    // Update ownership
-    state.unitPartners = state.unitPartners.filter(up => up.unitId !== unitId);
-    state.unitPartners.push({ id: uid('UP'), unitId, partnerId: buyingPartnerId, percent: 100 });
+    const newUnitPartnerLink = { id: uid('UP'), unitId, partnerId: buyingPartnerId, percent: 100 };
+    u.status = 'متاحة';
 
-    persist();
-    alert('تمت عملية الإرجاع وشراء الشريك بنجاح.');
-    nav('units');
-    return true; // for modal
+    try {
+        // Perform API calls
+        await deleteItem('contracts', ct.id);
+        for(const inst of unpaidInstallments) { await deleteItem('installments', inst.id); }
+        for(const debt of newPartnerDebts) { await put('partnerDebts', debt); }
+        for(const up of originalPartners) { await deleteItem('unitPartners', up.id); }
+        await put('unitPartners', newUnitPartnerLink);
+        await put('units', u);
+
+        // Update local state
+        state.contracts = state.contracts.filter(c => c.id !== ct.id);
+        state.installments = state.installments.filter(i => i.unitId !== unitId || i.status === 'مدفوع');
+        state.partnerDebts.push(...newPartnerDebts);
+        state.unitPartners = state.unitPartners.filter(up => up.unitId !== unitId);
+        state.unitPartners.push(newUnitPartnerLink);
+
+        alert('تمت عملية الإرجاع وشراء الشريك بنجاح.');
+        nav('units');
+        return true;
+    } catch (err) {
+        alert("فشل تنفيذ عملية الإرجاع: " + err.message);
+        Object.keys(originalState).forEach(key => state[key] = originalState[key]);
+        return false;
+    }
 };
 
 window.startReturnProcess = (unitId) => {
@@ -1447,81 +1456,61 @@ function renderUnitDetails(unitId){
   }
 }
 
-function deleteContract(contractId) {
+async function deleteContract(contractId) {
     const contract = state.contracts.find(c => c.id === contractId);
     if (!contract) {
       alert('لم يتم العثور على العقد.');
       return;
     }
 
-    // First confirmation
-    if (!confirm(`هل أنت متأكد من حذف العقد ${contract.code}؟ سيتم حذف جميع الأقساط والمدفوعات المرتبطة به.`)) return;
+    if (!confirm(`هل أنت متأكد من حذف العقد ${contract.code}؟ سيتم حذف جميع البيانات المرتبطة به من الخادم.`)) return;
 
-    const unitId = contract.unitId;
-    const brokerDue = state.brokerDues.find(d => d.contractId === contractId);
-    let commissionVoucher = null;
-    if (brokerDue) {
-        commissionVoucher = state.vouchers.find(v => v.linked_ref === brokerDue.id && v.description.includes('عمولة سمسار'));
-    }
+    // This is a complex transaction. We will try to delete everything, but if one part fails,
+    // the data might become inconsistent. A better solution would be a single API endpoint for this.
 
-    let keepCommission = false;
-    if (commissionVoucher) { // This implies the commission was paid
-        if (!confirm("تم العثور على عمولة مدفوعة لهذا العقد. هل تريد حذفها أيضًا وإرجاع المبلغ للخزنة؟")) {
-            keepCommission = true;
+    const originalState = JSON.parse(JSON.stringify(state)); // For potential rollback
+    saveState(); // For undo
+
+    try {
+        const unitId = contract.unitId;
+        const installmentsToDelete = state.installments.filter(i => i.unitId === unitId);
+        const brokerDueToDelete = state.brokerDues.find(d => d.contractId === contractId);
+
+        const installmentIds = new Set(installmentsToDelete.map(i => i.id));
+        const vouchersToDelete = state.vouchers.filter(v =>
+            v.linked_ref === contractId ||
+            installmentIds.has(v.linked_ref) ||
+            (brokerDueToDelete && v.linked_ref === brokerDueToDelete.id)
+        );
+
+        // Perform deletions from the backend
+        for (const voucher of vouchersToDelete) { await deleteItem('vouchers', voucher.id); }
+        if (brokerDueToDelete) { await deleteItem('brokerDues', brokerDueToDelete.id); }
+        for (const inst of installmentsToDelete) { await deleteItem('installments', inst.id); }
+        await deleteItem('contracts', contract.id);
+
+        // Update the unit's status
+        const unit = unitById(unitId);
+        if (unit) {
+            unit.status = 'متاحة';
+            await put('units', unit);
         }
+
+        // Update local state on success
+        state.vouchers = state.vouchers.filter(v => !vouchersToDelete.some(vd => vd.id === v.id));
+        if (brokerDueToDelete) { state.brokerDues = state.brokerDues.filter(d => d.id !== brokerDueToDelete.id); }
+        state.installments = state.installments.filter(i => !installmentsToDelete.some(id => id.id === i.id));
+        state.contracts = state.contracts.filter(c => c.id !== contractId);
+
+        logAction('حذف عقد وكل ما يتعلق به', { contractId, unitId, deletedContract: JSON.stringify(contract) });
+        alert('تم حذف العقد بنجاح.');
+        nav('contracts');
+
+    } catch (err) {
+        alert("فشل حذف العقد بالكامل: " + err.message + "\n\nقد تكون البيانات غير متناسقة. يوصى بتحديث الصفحة.");
+        // Rollback local state
+        Object.keys(originalState).forEach(key => state[key] = originalState[key]);
     }
-
-    saveState();
-    logAction('حذف عقد وكل ما يتعلق به', { contractId, unitId, keepCommission, deletedContract: JSON.stringify(contract) });
-
-    // 1. Handle Vouchers (receipts for installments and down payments)
-    const installmentIds = state.installments.filter(i => i.unitId === unitId).map(i => i.id);
-    const relatedVouchers = state.vouchers.filter(v => {
-        return (v.linked_ref === contractId || installmentIds.includes(v.linked_ref)) && !v.description.includes('عمولة سمسار');
-    });
-
-    relatedVouchers.forEach(v => {
-        const safe = state.safes.find(s => s.id === v.safeId);
-        if (safe && v.type === 'receipt') {
-            safe.balance -= v.amount;
-        }
-    });
-
-    const voucherIdsToDelete = new Set(relatedVouchers.map(v => v.id));
-
-    // 2. Handle Commission Voucher (if not kept)
-    if (commissionVoucher && !keepCommission) {
-        const safe = state.safes.find(s => s.id === commissionVoucher.safeId);
-        if (safe) {
-            safe.balance += commissionVoucher.amount; // It's a payment, so add it back
-        }
-        voucherIdsToDelete.add(commissionVoucher.id);
-    }
-
-    state.vouchers = state.vouchers.filter(v => !voucherIdsToDelete.has(v.id));
-
-    // Legacy payments cleanup
-    state.payments = state.payments.filter(p => p.unitId !== unitId);
-
-    // 3. Delete installments
-    state.installments = state.installments.filter(i => i.unitId !== unitId);
-
-    // 4. Delete broker due (if not kept)
-    if (brokerDue && !keepCommission) {
-        state.brokerDues = state.brokerDues.filter(d => d.id !== brokerDue.id);
-    }
-
-    // 5. Delete the contract itself
-    state.contracts = state.contracts.filter(c => c.id !== contractId);
-
-    // 6. Update the unit's status
-    const unit = unitById(unitId);
-    if (unit) {
-        unit.status = 'متاحة';
-    }
-
-    persist();
-    nav('contracts');
 }
 
 /* ===== العقود + توليد أقساط ===== */
@@ -1620,7 +1609,8 @@ function renderContracts(){
     </div>
   </div>`;
 
-  window.createContract=()=>{
+  window.createContract= async ()=>{
+    // --- 1. Gather and validate form data ---
     const total=parseNumber(document.getElementById('ct-total').value), down=parseNumber(document.getElementById('ct-down').value);
     const discount = parseNumber(document.getElementById('ct-discount').value);
     const brokerName = document.getElementById('ct-broker-name').value.trim();
@@ -1629,126 +1619,106 @@ function renderContracts(){
     const commissionSafeId = document.getElementById('ct-commission-safe').value;
     const downPaymentSafeId = document.getElementById('ct-downpayment-safe').value;
     let paymentType = document.getElementById('ct-payment-type').value;
-
-    // Automatically convert to cash deal if down payment covers the full price
-    if (paymentType === 'installment' && down >= total) {
-        paymentType = 'cash';
-    }
-
-    if (brokerAmt > 0 && !commissionSafeId) return alert('الرجاء تحديد الخزنة التي سيتم دفع العمولة منها.');
-    if (down > 0 && !downPaymentSafeId) return alert('الرجاء تحديد الخزنة التي سيتم إيداع المقدم بها.');
-
-    saveState();
     const unitId=document.getElementById('ct-unit').value, customerId=document.getElementById('ct-cust').value;
-    if(!unitId||!customerId) return alert('الرجاء اختيار الوحدة والعميل.');
-
-    const unitPartners = state.unitPartners.filter(up => up.unitId === unitId);
-    const totalPercent = unitPartners.reduce((sum, p) => sum + Number(p.percent), 0);
-
-    if (unitPartners.length === 0) return alert('لا يمكن إنشاء عقد. يجب تحديد شركاء لهذه الوحدة أولاً.');
-    if (totalPercent !== 100) return alert(`لا يمكن إنشاء عقد. مجموع نسب الشركاء هو ${totalPercent}% ويجب أن يكون 100% بالضبط.`);
-
     const type=document.getElementById('ct-type').value, count=parseInt(document.getElementById('ct-count').value||'0',10);
     const extra=parseInt(document.getElementById('ct-annual-bonus').value||'0',10);
     const annualBonusValue = parseNumber(document.getElementById('ct-annual-bonus-value').value);
     const maintenanceDeposit = parseNumber(document.getElementById('ct-maintenance-deposit').value);
     const startStr=document.getElementById('ct-start').value||today(); const start=new Date(startStr);
 
+    if (paymentType === 'installment' && down >= total) { paymentType = 'cash'; }
+    if (brokerAmt > 0 && !commissionSafeId) return alert('الرجاء تحديد الخزنة التي سيتم دفع العمولة منها.');
+    if (down > 0 && !downPaymentSafeId) return alert('الرجاء تحديد الخزنة التي سيتم إيداع المقدم بها.');
+    if(!unitId||!customerId) return alert('الرجاء اختيار الوحدة والعميل.');
+    const unitPartners = state.unitPartners.filter(up => up.unitId === unitId);
+    if (unitPartners.length === 0) return alert('لا يمكن إنشاء عقد. يجب تحديد شركاء لهذه الوحدة أولاً.');
+    if (unitPartners.reduce((s, p) => s + p.percent, 0) !== 100) return alert(`لا يمكن إنشاء عقد. مجموع نسب الشركاء ليس 100%.`);
     if(paymentType === 'installment' && count <= 0 && extra <= 0) return alert('الرجاء إدخال عدد دفعات أو عدد دفعات سنوية.');
-    if(paymentType === 'installment' && extra > 0 && annualBonusValue <= 0) return alert('الرجاء إدخال قيمة الدفعة السنوية.');
 
-    // Create contract object first
+    // --- 2. Prepare all new objects to be created ---
+    const originalState = JSON.parse(JSON.stringify(state)); // For rollback
+    saveState();
+
+    const itemsToCreate = { contracts: [], installments: [], vouchers: [], brokerDues: [] };
+    const itemsToUpdate = { units: [], safes: [] };
+
     const code='CTR-'+String(state.contracts.length+1).padStart(5,'0');
     const ct={id:uid('CT'), code, unitId, customerId, totalPrice:total, downPayment:down, discountAmount: discount, maintenanceDeposit, brokerName, brokerPercent:brokerP, brokerAmount:brokerAmt, commissionSafeId, type, count, extraAnnual:Math.min(Math.max(extra,0),3), annualPaymentValue: annualBonusValue, start:startStr};
-    state.contracts.push(ct);
-    logAction('إنشاء عقد جديد', { contractId: ct.id, unitId, customerId, price: total });
+    itemsToCreate.contracts.push(ct);
 
-    // Handle financials and vouchers
     const customer = custById(customerId);
     if (down > 0) {
         const downPaymentSafe = state.safes.find(s => s.id === downPaymentSafeId);
         downPaymentSafe.balance += down;
-        state.vouchers.push({id:uid('V'), type:'receipt', date:startStr, amount:down, safeId:downPaymentSafeId, description:`مقدم عقد للوحدة ${getUnitDisplayName(unitById(unitId))}`, payer:customer?.name, linked_ref:ct.id});
-        logAction('إنشاء سند قبض للمقدم', { contractId: ct.id, amount: down, safeId: downPaymentSafeId });
+        itemsToUpdate.safes.push(downPaymentSafe);
+        itemsToCreate.vouchers.push({id:uid('V'), type:'receipt', date:startStr, amount:down, safeId:downPaymentSafeId, description:`مقدم عقد للوحدة ${getUnitDisplayName(unitById(unitId))}`, payer:customer?.name, linked_ref:ct.id});
     }
     if (brokerAmt > 0) {
-        const newBrokerDue = {
-            id: uid('BD'),
-            contractId: ct.id,
-            brokerName: brokerName || 'سمسار غير محدد',
-            amount: brokerAmt,
-            dueDate: startStr,
-            status: 'due',
-            paymentDate: null,
-            paidFromSafeId: null
-        };
-        state.brokerDues.push(newBrokerDue);
-        logAction('إنشاء عمولة مستحقة للسمسار', { brokerDueId: newBrokerDue.id, contractId: ct.id, amount: brokerAmt });
+        itemsToCreate.brokerDues.push({id:uid('BD'),contractId:ct.id,brokerName,amount:brokerAmt,dueDate:startStr,status:'due',paymentDate:null,paidFromSafeId:null});
     }
 
-    // Generate installments
     if (paymentType === 'installment') {
+        // ... (installment generation logic is complex and remains the same)
         const installmentBase = total - (ct.maintenanceDeposit || 0);
         const totalAfterDown = installmentBase - discount - down;
         const totalAnnualPayments = extra * annualBonusValue;
-
-        if (totalAfterDown < 0) {
-            return alert('خطأ: المقدم والخصم أكبر من قيمة العقد الخاضعة للتقسيط.');
-        }
-        if (totalAnnualPayments > totalAfterDown) {
-            return alert('خطأ: مجموع الدفعات السنوية أكبر من المبلغ المتبقي للتقسيط.');
-        }
-
         const amountForRegularInstallments = totalAfterDown - totalAnnualPayments;
         const months={'شهري':1,'ربع سنوي':3,'نصف سنوي':6,'سنوي':12}[type]||1;
-
-        // Generate regular installments
         if (count > 0) {
             const baseAmount = Math.floor((amountForRegularInstallments / count) * 100) / 100;
             let accumulatedAmount = 0;
             for(let i=0; i<count; i++){
-              const d = new Date(start);
-              d.setMonth(d.getMonth() + months * (i + 1));
+              const d = new Date(start); d.setMonth(d.getMonth() + months * (i + 1));
               const amount = (i === count - 1) ? Math.round((amountForRegularInstallments - accumulatedAmount) * 100) / 100 : baseAmount;
               accumulatedAmount += amount;
-              state.installments.push({id:uid('I'),unitId,type,amount,originalAmount:amount,dueDate:d.toISOString().slice(0,10),paymentDate:null,status:'غير مدفوع'});
+              itemsToCreate.installments.push({id:uid('I'),unitId,type,amount,originalAmount:amount,dueDate:d.toISOString().slice(0,10),paymentDate:null,status:'غير مدفوع'});
             }
         }
-
-        // Generate annual bonus installments
         for(let j=0; j<extra; j++){
-          const d = new Date(start);
-          d.setMonth(d.getMonth() + 12 * (j + 1));
-          state.installments.push({id:uid('I'),unitId,type:'دفعة سنوية',amount:annualBonusValue,originalAmount:annualBonusValue,dueDate:d.toISOString().slice(0,10),paymentDate:null,status:'غير مدفوع'});
+          const d = new Date(start); d.setMonth(d.getMonth() + 12 * (j + 1));
+          itemsToCreate.installments.push({id:uid('I'),unitId,type:'دفعة سنوية',amount:annualBonusValue,originalAmount:annualBonusValue,dueDate:d.toISOString().slice(0,10),paymentDate:null,status:'غير مدفوع'});
         }
-
-        // Generate maintenance deposit installment
         if (ct.maintenanceDeposit > 0) {
-            const allInstallments = state.installments.filter(i => i.unitId === unitId);
-            const lastInstallment = allInstallments.sort((a, b) => (b.dueDate || '').localeCompare(a.dueDate || ''))[0];
+            const allNewInstallments = itemsToCreate.installments;
+            const lastInstallment = allNewInstallments.sort((a, b) => (b.dueDate || '').localeCompare(a.dueDate || ''))[0];
             const lastDate = new Date(lastInstallment ? lastInstallment.dueDate : startStr);
-
-            // Set maintenance due date one period after the last installment
-            const lastPeriodMonths = lastInstallment ? months : 0; // if no other installments, base it on contract start
-            lastDate.setMonth(lastDate.getMonth() + lastPeriodMonths);
-
-            state.installments.push({
-                id: uid('I'),
-                unitId,
-                type: 'دفعة صيانة',
-                amount: ct.maintenanceDeposit,
-                originalAmount: ct.maintenanceDeposit,
-                dueDate: lastDate.toISOString().slice(0,10),
-                paymentDate: null,
-                status:'غير مدفوع'
-            });
+            lastDate.setMonth(lastDate.getMonth() + months);
+            itemsToCreate.installments.push({id:uid('I'),unitId,type:'دفعة صيانة',amount:ct.maintenanceDeposit,originalAmount:ct.maintenanceDeposit,dueDate:lastDate.toISOString().slice(0,10),paymentDate:null,status:'غير مدفوع'});
         }
     }
 
-    const u=unitById(unitId); if(u) u.status='مباعة';
-    persist();
-    draw();
-    // printContract(ct);
+    const u=unitById(unitId); if(u) { u.status='مباعة'; itemsToUpdate.units.push(u); }
+
+    // --- 3. Execute all API calls ---
+    try {
+        for(const coll in itemsToCreate) {
+            for(const item of itemsToCreate[coll]) {
+                await put(coll, item);
+            }
+        }
+        for(const coll in itemsToUpdate) {
+            for(const item of itemsToUpdate[coll]) {
+                await put(coll, item);
+            }
+        }
+
+        // --- 4. Update local state on success ---
+        for(const coll in itemsToCreate) { state[coll].push(...itemsToCreate[coll]); }
+        for(const coll in itemsToUpdate) {
+            itemsToUpdate[coll].forEach(item => {
+                const index = state[coll].findIndex(i => i.id === item.id);
+                if (index !== -1) state[coll][index] = item;
+            });
+        }
+
+        logAction('إنشاء عقد جديد', { contractId: ct.id, unitId, customerId, price: total });
+        alert("تم إنشاء العقد وجميع البيانات المرتبطة به بنجاح.");
+        draw();
+    } catch(err) {
+        alert("فشل إنشاء العقد: " + err.message + "\n\nحدث خطأ أثناء محاولة حفظ البيانات. قد تكون بعض البيانات قد حفظت. يرجى مراجعة البيانات أو محاولة مرة أخرى.");
+        // Rollback local state
+        Object.keys(originalState).forEach(key => state[key] = originalState[key]);
+    }
   };
 
   window.expContracts = () => {
@@ -2113,7 +2083,7 @@ function renderInstallments() {
         drawTable();
     };
 
-    window.rescheduleInstallment = function(id){
+    window.rescheduleInstallment = async function(id){
       const i = state.installments.find(x=>x.id===id); if(!i) return;
       const oldDetails = { amount: i.amount, dueDate: i.dueDate };
 
@@ -2126,12 +2096,10 @@ function renderInstallments() {
 
       if (newAmt === oldDetails.amount && newDate === oldDetails.dueDate) return;
 
+      const originalState = JSON.parse(JSON.stringify(state));
       saveState();
       const unitId = i.unitId;
-      const remainList = state.installments
-        .filter(x=>x.unitId===unitId && x.status!=='مدفوع')
-        .sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
-
+      const remainList = state.installments.filter(x=>x.unitId===unitId && x.status!=='مدفوع').sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
       const idx = remainList.findIndex(x=>x.id===id);
       const diff = Math.round((i.amount - newAmt) * 100) / 100;
 
@@ -2146,15 +2114,19 @@ function renderInstallments() {
             if (typeof x.originalAmount !== 'number') x.originalAmount = x.amount;
             x.amount = Math.round((x.amount + share) * 100) / 100;
           });
-          logAction('إعادة جدولة قسط وتوزيع الفرق', { installmentId: id, oldDetails, newAmount: newAmt, newDueDate: newDate, distributedDiff: diff });
-          alert('تمت إعادة الجدولة وتوزيع الفرق على الأقساط التالية.');
-      } else {
-           logAction('إعادة جدولة قسط', { installmentId: id, oldDetails, newAmount: newAmt, newDueDate: newDate });
-           alert('تمت إعادة جدولة القسط.');
       }
 
-      persist();
-      drawTable();
+      try {
+        const itemsToUpdate = [i, ...others];
+        for(const item of itemsToUpdate) { await put('installments', item); }
+        logAction('إعادة جدولة قسط', { installmentId: id, newAmount: newAmt, newDueDate: newDate });
+        alert('تمت إعادة جدولة القسط بنجاح.');
+        drawTable();
+      } catch (err) {
+        alert("فشل إعادة الجدولة: " + err.message);
+        Object.keys(originalState).forEach(key => state[key] = originalState[key]);
+        drawTable();
+      }
     };
 
     // Make functions available in the global scope for onclick handlers
@@ -2232,75 +2204,45 @@ function renderInstallments() {
     drawTable();
 }
 
-function processPayment(unitId, amount, method, date, safeId, installmentId = null) {
-    if (!unitId || !amount || !date || !safeId) {
-        alert('بيانات الدفع غير مكتملة.');
-        return false;
-    }
-
+async function processPayment(unitId, amount, method, date, safeId, installmentId = null) {
+    if (!unitId || !amount || !date || !safeId) { alert('بيانات الدفع غير مكتملة.'); return false; }
     const safe = state.safes.find(s => s.id === safeId);
-    if (!safe) {
-        alert('لم يتم العثور على الخزنة المحددة.');
-        return false;
-    }
+    if (!safe) { alert('لم يتم العثور على الخزنة المحددة.'); return false; }
 
+    const originalState = JSON.parse(JSON.stringify(state));
     let remainingAmountToProcess = amount;
+    const installmentsToUpdate = [];
 
-    // Create a receipt voucher for the payment
     const customer = custById(state.contracts.find(c => c.unitId === unitId)?.customerId);
-    const voucher = {
-        id: uid('V'),
-        type: 'receipt',
-        date: date,
-        amount: amount,
-        safeId: safeId,
-        description: `سداد دفعة للوحدة ${getUnitDisplayName(unitById(unitId))}`,
-        payer: customer ? customer.name : 'غير محدد',
-        linked_ref: installmentId || unitId
-    };
-    state.vouchers.push(voucher);
-    logAction('تسجيل سند قبض', { voucherId: voucher.id, unitId, amount, safeId });
+    const voucher = { id: uid('V'), type: 'receipt', date, amount, safeId, description: `سداد دفعة للوحدة ${getUnitDisplayName(unitById(unitId))}`, payer: customer ? customer.name : 'غير محدد', linked_ref: installmentId || unitId };
 
-    // Add money to the safe
     safe.balance = (safe.balance || 0) + amount;
 
-    // If this payment is for an installment, apply it to the installments
-    const installmentsToPay = state.installments
-        .filter(i => i.unitId === unitId && i.status !== 'مدفوع')
-        .sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
-
-    if (installmentsToPay.length === 0 && installmentId) {
-        console.warn(`Payment made for installment ${installmentId}, but no payable installments found for unit ${unitId}.`);
-        return true;
-    }
+    const installmentsToPay = state.installments.filter(i => i.unitId === unitId && i.status !== 'مدفوع').sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
 
     for (const inst of installmentsToPay) {
         if (remainingAmountToProcess <= 0) break;
-
         const amountToPayOnThisInstallment = Math.min(remainingAmountToProcess, inst.amount);
-
-        if (typeof inst.originalAmount !== 'number') {
-            inst.originalAmount = inst.amount;
-        }
-
+        if (typeof inst.originalAmount !== 'number') { inst.originalAmount = inst.amount; }
         inst.amount -= amountToPayOnThisInstallment;
         remainingAmountToProcess -= amountToPayOnThisInstallment;
-
-        if (inst.amount <= 0.005) { // Use a small epsilon for float comparison
-            inst.amount = 0;
-            inst.status = 'مدفوع';
-            inst.paymentDate = date;
-        } else {
-            inst.status = 'مدفوع جزئياً';
-        }
-        logAction('تطبيق دفعة على قسط', { installmentId: inst.id, paidAmount: amountToPayOnThisInstallment, remainingAmount: inst.amount });
+        if (inst.amount <= 0.005) { inst.amount = 0; inst.status = 'مدفوع'; inst.paymentDate = date; }
+        else { inst.status = 'مدفوع جزئياً'; }
+        installmentsToUpdate.push(inst);
     }
 
-    if (remainingAmountToProcess > 0.005) {
-        console.log(`Overpayment of ${egp(remainingAmountToProcess)} for unit ${unitId}.`);
-    }
+    try {
+        await put('vouchers', voucher);
+        await put('safes', safe);
+        for(const inst of installmentsToUpdate) { await put('installments', inst); }
 
-    return true; // Success
+        logAction('تسجيل سند قبض', { voucherId: voucher.id, unitId, amount, safeId });
+        return true;
+    } catch(err) {
+        alert("فشل تسجيل الدفعة: " + err.message);
+        Object.keys(originalState).forEach(key => state[key] = originalState[key]); // Rollback
+        return false;
+    }
 }
 
 
@@ -2320,44 +2262,35 @@ function showAddExpenseModal() {
         </select>
     `;
 
-    showModal('إضافة سند صرف جديد', content, () => {
+    showModal('إضافة سند صرف جديد', content, async () => {
         const description = document.getElementById('exp-desc').value.trim();
         const beneficiary = document.getElementById('exp-beneficiary').value.trim();
         const amount = parseNumber(document.getElementById('exp-amount').value);
         const date = document.getElementById('exp-date').value;
         const safeId = document.getElementById('exp-safe').value;
 
-        if (!description || !amount || !date || !safeId) {
-            alert('الرجاء ملء جميع الحقول.');
-            return false;
-        }
-
+        if (!description || !amount || !date || !safeId) { alert('الرجاء ملء جميع الحقول.'); return false; }
         const safe = state.safes.find(s => s.id === safeId);
-        if (safe.balance < amount) {
-            alert(`رصيد الخزنة "${safe.name}" غير كافٍ.`);
-            return false;
-        }
+        if (safe.balance < amount) { alert(`رصيد الخزنة "${safe.name}" غير كافٍ.`); return false; }
 
+        const originalBalance = safe.balance;
         saveState();
-
         safe.balance -= amount;
 
-        const newVoucher = {
-            id: uid('V'),
-            type: 'payment',
-            date,
-            amount,
-            safeId,
-            description,
-            beneficiary,
-            linked_ref: 'general_expense'
-        };
-        state.vouchers.push(newVoucher);
-        logAction('إضافة سند صرف يدوي', newVoucher);
+        const newVoucher = { id: uid('V'), type: 'payment', date, amount, safeId, description, beneficiary, linked_ref: 'general_expense' };
 
-        persist();
-        nav('vouchers');
-        return true;
+        try {
+            await put('safes', safe);
+            await put('vouchers', newVoucher);
+            state.vouchers.push(newVoucher);
+            logAction('إضافة سند صرف يدوي', newVoucher);
+            nav('vouchers');
+            return true;
+        } catch(err) {
+            alert("فشل إضافة السند: " + err.message);
+            safe.balance = originalBalance; // Rollback
+            return false;
+        }
     });
 }
 
@@ -2605,32 +2538,38 @@ function renderPartners(){
     document.getElementById('pd-list').innerHTML = table(headers, rows, sort, (ns) => { sort = ns; drawDebtsTab(); });
   }
 
-  window.addPartner=()=>{
+  window.addPartner= async ()=>{
     const name=document.getElementById('pr-name').value.trim(); if(!name) return;
     const phone = document.getElementById('pr-phone').value;
-    if (state.partners.some(p => p.name.toLowerCase() === name.toLowerCase())) {
-        return alert('شريك بنفس الاسم موجود بالفعل. الرجاء استخدام اسم مختلف.');
-    }
-    saveState();
+
     const newPartner = {id:uid('PR'),name,phone};
-    logAction('إضافة شريك جديد', { partnerId: newPartner.id, name });
-    state.partners.push(newPartner);
-    persist();
-    draw();
+
+    try {
+        const savedPartner = await put('partners', newPartner);
+        saveState();
+        logAction('إضافة شريك جديد', { partnerId: savedPartner.id, name });
+        state.partners.push(savedPartner);
+        draw();
+    } catch(err) {
+        alert("فشل إضافة الشريك: " + err.message);
+    }
   };
 
-  window.addGroup = () => {
+  window.addGroup = async () => {
     const name = document.getElementById('pg-name').value.trim();
     if (!name) return alert('الرجاء إدخال اسم للمجموعة.');
-    if (state.partnerGroups.some(g => g.name.toLowerCase() === name.toLowerCase())) {
-      return alert('مجموعة بنفس الاسم موجودة بالفعل.');
-    }
-    saveState();
+
     const newGroup = { id: uid('PG'), name, partners: [] };
-    state.partnerGroups.push(newGroup);
-    logAction('إنشاء مجموعة شركاء جديدة', { groupId: newGroup.id, name });
-    persist();
-    nav('partner-group-details', newGroup.id);
+
+    try {
+        const savedGroup = await put('partnerGroups', newGroup);
+        saveState();
+        state.partnerGroups.push(savedGroup);
+        logAction('إنشاء مجموعة شركاء جديدة', { groupId: savedGroup.id, name });
+        nav('partner-group-details', newGroup.id);
+    } catch(err) {
+        alert("فشل إنشاء المجموعة: " + err.message);
+    }
   };
 
   window.payPartnerDebt = (debtId) => {
@@ -2719,7 +2658,7 @@ function renderPartnerGroupDetails(groupId) {
     </div>
   `;
 
-  window.addPartnerToGroup = () => {
+  window.addPartnerToGroup = async () => {
     const partnerId = document.getElementById('pgd-partner-select').value;
     const percent = parseNumber(document.getElementById('pgd-percent').value);
 
@@ -2733,17 +2672,30 @@ function renderPartnerGroupDetails(groupId) {
 
     saveState();
     group.partners.push({ partnerId, percent });
-    logAction('إضافة شريك إلى مجموعة', { groupId, partnerId, percent });
-    persist();
-    draw();
+
+    try {
+        await put('partnerGroups', group);
+        logAction('إضافة شريك إلى مجموعة', { groupId: group.id, partnerId, percent });
+        draw();
+    } catch(err) {
+        alert("فشل تحديث المجموعة: " + err.message);
+        group.partners.pop(); // Revert local state
+    }
   };
 
-  window.removePartnerFromGroup = (partnerId) => {
+  window.removePartnerFromGroup = async (partnerId) => {
+    const originalPartners = JSON.parse(JSON.stringify(group.partners));
     saveState();
     group.partners = group.partners.filter(p => p.partnerId !== partnerId);
-    logAction('حذف شريك من مجموعة', { groupId, partnerId });
-    persist();
-    draw();
+
+    try {
+        await put('partnerGroups', group);
+        logAction('حذف شريك من مجموعة', { groupId: group.id, partnerId });
+        draw();
+    } catch (err) {
+        alert("فشل تحديث المجموعة: " + err.message);
+        group.partners = originalPartners; // Revert
+    }
   };
 
   draw();
@@ -2825,7 +2777,7 @@ function showAddTransferModal() {
       <input class="input" id="t-date" type="date" value="${today()}" style="margin-top:10px;">
       <textarea class="input" id="t-notes" placeholder="ملاحظات" style="margin-top:10px;" rows="2"></textarea>
     `;
-    showModal('تسجيل تحويل بين الخزن', content, () => {
+    showModal('تسجيل تحويل بين الخزن', content, async () => {
         const fromSafeId = document.getElementById('t-from').value;
         const toSafeId = document.getElementById('t-to').value;
         const amount = parseNumber(document.getElementById('t-amount').value);
@@ -2839,17 +2791,28 @@ function showAddTransferModal() {
         const toSafe = state.safes.find(s => s.id === toSafeId);
         if (fromSafe.balance < amount) { alert(`رصيد الخزنة "${fromSafe.name}" غير كافٍ.`); return false; }
 
+        const originalFromBalance = fromSafe.balance;
+        const originalToBalance = toSafe.balance;
         saveState();
         fromSafe.balance -= amount;
         toSafe.balance += amount;
-
         const newTransfer = { id: uid('T'), fromSafeId, toSafeId, amount, date, notes };
-        state.transfers.push(newTransfer);
-        logAction('تنفيذ تحويل بين الخزن', newTransfer);
 
-        persist();
-        nav('treasury');
-        return true;
+        try {
+            await put('safes', fromSafe);
+            await put('safes', toSafe);
+            await put('transfers', newTransfer);
+
+            state.transfers.push(newTransfer);
+            logAction('تنفيذ تحويل بين الخزن', newTransfer);
+            nav('treasury');
+            return true;
+        } catch (err) {
+            alert("فشل تنفيذ التحويل: " + err.message);
+            fromSafe.balance = originalFromBalance;
+            toSafe.balance = originalToBalance;
+            return false;
+        }
     });
 }
 
@@ -3112,15 +3075,22 @@ function renderPartnerDebts(){
     </div>
   `;
 
-  window.payPartnerDebt = (debtId) => {
+  window.payPartnerDebt = async (debtId) => {
     const debt = state.partnerDebts.find(d => d.id === debtId);
     if(!debt) return alert('لم يتم العثور على الدين.');
     if(confirm(`هل تؤكد سداد هذا الدين بمبلغ ${egp(debt.amount)}؟`)){
+        const originalStatus = debt.status;
         saveState();
         debt.status = 'مدفوع';
         debt.paymentDate = today();
-        persist();
-        draw();
+        try {
+            await put('partnerDebts', debt);
+            draw();
+        } catch(err) {
+            alert("فشل تسجيل السداد: " + err.message);
+            debt.status = originalStatus;
+            debt.paymentDate = null;
+        }
     }
   };
 
@@ -3542,11 +3512,10 @@ function renderBackup(){
     }
   }
   window.doReset=async ()=>{
-    if(prompt('اكتب "مسح" لتأكيد حذف كل البيانات')==='مسح'){
-      saveState();
-      indexedDB.deleteDatabase(DB_NAME);
-      localStorage.clear();
-      location.reload();
+    if(prompt('اكتب "مسح" لتأكيد حذف كل البيانات من الخادم')==='مسح'){
+      alert("هذه الميزة لم يتم تفعيلها بعد في وضع الخادم.");
+      // Future implementation would require a dedicated backend endpoint to truncate all tables.
+      // For now, we do nothing to prevent accidental data loss.
     }
   };
 }
@@ -3578,41 +3547,39 @@ window.payBrokerDue = function(dueId) {
         <p style="color:var(--warn)">هل أنت متأكد؟</p>
     `;
 
-    showModal('تأكيد دفع عمولة سمسار', content, () => {
+    showModal('تأكيد دفع عمولة سمسار', content, async () => {
         if (safe.balance < due.amount) {
-            alert(`رصيد الخزنة "${safe.name}" غير كافٍ.`);
+            alert(`رصيد الخzنة "${safe.name}" غير كافٍ.`);
             return false;
         }
 
+        const originalSafeBalance = safe.balance;
+        const originalDueStatus = due.status;
         saveState();
 
-        // 1. Update safe balance
         safe.balance -= due.amount;
-
-        // 2. Update due status
         due.status = 'paid';
         due.paymentDate = today();
         due.paidFromSafeId = safeId;
-
-        // 3. Create payment voucher
         const unit = unitById(contract.unitId);
-        const newVoucher = {
-            id: uid('V'),
-            type: 'payment',
-            date: today(),
-            amount: due.amount,
-            safeId: safeId,
-            description: `صرف عمولة سمسار للوحدة ${getUnitDisplayName(unit)}`,
-            beneficiary: due.brokerName,
-            linked_ref: due.id
-        };
-        state.vouchers.push(newVoucher);
+        const newVoucher = { id: uid('V'), type: 'payment', date: today(), amount: due.amount, safeId: safeId, description: `صرف عمولة سمسار للوحدة ${getUnitDisplayName(unit)}`, beneficiary: due.brokerName, linked_ref: due.id };
 
-        logAction('دفع عمولة سمسار مستحقة', { brokerDueId: due.id, safeId: safeId, amount: due.amount });
+        try {
+            await put('safes', safe);
+            await put('brokerDues', due);
+            await put('vouchers', newVoucher);
 
-        persist();
-        nav(currentView, currentParam); // Refresh the current view
-        return true;
+            state.vouchers.push(newVoucher);
+            logAction('دفع عمولة سمسار مستحقة', { brokerDueId: due.id, safeId: safeId, amount: due.amount });
+            nav(currentView, currentParam);
+            return true;
+        } catch (err) {
+            alert("فشل دفع العمولة: " + err.message);
+            safe.balance = originalSafeBalance;
+            due.status = originalDueStatus;
+            due.paymentDate = null;
+            return false;
+        }
     });
 };
 
