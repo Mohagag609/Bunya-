@@ -1,5 +1,5 @@
 /* ===== RENDER PRODUCTION DATABASE CONNECTION ===== */
-// استبدل هذا الرابط برابط Render الخاص بك
+// رابط Backend على Render
 const API_BASE_URL = 'https://estate-management-backend.onrender.com/api';
 let authToken = null;
 
