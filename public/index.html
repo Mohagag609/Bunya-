@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>برنامج إدارة الاستثمار العقاري</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1>برنامج إدارة الاستثمار العقاري</h1>
+                <div class="header-actions">
+                    <div class="user-info" id="userInfo" style="display: none;">
+                        <span id="userName"></span>
+                        <button id="logoutBtn" class="btn btn-sm">تسجيل الخروج</button>
+                    </div>
+                    <div class="login-form" id="loginForm">
+                        <input type="text" id="username" placeholder="اسم المستخدم" required>
+                        <input type="password" id="password" placeholder="كلمة المرور" required>
+                        <button id="loginBtn" class="btn">تسجيل الدخول</button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="nav" id="nav" style="display: none;">
+            <button class="nav-btn active" data-view="dash">الرئيسية</button>
+            <button class="nav-btn" data-view="customers">العملاء</button>
+            <button class="nav-btn" data-view="units">الوحدات</button>
+            <button class="nav-btn" data-view="partners">الشركاء</button>
+            <button class="nav-btn" data-view="contracts">العقود</button>
+            <button class="nav-btn" data-view="safes">الخزن</button>
+            <button class="nav-btn" data-view="vouchers">السندات</button>
+            <button class="nav-btn" data-view="reports">التقارير</button>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main" id="main" style="display: none;">
+            <div id="view" class="view">
+                <!-- Content will be loaded here -->
+            </div>
+        </main>
+
+        <!-- Loading Spinner -->
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>جاري التحميل...</p>
+        </div>
+
+        <!-- Error Message -->
+        <div id="error" class="error" style="display: none;">
+            <p id="errorMessage"></p>
+            <button id="errorClose" class="btn btn-sm">إغلاق</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="api.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
