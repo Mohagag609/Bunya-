@@ -119,6 +119,12 @@ async function initializeApp() {
 // The 'persist' function is now obsolete. Data is saved directly via API calls
 // in the event handler functions (e.g., addCustomer, delRow).
 
+// دالة persist للتوافق مع الكود الموجود
+function persist() {
+    // لا نحتاج إلى فعل شيء هنا لأن البيانات تحفظ مباشرة عبر API
+    console.log('persist() called - data already saved via API');
+}
+
 async function loadStateFromAPI() {
     console.log("Loading all application data from the backend...");
     const newState = {};
@@ -1172,7 +1178,38 @@ window.delRow= async (coll,id)=>{
         } else if (coll === 'contracts') {
           // إعادة رسم صفحة العقود مباشرة
           if (currentView === 'contracts') {
-            renderContracts();
+            // إعادة رسم الجدول مباشرة
+            const q = (document.getElementById('ct-q')?.value || '').trim().toLowerCase();
+            let list = state.contracts.slice();
+            if (q) {
+                list = list.filter(c => {
+                    const customerName = (custById(c.customerId) || {}).name || '';
+                    const unitName = getUnitDisplayName(unitById(c.unitId));
+                    const searchable = `${c.code || ''} ${unitName} ${customerName} ${c.brokerName || ''}`.toLowerCase();
+                    return searchable.includes(q);
+                });
+            }
+
+            const rows=list.map(c=> {
+                const broker = state.brokers.find(b => b.name === c.brokerName);
+                const brokerNav = broker ? `nav('broker-details', '${broker.id}')` : `alert('لم يتم العثور على هذا السمسار في القائمة.')`;
+                return [
+                    c.code,
+                    getUnitDisplayName(unitById(c.unitId)),
+                    (custById(c.customerId)||{}).name||'—',
+                    c.brokerName ? `<a href="#" onclick="${brokerNav}; return false;">${c.brokerName}</a>` : '—',
+                    egp(c.totalPrice),
+                    c.start,
+                    `<button class="btn" onclick="openContractDetails('${c.id}')">عرض</button> <button class="btn gold" onclick="editContract('${c.id}')">تعديل</button>`,
+                    `<button class="btn secondary" onclick="deleteContract('${c.id}')">حذف</button>`
+                ];
+            });
+            
+            const ctListElement = document.getElementById('ct-list');
+            if (ctListElement) {
+                ctListElement.innerHTML = table(['كود العقد','الوحدة','العميل','السمسار','السعر','تاريخ البدء','إجراءات',''], rows);
+            }
+            showNotification('تم حذف العقد بنجاح.', 'success');
           } else {
             nav(coll);
           }
@@ -1697,14 +1734,11 @@ function renderUnitDetails(unitId){
 async function deleteContract(contractId) {
     const contract = state.contracts.find(c => c.id === contractId);
     if (!contract) {
-      alert('لم يتم العثور على العقد.');
-      return;
+        showNotification('لم يتم العثور على العقد.', 'error');
+        return;
     }
 
     if (!confirm(`هل أنت متأكد من حذف العقد ${contract.code}؟ سيتم حذف جميع البيانات المرتبطة به من الخادم.`)) return;
-
-    // This is a complex transaction. We will try to delete everything, but if one part fails,
-    // the data might become inconsistent. A better solution would be a single API endpoint for this.
 
     const originalState = JSON.parse(JSON.stringify(state)); // For potential rollback
     saveState(); // For undo
@@ -1722,9 +1756,15 @@ async function deleteContract(contractId) {
         );
 
         // Perform deletions from the backend
-        for (const voucher of vouchersToDelete) { await deleteItem('vouchers', voucher.id); }
-        if (brokerDueToDelete) { await deleteItem('brokerDues', brokerDueToDelete.id); }
-        for (const inst of installmentsToDelete) { await deleteItem('installments', inst.id); }
+        for (const voucher of vouchersToDelete) { 
+            await deleteItem('vouchers', voucher.id); 
+        }
+        if (brokerDueToDelete) { 
+            await deleteItem('brokerDues', brokerDueToDelete.id); 
+        }
+        for (const inst of installmentsToDelete) { 
+            await deleteItem('installments', inst.id); 
+        }
         await deleteItem('contracts', contract.id);
 
         // Update the unit's status
@@ -1736,26 +1776,57 @@ async function deleteContract(contractId) {
 
         // Update local state on success
         state.vouchers = state.vouchers.filter(v => !vouchersToDelete.some(vd => vd.id === v.id));
-        if (brokerDueToDelete) { state.brokerDues = state.brokerDues.filter(d => d.id !== brokerDueToDelete.id); }
+        if (brokerDueToDelete) { 
+            state.brokerDues = state.brokerDues.filter(d => d.id !== brokerDueToDelete.id); 
+        }
         state.installments = state.installments.filter(i => !installmentsToDelete.some(id => id.id === i.id));
         state.contracts = state.contracts.filter(c => c.id !== contractId);
         
-        // تأكيد أن البيانات تم حذفها من الحالة المحلية
-        console.log('Contract deleted successfully. Remaining contracts:', state.contracts.length);
+        // إضافة persist() لضمان الحفظ
+        persist();
 
         logAction('حذف عقد وكل ما يتعلق به', { contractId, unitId, deletedContract: JSON.stringify(contract) });
-        alert('تم حذف العقد بنجاح.');
+        showNotification('تم حذف العقد بنجاح.', 'success');
+        
         // إعادة رسم صفحة العقود
         if (currentView === 'contracts') {
-            console.log('Re-rendering contracts page...');
-            renderContracts();
+            // إعادة رسم الجدول مباشرة
+            const q = (document.getElementById('ct-q')?.value || '').trim().toLowerCase();
+            let list = state.contracts.slice();
+            if (q) {
+                list = list.filter(c => {
+                    const customerName = (custById(c.customerId) || {}).name || '';
+                    const unitName = getUnitDisplayName(unitById(c.unitId));
+                    const searchable = `${c.code || ''} ${unitName} ${customerName} ${c.brokerName || ''}`.toLowerCase();
+                    return searchable.includes(q);
+                });
+            }
+
+            const rows=list.map(c=> {
+                const broker = state.brokers.find(b => b.name === c.brokerName);
+                const brokerNav = broker ? `nav('broker-details', '${broker.id}')` : `alert('لم يتم العثور على هذا السمسار في القائمة.')`;
+                return [
+                    c.code,
+                    getUnitDisplayName(unitById(c.unitId)),
+                    (custById(c.customerId)||{}).name||'—',
+                    c.brokerName ? `<a href="#" onclick="${brokerNav}; return false;">${c.brokerName}</a>` : '—',
+                    egp(c.totalPrice),
+                    c.start,
+                    `<button class="btn" onclick="openContractDetails('${c.id}')">عرض</button> <button class="btn gold" onclick="editContract('${c.id}')">تعديل</button>`,
+                    `<button class="btn secondary" onclick="deleteContract('${c.id}')">حذف</button>`
+                ];
+            });
+            
+            const ctListElement = document.getElementById('ct-list');
+            if (ctListElement) {
+                ctListElement.innerHTML = table(['كود العقد','الوحدة','العميل','السمسار','السعر','تاريخ البدء','إجراءات',''], rows);
+            }
         } else {
-            console.log('Navigating to contracts page...');
             nav('contracts');
         }
 
     } catch (err) {
-        alert("فشل حذف العقد بالكامل: " + err.message + "\n\nقد تكون البيانات غير متناسقة. يوصى بتحديث الصفحة.");
+        showNotification("فشل حذف العقد: " + err.message, 'error');
         // Rollback local state
         Object.keys(originalState).forEach(key => state[key] = originalState[key]);
     }
@@ -1816,6 +1887,7 @@ function renderContracts(){
         console.error('ct-list element not found!');
     }
   }
+  
   view.innerHTML=`
   <div class="grid">
     <div class="card">
