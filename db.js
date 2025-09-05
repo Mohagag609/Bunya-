@@ -12,7 +12,10 @@ const OBJECT_STORES = [
 // Use the window.location.origin to construct an absolute URL.
 // This is a more robust way to ensure the frontend calls the correct backend,
 // especially in environments with complex proxying.
-const API_BASE_URL = `${window.location.origin}/api`;
+// For local development, use port 8000 for the backend API
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+    ? `http://${window.location.hostname}:8000/api`
+    : `${window.location.origin}/api`;
 
 /**
  * A helper function to handle fetch responses, check for errors, and parse JSON.
