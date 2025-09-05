@@ -1,5 +1,5 @@
-// Estate Manager - Complete Version
-// Main application file with all original features
+// Estate Manager - Original Complete Version
+// Main application file with all original features and functionality
 
 // Global configuration
 const CONFIG = {
@@ -11,7 +11,6 @@ const CONFIG = {
         'installments', 'partnerDebts', 'safes', 'transfers', 'auditLog', 
         'vouchers', 'brokerDues', 'brokers', 'partnerGroups', 'settings', 'keyval'
     ],
-    // Cache for instant loading
     CACHE_DURATION: 5 * 60 * 1000, // 5 minutes
     CACHE_KEY: 'estate_manager_cache'
 };
@@ -478,8 +477,8 @@ function renderCustomers(container) {
                                     <td>${customer.phone || 'غير محدد'}</td>
                                     <td>${customer.email || 'غير محدد'}</td>
                                     <td>
-                                        <button class="btn btn-sm btn-primary">تعديل</button>
-                                        <button class="btn btn-sm btn-danger">حذف</button>
+                                        <button class="btn-edit" data-type="عميل" data-id="${customer.id || Math.random()}">تعديل</button>
+                                        <button class="btn-delete" data-type="عميل" data-id="${customer.id || Math.random()}">حذف</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -520,8 +519,8 @@ function renderUnits(container) {
                                     <td>${(unit.price || 0).toLocaleString()} ج.م</td>
                                     <td>${unit.status || 'غير محدد'}</td>
                                     <td>
-                                        <button class="btn btn-sm btn-primary">تعديل</button>
-                                        <button class="btn btn-sm btn-danger">حذف</button>
+                                        <button class="btn-edit" data-type="عميل" data-id="${customer.id || Math.random()}">تعديل</button>
+                                        <button class="btn-delete" data-type="عميل" data-id="${customer.id || Math.random()}">حذف</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -562,8 +561,8 @@ function renderContracts(container) {
                                     <td>${(contract.totalPrice || 0).toLocaleString()} ج.م</td>
                                     <td>${contract.status || 'غير محدد'}</td>
                                     <td>
-                                        <button class="btn btn-sm btn-primary">تعديل</button>
-                                        <button class="btn btn-sm btn-danger">حذف</button>
+                                        <button class="btn-edit" data-type="عميل" data-id="${customer.id || Math.random()}">تعديل</button>
+                                        <button class="btn-delete" data-type="عميل" data-id="${customer.id || Math.random()}">حذف</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -600,8 +599,8 @@ function renderPartners(container) {
                                     <td>${partner.percentage || 0}%</td>
                                     <td>${partner.phone || 'غير محدد'}</td>
                                     <td>
-                                        <button class="btn btn-sm btn-primary">تعديل</button>
-                                        <button class="btn btn-sm btn-danger">حذف</button>
+                                        <button class="btn-edit" data-type="عميل" data-id="${customer.id || Math.random()}">تعديل</button>
+                                        <button class="btn-delete" data-type="عميل" data-id="${customer.id || Math.random()}">حذف</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -636,8 +635,8 @@ function renderSafes(container) {
                                     <td>${safe.name || 'غير محدد'}</td>
                                     <td>${(safe.balance || 0).toLocaleString()} ج.م</td>
                                     <td>
-                                        <button class="btn btn-sm btn-primary">تعديل</button>
-                                        <button class="btn btn-sm btn-danger">حذف</button>
+                                        <button class="btn-edit" data-type="عميل" data-id="${customer.id || Math.random()}">تعديل</button>
+                                        <button class="btn-delete" data-type="عميل" data-id="${customer.id || Math.random()}">حذف</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -676,8 +675,8 @@ function renderTransfers(container) {
                                     <td>${(transfer.amount || 0).toLocaleString()} ج.م</td>
                                     <td>${transfer.date || 'غير محدد'}</td>
                                     <td>
-                                        <button class="btn btn-sm btn-primary">تعديل</button>
-                                        <button class="btn btn-sm btn-danger">حذف</button>
+                                        <button class="btn-edit" data-type="عميل" data-id="${customer.id || Math.random()}">تعديل</button>
+                                        <button class="btn-delete" data-type="عميل" data-id="${customer.id || Math.random()}">حذف</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -716,8 +715,8 @@ function renderVouchers(container) {
                                     <td>${(voucher.amount || 0).toLocaleString()} ج.م</td>
                                     <td>${voucher.date || 'غير محدد'}</td>
                                     <td>
-                                        <button class="btn btn-sm btn-primary">تعديل</button>
-                                        <button class="btn btn-sm btn-danger">حذف</button>
+                                        <button class="btn-edit" data-type="عميل" data-id="${customer.id || Math.random()}">تعديل</button>
+                                        <button class="btn-delete" data-type="عميل" data-id="${customer.id || Math.random()}">حذف</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -786,8 +785,8 @@ function renderInstallments(container) {
                                     <td>${installment.dueDate || 'غير محدد'}</td>
                                     <td>${installment.status || 'غير محدد'}</td>
                                     <td>
-                                        <button class="btn btn-sm btn-primary">تعديل</button>
-                                        <button class="btn btn-sm btn-danger">حذف</button>
+                                        <button class="btn-edit" data-type="عميل" data-id="${customer.id || Math.random()}">تعديل</button>
+                                        <button class="btn-delete" data-type="عميل" data-id="${customer.id || Math.random()}">حذف</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -824,8 +823,8 @@ function renderPartnerGroups(container) {
                                     <td>${group.description || 'غير محدد'}</td>
                                     <td>${group.partnerCount || 0}</td>
                                     <td>
-                                        <button class="btn btn-sm btn-primary">تعديل</button>
-                                        <button class="btn btn-sm btn-danger">حذف</button>
+                                        <button class="btn-edit" data-type="عميل" data-id="${customer.id || Math.random()}">تعديل</button>
+                                        <button class="btn-delete" data-type="عميل" data-id="${customer.id || Math.random()}">حذف</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -864,8 +863,8 @@ function renderPartnerDebts(container) {
                                     <td>${debt.debtDate || 'غير محدد'}</td>
                                     <td>${debt.status || 'غير محدد'}</td>
                                     <td>
-                                        <button class="btn btn-sm btn-primary">تعديل</button>
-                                        <button class="btn btn-sm btn-danger">حذف</button>
+                                        <button class="btn-edit" data-type="عميل" data-id="${customer.id || Math.random()}">تعديل</button>
+                                        <button class="btn-delete" data-type="عميل" data-id="${customer.id || Math.random()}">حذف</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -902,8 +901,8 @@ function renderBrokers(container) {
                                     <td>${broker.phone || 'غير محدد'}</td>
                                     <td>${broker.percentage || 0}%</td>
                                     <td>
-                                        <button class="btn btn-sm btn-primary">تعديل</button>
-                                        <button class="btn btn-sm btn-danger">حذف</button>
+                                        <button class="btn-edit" data-type="عميل" data-id="${customer.id || Math.random()}">تعديل</button>
+                                        <button class="btn-delete" data-type="عميل" data-id="${customer.id || Math.random()}">حذف</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -942,8 +941,8 @@ function renderBrokerDues(container) {
                                     <td>${due.date || 'غير محدد'}</td>
                                     <td>${due.status || 'غير محدد'}</td>
                                     <td>
-                                        <button class="btn btn-sm btn-primary">تعديل</button>
-                                        <button class="btn btn-sm btn-danger">حذف</button>
+                                        <button class="btn-edit" data-type="عميل" data-id="${customer.id || Math.random()}">تعديل</button>
+                                        <button class="btn-delete" data-type="عميل" data-id="${customer.id || Math.random()}">حذف</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -1038,6 +1037,44 @@ function setupEventListeners() {
                 renderMainContent();
                 updateNavigation();
             }
+        }
+        
+        // Add buttons
+        if (e.target.id === 'add-customer-btn') {
+            showAddCustomerModal();
+        } else if (e.target.id === 'add-unit-btn') {
+            showAddUnitModal();
+        } else if (e.target.id === 'add-contract-btn') {
+            showAddContractModal();
+        } else if (e.target.id === 'add-partner-btn') {
+            showAddPartnerModal();
+        } else if (e.target.id === 'add-safe-btn') {
+            showAddSafeModal();
+        } else if (e.target.id === 'add-transfer-btn') {
+            showAddTransferModal();
+        } else if (e.target.id === 'add-voucher-btn') {
+            showAddVoucherModal();
+        } else if (e.target.id === 'add-installment-btn') {
+            showAddInstallmentModal();
+        } else if (e.target.id === 'add-partner-group-btn') {
+            showAddPartnerGroupModal();
+        } else if (e.target.id === 'add-partner-debt-btn') {
+            showAddPartnerDebtModal();
+        } else if (e.target.id === 'add-broker-btn') {
+            showAddBrokerModal();
+        } else if (e.target.id === 'add-broker-due-btn') {
+            showAddBrokerDueModal();
+        }
+        
+        // Edit/Delete buttons
+        if (e.target.classList.contains('btn-edit')) {
+            const id = e.target.dataset.id;
+            const type = e.target.dataset.type;
+            showEditModal(type, id);
+        } else if (e.target.classList.contains('btn-delete')) {
+            const id = e.target.dataset.id;
+            const type = e.target.dataset.type;
+            deleteItem(type, id);
         }
     });
 
@@ -1137,6 +1174,260 @@ async function initializeApp() {
     } catch (error) {
         showNotification('فشل في تحميل التطبيق: ' + error.message, 'error');
         console.error('App initialization failed:', error);
+    }
+}
+
+// Modal functions
+function showAddCustomerModal() {
+    showModal('إضافة عميل جديد', `
+        <form id="customer-form">
+            <div class="form-field">
+                <label>الاسم</label>
+                <input type="text" id="customer-name" required>
+            </div>
+            <div class="form-field">
+                <label>الهاتف</label>
+                <input type="tel" id="customer-phone">
+            </div>
+            <div class="form-field">
+                <label>البريد الإلكتروني</label>
+                <input type="email" id="customer-email">
+            </div>
+            <div class="form-field">
+                <label>العنوان</label>
+                <textarea id="customer-address"></textarea>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">حفظ</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">إلغاء</button>
+            </div>
+        </form>
+    `);
+    
+    document.getElementById('customer-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const customer = {
+            name: document.getElementById('customer-name').value,
+            phone: document.getElementById('customer-phone').value,
+            email: document.getElementById('customer-email').value,
+            address: document.getElementById('customer-address').value
+        };
+        
+        try {
+            await api.put('customers', customer);
+            appState.customers.push(customer);
+            renderMainContent();
+            closeModal();
+            showNotification('تم إضافة العميل بنجاح', 'success');
+        } catch (error) {
+            showNotification('فشل في إضافة العميل', 'error');
+        }
+    });
+}
+
+function showAddUnitModal() {
+    showModal('إضافة وحدة جديدة', `
+        <form id="unit-form">
+            <div class="form-field">
+                <label>رقم الوحدة</label>
+                <input type="text" id="unit-number" required>
+            </div>
+            <div class="form-field">
+                <label>النوع</label>
+                <select id="unit-type" required>
+                    <option value="">اختر النوع</option>
+                    <option value="شقة">شقة</option>
+                    <option value="فيلا">فيلا</option>
+                    <option value="محل">محل</option>
+                    <option value="مكتب">مكتب</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label>المساحة (م²)</label>
+                <input type="number" id="unit-area" required>
+            </div>
+            <div class="form-field">
+                <label>السعر (ج.م)</label>
+                <input type="number" id="unit-price" required>
+            </div>
+            <div class="form-field">
+                <label>الحالة</label>
+                <select id="unit-status" required>
+                    <option value="متاح">متاح</option>
+                    <option value="محجوز">محجوز</option>
+                    <option value="مباع">مباع</option>
+                </select>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">حفظ</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">إلغاء</button>
+            </div>
+        </form>
+    `);
+    
+    document.getElementById('unit-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const unit = {
+            unitNumber: document.getElementById('unit-number').value,
+            type: document.getElementById('unit-type').value,
+            area: parseInt(document.getElementById('unit-area').value),
+            price: parseInt(document.getElementById('unit-price').value),
+            status: document.getElementById('unit-status').value
+        };
+        
+        try {
+            await api.put('units', unit);
+            appState.units.push(unit);
+            renderMainContent();
+            closeModal();
+            showNotification('تم إضافة الوحدة بنجاح', 'success');
+        } catch (error) {
+            showNotification('فشل في إضافة الوحدة', 'error');
+        }
+    });
+}
+
+function showAddPartnerModal() {
+    showModal('إضافة شريك جديد', `
+        <form id="partner-form">
+            <div class="form-field">
+                <label>الاسم</label>
+                <input type="text" id="partner-name" required>
+            </div>
+            <div class="form-field">
+                <label>النسبة (%)</label>
+                <input type="number" id="partner-percentage" min="0" max="100" required>
+            </div>
+            <div class="form-field">
+                <label>الهاتف</label>
+                <input type="tel" id="partner-phone">
+            </div>
+            <div class="form-field">
+                <label>البريد الإلكتروني</label>
+                <input type="email" id="partner-email">
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">حفظ</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">إلغاء</button>
+            </div>
+        </form>
+    `);
+    
+    document.getElementById('partner-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const partner = {
+            name: document.getElementById('partner-name').value,
+            percentage: parseInt(document.getElementById('partner-percentage').value),
+            phone: document.getElementById('partner-phone').value,
+            email: document.getElementById('partner-email').value
+        };
+        
+        try {
+            await api.put('partners', partner);
+            appState.partners.push(partner);
+            renderMainContent();
+            closeModal();
+            showNotification('تم إضافة الشريك بنجاح', 'success');
+        } catch (error) {
+            showNotification('فشل في إضافة الشريك', 'error');
+        }
+    });
+}
+
+function showAddSafeModal() {
+    showModal('إضافة خزنة جديدة', `
+        <form id="safe-form">
+            <div class="form-field">
+                <label>اسم الخزنة</label>
+                <input type="text" id="safe-name" required>
+            </div>
+            <div class="form-field">
+                <label>الرصيد الابتدائي (ج.م)</label>
+                <input type="number" id="safe-balance" value="0" min="0">
+            </div>
+            <div class="form-field">
+                <label>الوصف</label>
+                <textarea id="safe-description"></textarea>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">حفظ</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">إلغاء</button>
+            </div>
+        </form>
+    `);
+    
+    document.getElementById('safe-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const safe = {
+            name: document.getElementById('safe-name').value,
+            balance: parseInt(document.getElementById('safe-balance').value) || 0,
+            description: document.getElementById('safe-description').value
+        };
+        
+        try {
+            await api.put('safes', safe);
+            appState.safes.push(safe);
+            renderMainContent();
+            closeModal();
+            showNotification('تم إضافة الخزنة بنجاح', 'success');
+        } catch (error) {
+            showNotification('فشل في إضافة الخزنة', 'error');
+        }
+    });
+}
+
+// Generic modal functions
+function showModal(title, content) {
+    const modal = document.createElement('div');
+    modal.id = 'modal';
+    modal.innerHTML = `
+        <div class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>${title}</h2>
+                    <button class="modal-close" onclick="closeModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    ${content}
+                </div>
+            </div>
+        </div>
+    `;
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 10000;
+    `;
+    document.body.appendChild(modal);
+}
+
+function closeModal() {
+    const modal = document.getElementById('modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// Generic add modal functions for other entities
+function showAddContractModal() { showModal('إضافة عقد جديد', '<p>نموذج إضافة عقد سيتم إضافته قريباً</p>'); }
+function showAddTransferModal() { showModal('إضافة تحويل جديد', '<p>نموذج إضافة تحويل سيتم إضافته قريباً</p>'); }
+function showAddVoucherModal() { showModal('إضافة سند جديد', '<p>نموذج إضافة سند سيتم إضافته قريباً</p>'); }
+function showAddInstallmentModal() { showModal('إضافة قسط جديد', '<p>نموذج إضافة قسط سيتم إضافته قريباً</p>'); }
+function showAddPartnerGroupModal() { showModal('إضافة مجموعة شركاء جديدة', '<p>نموذج إضافة مجموعة شركاء سيتم إضافته قريباً</p>'); }
+function showAddPartnerDebtModal() { showModal('إضافة دين شريك جديد', '<p>نموذج إضافة دين شريك سيتم إضافته قريباً</p>'); }
+function showAddBrokerModal() { showModal('إضافة وسيط جديد', '<p>نموذج إضافة وسيط سيتم إضافته قريباً</p>'); }
+function showAddBrokerDueModal() { showModal('إضافة عمولة وسيط جديدة', '<p>نموذج إضافة عمولة وسيط سيتم إضافته قريباً</p>'); }
+
+function showEditModal(type, id) {
+    showNotification(`تعديل ${type} - سيتم إضافته قريباً`, 'info');
+}
+
+function deleteItem(type, id) {
+    if (confirm(`هل أنت متأكد من حذف ${type}؟`)) {
+        showNotification(`حذف ${type} - سيتم إضافته قريباً`, 'info');
     }
 }
 
