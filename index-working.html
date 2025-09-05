@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="ar" dir="rtl" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مدير الاستثمار العقاري — النسخة النهائية (Render) — محدثة</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+<script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous"></script>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="brand"><div class="logo">🏛️</div><h1>مدير الاستثمار العقاري — النسخة النهائية (Render)</h1></div>
+    <div class="tools">
+      <button class="btn secondary" id="undoBtn" disabled>↪️ تراجع</button>
+      <button class="btn secondary" id="redoBtn" disabled>↩️ تقدم</button>
+      <select class="select" id="themeSel"><option value="dark">داكن</option><option value="light">فاتح</option></select>
+      <select class="select" id="fontSel"><option value="14">خط 14</option><option value="16" selected>خط 16</option><option value="18">خط 18</option></select>
+      <button class="btn secondary" id="lockBtn">🔒 قفل</button>
+      <button class="btn secondary" id="migrationBtn">🔄 هجرة</button>
+    </div>
+  </div>
+  <div class="main-layout">
+    <div class="sidebar" id="tabs"></div>
+    <div class="content" id="view"></div>
+  </div>
+  <div style="text-align:center;color:var(--muted);font-size:12px;margin-top:10px">💾 PostgreSQL • PDF/CSV • بحث/فرز/تعديل مباشر • أقساط مرنة • عمولة/صيانة • تدفقات نقدية • فلاتر تاريخ للتقارير</div>
+</div>
+
+<script>
+// Backend API Configuration
+const API_BASE_URL = 'https://bunya.onrender.com/api';
+let authToken = null;
+
+// Authentication
+async function login() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'admin', password: 'admin123' })
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      authToken = data.token;
+      localStorage.setItem('authToken', authToken);
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error('Login error:', error);
+    return false;
+  }
+}
+
+// API Request
+async function apiRequest(endpoint, options = {}) {
+  try {
+    if (!authToken) {
+      await login();
+    }
+    
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+        ...options.headers
+      },
+      ...options
+    });
+    
+    if (response.status === 401) {
+      authToken = null;
+      localStorage.removeItem('authToken');
+      await login();
+      return apiRequest(endpoint, options);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('API request error:', error);
+    throw error;
+  }
+}
+
+// Database functions
+const db = {
+  async initialize() {
+    try {
+      await login();
+      console.log('Backend connected successfully');
+      return true;
+    } catch (error) {
+      console.error('Failed to connect to backend:', error);
+      return false;
+    }
+  },
+
+  async getAll(tableName) {
+    try {
+      const response = await apiRequest(`/data/${tableName}`);
+      return response.data || [];
+    } catch (error) {
+      console.error(`Error fetching ${tableName}:`, error);
+      return [];
+    }
+  },
+
+  async insert(tableName, data) {
+    try {
+      return await apiRequest(`/data/${tableName}`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+    } catch (error) {
+      console.error(`Error inserting into ${tableName}:`, error);
+      throw error;
+    }
+  },
+
+  async update(tableName, id, data) {
+    try {
+      return await apiRequest(`/data/${tableName}/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      });
+    } catch (error) {
+      console.error(`Error updating ${tableName}:`, error);
+      throw error;
+    }
+  },
+
+  async delete(tableName, id) {
+    try {
+      return await apiRequest(`/data/${tableName}/${id}`, {
+        method: 'DELETE'
+      });
+    } catch (error) {
+      console.error(`Error deleting from ${tableName}:`, error);
+      throw error;
+    }
+  }
+};
+
+// State management
+let state = {};
+
+async function loadStateFromBackend() {
+  try {
+    console.log('Loading state from backend...');
+    
+    const [
+      customers, units, partners, unitPartners, contracts, installments,
+      partnerDebts, safes, transfers, auditLog, vouchers, brokerDues,
+      brokers, partnerGroups, settings, keyval
+    ] = await Promise.all([
+      db.getAll('customers'), db.getAll('units'), db.getAll('partners'),
+      db.getAll('unit-partners'), db.getAll('contracts'), db.getAll('installments'),
+      db.getAll('partner-debts'), db.getAll('safes'), db.getAll('transfers'),
+      db.getAll('audit-log'), db.getAll('vouchers'), db.getAll('broker-dues'),
+      db.getAll('brokers'), db.getAll('partner-groups'), db.getAll('settings'),
+      db.getAll('keyval')
+    ]);
+
+    const settingsObj = settings.find(s => s.key === 'appSettings')?.value || { theme: 'dark', font: 16, pass: null };
+    const keyvalObj = {};
+    keyval.forEach(kv => { keyvalObj[kv.key] = kv.value; });
+
+    state = {
+      customers, units, partners, unitPartners, contracts, installments,
+      partnerDebts, safes, transfers, auditLog, vouchers, brokerDues,
+      brokers, partnerGroups, settings: settingsObj, keyval: keyvalObj, locked: false
+    };
+
+    console.log('State loaded from backend successfully');
+    return state;
+  } catch (error) {
+    console.error('Failed to load state from backend:', error);
+    return {
+      customers: [], units: [], partners: [], unitPartners: [], contracts: [],
+      installments: [], partnerDebts: [], safes: [{ id: 'S-default', name: 'الخزنة الرئيسية', balance: 0 }],
+      transfers: [], auditLog: [], vouchers: [], brokerDues: [], brokers: [],
+      partnerGroups: [], settings: { theme: 'dark', font: 16, pass: null }, keyval: {}, locked: false
+    };
+  }
+}
+
+async function persistToBackend() {
+  try {
+    console.log('Persisting state to backend...');
+    
+    const tables = ['customers', 'units', 'partners', 'unit-partners', 'contracts',
+                   'installments', 'partner-debts', 'safes', 'transfers', 'audit-log',
+                   'vouchers', 'broker-dues', 'brokers', 'partner-groups'];
+
+    for (const table of tables) {
+      const tableData = state[table] || [];
+      if (tableData.length > 0) {
+        await db.insert(table, tableData);
+      }
+    }
+
+    if (state.settings) {
+      await db.update('settings', 'appSettings', {
+        key: 'appSettings',
+        value: JSON.stringify(state.settings)
+      });
+    }
+
+    console.log('State persisted to backend successfully');
+  } catch (error) {
+    console.error('Failed to persist state to backend:', error);
+    throw error;
+  }
+}
+
+// Export functions
+window.db = db;
+window.loadStateFromBackend = loadStateFromBackend;
+window.persistToBackend = persistToBackend;
+</script>
+
+<script src="app-backend-render.js" defer></script>
+</body>
+</html>

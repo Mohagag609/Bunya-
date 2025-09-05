@@ -1,36 +1,421 @@
-<!doctype html>
-<html lang="ar" dir="rtl" data-theme="dark">
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>مدير الاستثمار العقاري — النسخة النهائية (محلي) — محدثة</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
-<script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
-<link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة العقارات</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header { background: #2c3e50; color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: center; }
+        .nav { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center; }
+        .btn { padding: 15px 25px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        .btn:hover { background: #2980b9; }
+        .btn.success { background: #27ae60; }
+        .btn.danger { background: #e74c3c; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+        .stat { text-align: center; padding: 20px; background: #ecf0f1; border-radius: 10px; }
+        .stat h3 { color: #2c3e50; margin-bottom: 10px; }
+        .stat-value { font-size: 2em; font-weight: bold; color: #27ae60; }
+        .error { background: #e74c3c; color: white; padding: 15px; border-radius: 5px; margin: 10px 0; text-align: center; }
+        .success { background: #27ae60; color: white; padding: 15px; border-radius: 5px; margin: 10px 0; text-align: center; }
+        .list-item { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #3498db; }
+        .list-item h4 { margin-bottom: 5px; color: #2c3e50; }
+        .list-item p { color: #666; margin: 5px 0; }
+        .form-group { margin: 15px 0; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input, .form-group select, .form-group textarea { 
+            width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px;
+        }
+        .hidden { display: none; }
+        .working { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; padding: 15px; border-radius: 5px; margin: 10px 0; }
+    </style>
 </head>
 <body>
-<div class="container">
-  <div class="header">
-    <div class="brand"><div class="logo">🏛️</div><h1>مدير الاستثمار العقاري — النسخة النهائية</h1></div>
-    <div class="tools">
-      <button class="btn secondary" id="undoBtn" disabled>↪️ تراجع</button>
-      <button class="btn secondary" id="redoBtn" disabled>↩️ تقدم</button>
-      <select class="select" id="themeSel"><option value="dark">داكن</option><option value="light">فاتح</option></select>
-      <select class="select" id="fontSel"><option value="14">خط 14</option><option value="16" selected>خط 16</option><option value="18">خط 18</option></select>
-      <button class="btn secondary" id="lockBtn">🔒 قفل</button>
-    </div>
-  </div>
-  <div class="main-layout">
-    <div class="sidebar" id="tabs"></div>
-    <div class="content" id="view"></div>
-  </div>
-  <div style="text-align:center;color:var(--muted);font-size:12px;margin-top:10px">💾 LocalStorage • PDF/CSV • بحث/فرز/تعديل مباشر • أقساط مرنة • عمولة/صيانة • تدفقات نقدية • فلاتر تاريخ للتقارير</div>
-</div>
+    <div class="container">
+        <div class="header">
+            <h1>🏢 إدارة العقارات</h1>
+            <p>نظام إدارة العقارات - النسخة الأساسية</p>
+        </div>
 
-<script src="db.js"></script>
-<script src="app.js" defer></script>
+        <div class="nav">
+            <button class="btn" onclick="showDashboard()">🏠 لوحة التحكم</button>
+            <button class="btn" onclick="showCustomers()">👥 العملاء</button>
+            <button class="btn" onclick="showUnits()">🏢 الوحدات</button>
+            <button class="btn" onclick="showContracts()">📋 العقود</button>
+            <button class="btn" onclick="showSafes()">💰 الخزن</button>
+            <button class="btn success" onclick="exportData()">💾 تصدير البيانات</button>
+            <button class="btn danger" onclick="importData()">📥 استيراد البيانات</button>
+        </div>
+
+        <div id="content" class="card">
+            <div class="working">
+                <h3>✅ النظام الأساسي يعمل!</h3>
+                <p>اضغط على أي زر في الأعلى للبدء</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state - stored in localStorage
+        let state = {
+            customers: [],
+            units: [],
+            contracts: [],
+            safes: [{ id: 'safe-1', name: 'الخزنة الرئيسية', balance: 0 }],
+            settings: { theme: 'light', font: 16 }
+        };
+
+        // Load data from localStorage
+        function loadData() {
+            try {
+                const saved = localStorage.getItem('estateData');
+                if (saved) {
+                    state = { ...state, ...JSON.parse(saved) };
+                }
+            } catch (error) {
+                console.log('No saved data found, using defaults');
+            }
+        }
+
+        // Save data to localStorage
+        function saveData() {
+            try {
+                localStorage.setItem('estateData', JSON.stringify(state));
+            } catch (error) {
+                alert('خطأ في حفظ البيانات: ' + error.message);
+            }
+        }
+
+        // Utility functions
+        function generateId(prefix) {
+            return prefix + '-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('ar-EG', {
+                style: 'currency',
+                currency: 'EGP'
+            }).format(amount || 0);
+        }
+
+        // UI Functions
+        function showMessage(message, type) {
+            const content = document.getElementById('content');
+            content.innerHTML = '<div class="' + type + '">' + message + '</div>';
+        }
+
+        function showDashboard() {
+            const content = document.getElementById('content');
+            const totalSafes = state.safes.reduce(function(sum, safe) { return sum + (safe.balance || 0); }, 0);
+            
+            content.innerHTML = 
+                '<h2>🏠 لوحة التحكم</h2>' +
+                '<div class="stats">' +
+                    '<div class="stat">' +
+                        '<h3>العملاء</h3>' +
+                        '<div class="stat-value">' + state.customers.length + '</div>' +
+                    '</div>' +
+                    '<div class="stat">' +
+                        '<h3>الوحدات</h3>' +
+                        '<div class="stat-value">' + state.units.length + '</div>' +
+                    '</div>' +
+                    '<div class="stat">' +
+                        '<h3>العقود</h3>' +
+                        '<div class="stat-value">' + state.contracts.length + '</div>' +
+                    '</div>' +
+                    '<div class="stat">' +
+                        '<h3>إجمالي الخزن</h3>' +
+                        '<div class="stat-value">' + formatCurrency(totalSafes) + '</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="card">' +
+                    '<h3>حالة النظام</h3>' +
+                    '<p>✅ البيانات محفوظة محلياً</p>' +
+                    '<p>🔄 يمكن تصدير واستيراد البيانات</p>' +
+                '</div>';
+        }
+
+        function showCustomers() {
+            const content = document.getElementById('content');
+            content.innerHTML = 
+                '<h2>👥 العملاء</h2>' +
+                '<button class="btn" onclick="addCustomer()">إضافة عميل جديد</button>' +
+                '<div id="customersList"></div>';
+            renderCustomersList();
+        }
+
+        function showUnits() {
+            const content = document.getElementById('content');
+            content.innerHTML = 
+                '<h2>🏢 الوحدات</h2>' +
+                '<button class="btn" onclick="addUnit()">إضافة وحدة جديدة</button>' +
+                '<div id="unitsList"></div>';
+            renderUnitsList();
+        }
+
+        function showContracts() {
+            const content = document.getElementById('content');
+            content.innerHTML = 
+                '<h2>📋 العقود</h2>' +
+                '<button class="btn" onclick="addContract()">إضافة عقد جديد</button>' +
+                '<div id="contractsList"></div>';
+            renderContractsList();
+        }
+
+        function showSafes() {
+            const content = document.getElementById('content');
+            content.innerHTML = 
+                '<h2>💰 الخزن</h2>' +
+                '<button class="btn" onclick="addSafe()">إضافة خزنة جديدة</button>' +
+                '<div id="safesList"></div>';
+            renderSafesList();
+        }
+
+        function renderCustomersList() {
+            const list = document.getElementById('customersList');
+            if (state.customers.length === 0) {
+                list.innerHTML = '<p>لا يوجد عملاء</p>';
+            } else {
+                var html = '';
+                for (var i = 0; i < state.customers.length; i++) {
+                    var customer = state.customers[i];
+                    html += '<div class="list-item">' +
+                        '<h4>' + (customer.name || 'بدون اسم') + '</h4>' +
+                        '<p>الهاتف: ' + (customer.phone || 'غير محدد') + '</p>' +
+                        '<p>البريد الإلكتروني: ' + (customer.email || 'غير محدد') + '</p>' +
+                        '<button class="btn danger" onclick="deleteCustomer(\'' + customer.id + '\')">حذف</button>' +
+                    '</div>';
+                }
+                list.innerHTML = html;
+            }
+        }
+
+        function renderUnitsList() {
+            const list = document.getElementById('unitsList');
+            if (state.units.length === 0) {
+                list.innerHTML = '<p>لا يوجد وحدات</p>';
+            } else {
+                var html = '';
+                for (var i = 0; i < state.units.length; i++) {
+                    var unit = state.units[i];
+                    html += '<div class="list-item">' +
+                        '<h4>' + (unit.name || 'بدون اسم') + '</h4>' +
+                        '<p>المساحة: ' + (unit.area || 'غير محدد') + '</p>' +
+                        '<p>السعر: ' + formatCurrency(unit.price) + '</p>' +
+                        '<button class="btn danger" onclick="deleteUnit(\'' + unit.id + '\')">حذف</button>' +
+                    '</div>';
+                }
+                list.innerHTML = html;
+            }
+        }
+
+        function renderContractsList() {
+            const list = document.getElementById('contractsList');
+            if (state.contracts.length === 0) {
+                list.innerHTML = '<p>لا يوجد عقود</p>';
+            } else {
+                var html = '';
+                for (var i = 0; i < state.contracts.length; i++) {
+                    var contract = state.contracts[i];
+                    html += '<div class="list-item">' +
+                        '<h4>' + (contract.customerName || 'بدون اسم عميل') + '</h4>' +
+                        '<p>القيمة: ' + formatCurrency(contract.amount) + '</p>' +
+                        '<p>التاريخ: ' + (contract.date || 'غير محدد') + '</p>' +
+                        '<button class="btn danger" onclick="deleteContract(\'' + contract.id + '\')">حذف</button>' +
+                    '</div>';
+                }
+                list.innerHTML = html;
+            }
+        }
+
+        function renderSafesList() {
+            const list = document.getElementById('safesList');
+            if (state.safes.length === 0) {
+                list.innerHTML = '<p>لا يوجد خزن</p>';
+            } else {
+                var html = '';
+                for (var i = 0; i < state.safes.length; i++) {
+                    var safe = state.safes[i];
+                    html += '<div class="list-item">' +
+                        '<h4>' + (safe.name || 'بدون اسم') + '</h4>' +
+                        '<p>الرصيد: ' + formatCurrency(safe.balance) + '</p>' +
+                        '<button class="btn" onclick="editSafe(\'' + safe.id + '\')">تعديل</button>' +
+                        '<button class="btn danger" onclick="deleteSafe(\'' + safe.id + '\')">حذف</button>' +
+                    '</div>';
+                }
+                list.innerHTML = html;
+            }
+        }
+
+        // Add functions
+        function addCustomer() {
+            var name = prompt('اسم العميل:');
+            var phone = prompt('رقم الهاتف:');
+            var email = prompt('البريد الإلكتروني:');
+            if (name) {
+                var customer = { 
+                    id: generateId('c'), 
+                    name: name, 
+                    phone: phone, 
+                    email: email,
+                    createdAt: new Date().toISOString()
+                };
+                state.customers.push(customer);
+                saveData();
+                renderCustomersList();
+                showMessage('تم إضافة العميل بنجاح!', 'success');
+            }
+        }
+
+        function addUnit() {
+            var name = prompt('اسم الوحدة:');
+            var area = prompt('المساحة:');
+            var price = prompt('السعر:');
+            if (name) {
+                var unit = { 
+                    id: generateId('u'), 
+                    name: name, 
+                    area: area, 
+                    price: parseFloat(price) || 0,
+                    createdAt: new Date().toISOString()
+                };
+                state.units.push(unit);
+                saveData();
+                renderUnitsList();
+                showMessage('تم إضافة الوحدة بنجاح!', 'success');
+            }
+        }
+
+        function addContract() {
+            var customerName = prompt('اسم العميل:');
+            var amount = prompt('قيمة العقد:');
+            var date = prompt('تاريخ العقد (YYYY-MM-DD):');
+            if (customerName) {
+                var contract = { 
+                    id: generateId('ct'), 
+                    customerName: customerName, 
+                    amount: parseFloat(amount) || 0,
+                    date: date || new Date().toISOString().slice(0, 10),
+                    createdAt: new Date().toISOString()
+                };
+                state.contracts.push(contract);
+                saveData();
+                renderContractsList();
+                showMessage('تم إضافة العقد بنجاح!', 'success');
+            }
+        }
+
+        function addSafe() {
+            var name = prompt('اسم الخزنة:');
+            var balance = prompt('الرصيد الابتدائي:');
+            if (name) {
+                var safe = { 
+                    id: generateId('s'), 
+                    name: name, 
+                    balance: parseFloat(balance) || 0,
+                    createdAt: new Date().toISOString()
+                };
+                state.safes.push(safe);
+                saveData();
+                renderSafesList();
+                showMessage('تم إضافة الخزنة بنجاح!', 'success');
+            }
+        }
+
+        // Delete functions
+        function deleteCustomer(id) {
+            if (confirm('هل أنت متأكد من حذف هذا العميل؟')) {
+                state.customers = state.customers.filter(function(c) { return c.id !== id; });
+                saveData();
+                renderCustomersList();
+                showMessage('تم حذف العميل!', 'success');
+            }
+        }
+
+        function deleteUnit(id) {
+            if (confirm('هل أنت متأكد من حذف هذه الوحدة؟')) {
+                state.units = state.units.filter(function(u) { return u.id !== id; });
+                saveData();
+                renderUnitsList();
+                showMessage('تم حذف الوحدة!', 'success');
+            }
+        }
+
+        function deleteContract(id) {
+            if (confirm('هل أنت متأكد من حذف هذا العقد؟')) {
+                state.contracts = state.contracts.filter(function(c) { return c.id !== id; });
+                saveData();
+                renderContractsList();
+                showMessage('تم حذف العقد!', 'success');
+            }
+        }
+
+        function deleteSafe(id) {
+            if (confirm('هل أنت متأكد من حذف هذه الخزنة؟')) {
+                state.safes = state.safes.filter(function(s) { return s.id !== id; });
+                saveData();
+                renderSafesList();
+                showMessage('تم حذف الخزنة!', 'success');
+            }
+        }
+
+        function editSafe(id) {
+            var safe = state.safes.find(function(s) { return s.id === id; });
+            if (safe) {
+                var newBalance = prompt('الرصيد الجديد:', safe.balance);
+                if (newBalance !== null) {
+                    safe.balance = parseFloat(newBalance) || 0;
+                    saveData();
+                    renderSafesList();
+                    showMessage('تم تحديث الخزنة!', 'success');
+                }
+            }
+        }
+
+        // Export/Import functions
+        function exportData() {
+            var dataStr = JSON.stringify(state, null, 2);
+            var dataBlob = new Blob([dataStr], { type: 'application/json' });
+            var url = URL.createObjectURL(dataBlob);
+            var link = document.createElement('a');
+            link.href = url;
+            link.download = 'estate-data-' + new Date().toISOString().slice(0, 10) + '.json';
+            link.click();
+            URL.revokeObjectURL(url);
+            showMessage('تم تصدير البيانات!', 'success');
+        }
+
+        function importData() {
+            var input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = function(e) {
+                var file = e.target.files[0];
+                if (file) {
+                    var reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            var importedData = JSON.parse(e.target.result);
+                            state = Object.assign({}, state, importedData);
+                            saveData();
+                            showMessage('تم استيراد البيانات بنجاح!', 'success');
+                            showDashboard();
+                        } catch (error) {
+                            showMessage('خطأ في استيراد البيانات!', 'error');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            input.click();
+        }
+
+        // Initialize app
+        loadData();
+        showDashboard();
+    </script>
 </body>
 </html>
