@@ -9,6 +9,7 @@ echo "📋 التحقق من الملفات المطلوبة..."
 required_files=(
     "index.html"
     "app.js"
+    "sql-db-complete.js"
     "style.css"
     "manifest.json"
     "sw.js"
@@ -45,6 +46,7 @@ mkdir -p dist
 echo "📋 نسخ الملفات..."
 cp index.html dist/
 cp app.js dist/
+cp sql-db-complete.js dist/
 cp style.css dist/
 cp manifest.json dist/
 cp sw.js dist/

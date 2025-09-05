@@ -32,8 +32,11 @@
     <nav id="tabs" class="tabs"></nav>
     <div class="content" id="view"></div>
   </div>
-  <div style="text-align:center;color:var(--muted);font-size:12px;margin-top:10px">💾 LocalStorage • PDF/CSV • بحث/فرز/تعديل مباشر • أقساط مرنة • عمولة/صيانة • تدفقات نقدية • فلاتر تاريخ للتقارير</div>
+  <div style="text-align:center;color:var(--muted);font-size:12px;margin-top:10px">💾 SQLite • PDF/CSV • بحث/فرز/تعديل مباشر • أقساط مرنة • عمولة/صيانة • تدفقات نقدية • فلاتر تاريخ للتقارير</div>
 
+<!-- Load SQL.js first -->
+<script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
+<script src="sql-db-complete.js"></script>
 <script src="app.js" defer></script>
 </body>
 </html>
