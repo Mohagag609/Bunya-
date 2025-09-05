@@ -235,7 +235,110 @@ hr{border:none;border-top:1px solid var(--line);margin:20px 0;opacity:0.5}
 
 /* تم حذف الخلفية المتقطعة */
 
-/* تنظيف كامل - لا توجد عناصر في الخلفية */
+/* تحسين الأداء - تسريع الحركة والـ zoom */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* تسريع الحركة */
+.tab {
+  transition: all 0.05s ease;
+  will-change: transform, background-color;
+  transform: translateZ(0);
+}
+
+.tab:hover {
+  transform: translateX(-2px) translateZ(0);
+}
+
+.btn {
+  transition: all 0.05s ease;
+  will-change: transform, background-color;
+  transform: translateZ(0);
+}
+
+.btn:hover {
+  transform: translateY(-1px) translateZ(0);
+}
+
+.card {
+  transition: all 0.05s ease;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* تسريع التمرير */
+html {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+body {
+  overflow-x: hidden;
+  transform: translateZ(0);
+}
+
+/* تسريع المحتوى */
+.content {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+.sidebar {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+/* تسريع الجداول */
+.table {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.table th,
+.table td {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* تحسين الـ zoom والحركة */
+.container {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+.main-layout {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+/* تسريع النصوص */
+input, textarea, select {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+/* تسريع العناصر التفاعلية */
+.tab, .btn, .card {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+/* تحسين الـ scroll */
+html, body {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform;
+}
 
 /* تأثيرات بصرية للعناصر التفاعلية */
 a {

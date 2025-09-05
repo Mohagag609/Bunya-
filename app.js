@@ -79,44 +79,36 @@ function hideFastLoading() {
     }
 }
 
-// تنظيف كامل - حذف جميع العناصر في الخلفية
-function cleanupBackgroundElements() {
-    // حذف جميع العناصر العائمة
-    const allFloatingElements = document.querySelectorAll('[style*="position: fixed"], [style*="position: absolute"]');
-    allFloatingElements.forEach(element => {
-        if (element.id && (element.id.includes('loading') || element.id.includes('modal') || element.id.includes('overlay') || element.id.includes('fast'))) {
-            element.remove();
-        }
-    });
-    
-    // حذف جميع العناصر المخفية
-    const hiddenElements = document.querySelectorAll('[style*="display: none"], [style*="opacity: 0"], [style*="visibility: hidden"]');
-    hiddenElements.forEach(element => {
-        if (element.id && (element.id.includes('loading') || element.id.includes('modal') || element.id.includes('overlay'))) {
-            element.remove();
-        }
-    });
-    
-    // حذف جميع العناصر مع z-index عالي
-    const highZElements = document.querySelectorAll('[style*="z-index: 10000"], [style*="z-index: 9999"]');
-    highZElements.forEach(element => {
-        element.remove();
+// تحسين الأداء - تسريع الحركة
+function optimizePerformance() {
+    // تسريع جميع العناصر
+    const allElements = document.querySelectorAll('*');
+    allElements.forEach(element => {
+        element.style.transform = 'translateZ(0)';
+        element.style.backfaceVisibility = 'hidden';
+        element.style.willChange = 'transform';
     });
 }
 
+// تنظيف سريع - حذف العناصر غير الضرورية فقط
+function cleanupBackgroundElements() {
+    // حذف سريع للعناصر المحددة فقط
+    const loadingOverlay = document.getElementById('loading-overlay');
+    if (loadingOverlay) loadingOverlay.remove();
+    
+    const modal = document.getElementById('dynamic-modal');
+    if (modal) modal.remove();
+    
+    const fastLoading = document.getElementById('fast-loading');
+    if (fastLoading) fastLoading.remove();
+}
+
 async function initializeApp() {
-    // تنظيف شامل - حذف جميع العناصر في الخلفية
+    // تحسين الأداء - تسريع الحركة
+    optimizePerformance();
+    
+    // تنظيف سريع
     cleanupBackgroundElements();
-    
-    // تنظيف إضافي - حذف أي عناصر متبقية
-    setTimeout(() => {
-        cleanupBackgroundElements();
-    }, 100);
-    
-    // تنظيف نهائي - حذف أي عناصر متبقية
-    setTimeout(() => {
-        cleanupBackgroundElements();
-    }, 500);
     
     // Register Service Worker
     if ('serviceWorker' in navigator) {
@@ -1504,8 +1496,8 @@ const routes=[
 const tabs=document.getElementById('tabs'), view=document.getElementById('view');
 
 function nav(id, param = null){
-  // تنظيف شامل قبل التنقل
-  cleanupBackgroundElements();
+  // تحسين الأداء - تسريع الحركة
+  optimizePerformance();
   
   currentView = id; currentParam = param;
   const route = routes.find(x=>x.id===id); if(!route) return;
@@ -1517,11 +1509,6 @@ function nav(id, param = null){
 
   // Render immediately
   route.render(param);
-  
-  // تنظيف نهائي بعد التنقل
-  setTimeout(() => {
-    cleanupBackgroundElements();
-  }, 100);
   
   // htmx.process(view); // HTMX processing is now handled via attributes on tabs
 }
