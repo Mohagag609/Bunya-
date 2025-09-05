@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تصدير قاعدة البيانات</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+            text-align: center;
+            padding: 20px;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:disabled {
+            background-color: #ccc;
+        }
+        #status {
+            margin-top: 20px;
+            font-size: 1.1em;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>أداة تصدير بيانات IndexedDB</h1>
+    <p>لاستخدام هذه الأداة، يجب عليك أولاً فتح التطبيق الرئيسي مرة واحدة على الأقل لضمان وجود البيانات في المتصفح.</p>
+    <p>اضغط على الزر أدناه لتصدير البيانات من IndexedDB وحفظها كملف JSON.</p>
+    <button id="export-btn">بدء التصدير</button>
+    <p id="status"></p>
+
+    <script src="db.js"></script>
+    <script src="export.js"></script>
+</body>
+</html>
