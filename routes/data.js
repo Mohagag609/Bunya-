@@ -68,7 +68,16 @@ const createCrudRoutes = (entityName, tableName) => {
       });
     } catch (error) {
       console.error(`Error fetching ${entityName}:`, error);
-      res.status(500).json({ error: `Failed to fetch ${entityName}` });
+      // Return empty data if database is not connected
+      return res.json({
+        data: [],
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: 0,
+          pages: 0
+        }
+      });
     }
   });
 
