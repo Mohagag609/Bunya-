@@ -988,6 +988,13 @@ window.delRow= async (coll,id)=>{
         state[coll]=state[coll].filter(x=>x.id!==id);
         if (coll === 'unitPartners') {
           renderUnitDetails(itemToDelete.unitId);
+        } else if (coll === 'contracts') {
+          // إعادة رسم صفحة العقود مباشرة
+          if (currentView === 'contracts') {
+            renderContracts();
+          } else {
+            nav(coll);
+          }
         } else {
           nav(coll);
         }
@@ -1543,10 +1550,20 @@ async function deleteContract(contractId) {
         if (brokerDueToDelete) { state.brokerDues = state.brokerDues.filter(d => d.id !== brokerDueToDelete.id); }
         state.installments = state.installments.filter(i => !installmentsToDelete.some(id => id.id === i.id));
         state.contracts = state.contracts.filter(c => c.id !== contractId);
+        
+        // تأكيد أن البيانات تم حذفها من الحالة المحلية
+        console.log('Contract deleted successfully. Remaining contracts:', state.contracts.length);
 
         logAction('حذف عقد وكل ما يتعلق به', { contractId, unitId, deletedContract: JSON.stringify(contract) });
         alert('تم حذف العقد بنجاح.');
-        nav('contracts');
+        // إعادة رسم صفحة العقود
+        if (currentView === 'contracts') {
+            console.log('Re-rendering contracts page...');
+            renderContracts();
+        } else {
+            console.log('Navigating to contracts page...');
+            nav('contracts');
+        }
 
     } catch (err) {
         alert("فشل حذف العقد بالكامل: " + err.message + "\n\nقد تكون البيانات غير متناسقة. يوصى بتحديث الصفحة.");
@@ -1602,7 +1619,13 @@ function renderContracts(){
             `<button class="btn secondary" onclick="deleteContract('${c.id}')">حذف</button>`
         ];
     });
-    document.getElementById('ct-list').innerHTML=table(['كود العقد','الوحدة','العميل','السمسار','السعر','تاريخ البدء','إجراءات',''], rows);
+    const ctListElement = document.getElementById('ct-list');
+    if (ctListElement) {
+        ctListElement.innerHTML = table(['كود العقد','الوحدة','العميل','السمسار','السعر','تاريخ البدء','إجراءات',''], rows);
+        console.log('Contracts table updated. Rows:', rows.length);
+    } else {
+        console.error('ct-list element not found!');
+    }
   }
   view.innerHTML=`
   <div class="grid">
@@ -1845,6 +1868,7 @@ function renderContracts(){
   document.getElementById('ct-count').oninput = updateTotalInstallments;
   document.getElementById('ct-annual-bonus').oninput = updateTotalInstallments;
 
+  console.log('Rendering contracts page. Total contracts:', state.contracts.length);
   draw();
   updateFormForUnit();
   updateTotalInstallments();
