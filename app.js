@@ -54,11 +54,11 @@ async function initializeApp() {
 
         // Setup UI and global event listeners
         setupGlobalEventListeners();
-        applySettings(); // Apply settings after loading data
         checkLock();
         saveState(); // Save initial state for undo/redo
         updateUndoRedoButtons();
         createTabs();
+        applySettings(); // Apply settings after loading data and UI setup
         nav('dash');
     } catch (error) {
         console.error("Failed to initialize the application:", error);
@@ -84,14 +84,22 @@ async function loadStateFromAPI() {
         throw new Error("Fatal: OBJECT_STORES is not defined.");
     }
 
-    const promises = window.OBJECT_STORES.map(storeName =>
-        getAll(storeName).catch(e => {
-            console.error(`Failed to load data for ${storeName}:`, e);
-            return []; // Return empty array on failure to not break Promise.all
-        })
-    );
-
-    const results = await Promise.all(promises);
+    // Load data in batches to improve performance
+    const batchSize = 5;
+    const results = [];
+    
+    for (let i = 0; i < window.OBJECT_STORES.length; i += batchSize) {
+        const batch = window.OBJECT_STORES.slice(i, i + batchSize);
+        const batchPromises = batch.map(storeName =>
+            getAll(storeName).catch(e => {
+                console.error(`Failed to load data for ${storeName}:`, e);
+                return []; // Return empty array on failure to not break Promise.all
+            })
+        );
+        
+        const batchResults = await Promise.all(batchPromises);
+        results.push(...batchResults);
+    }
 
     window.OBJECT_STORES.forEach((storeName, index) => {
         // The settings and keyval stores are not arrays of objects with 'id'
@@ -148,15 +156,15 @@ function setupGlobalEventListeners() {
     document.getElementById('themeSel').addEventListener('change', async (e) => {
         console.log('Theme changed to:', e.target.value);
         state.settings.theme = e.target.value;
+        applySettings(); // Apply the new theme immediately
         const settingsToSave = { key: 'main', ...state.settings };
         await put('settings', settingsToSave).catch(err => alert(err.message));
-        applySettings(); // Apply the new theme immediately
     });
     document.getElementById('fontSel').addEventListener('change', async (e) => {
         state.settings.font = Number(e.target.value);
+        applySettings(); // Apply the new font size immediately
         const settingsToSave = { key: 'main', ...state.settings };
         await put('settings', settingsToSave).catch(err => alert(err.message));
-        applySettings(); // Apply the new font size immediately
     });
     document.getElementById('lockBtn').addEventListener('click', async () => {
         const pass = prompt('ضع كلمة مرور أو اتركها فارغة لإلغاء القفل', '');
@@ -191,6 +199,7 @@ function applySettings(){
         const theme = state.settings.theme || 'dark';
         const fontSize = state.settings.font || 16;
         
+        // Apply theme immediately
         document.documentElement.setAttribute('data-theme', theme); 
         document.documentElement.style.fontSize = fontSize + 'px';
         
@@ -202,7 +211,10 @@ function applySettings(){
         
         console.log('Settings applied:', { theme, fontSize, settings: state.settings });
     } else {
-        console.log('Settings not available yet, state:', state);
+        // Apply default settings if state is not ready
+        document.documentElement.setAttribute('data-theme', 'dark'); 
+        document.documentElement.style.fontSize = '16px';
+        console.log('Applied default settings, state not ready yet');
     }
 }
 function checkLock(){ if(state.locked){ const p=prompt('اكتب كلمة المرور للدخول'); if(p!==state.settings.pass){ alert('كلمة مرور غير صحيحة'); location.reload(); } } }
@@ -1733,7 +1745,10 @@ function renderContracts(){
         }
 
         // --- 4. Update local state on success ---
-        for(const coll in itemsToCreate) { state[coll].push(...itemsToCreate[coll]); }
+        for(const coll in itemsToCreate) { 
+            if (!state[coll]) state[coll] = [];
+            state[coll].push(...itemsToCreate[coll]); 
+        }
         for(const coll in itemsToUpdate) {
             itemsToUpdate[coll].forEach(item => {
                 const index = state[coll].findIndex(i => i.id === item.id);
@@ -1743,7 +1758,7 @@ function renderContracts(){
 
         logAction('إنشاء عقد جديد', { contractId: ct.id, unitId, customerId, price: total });
         alert("تم إنشاء العقد وجميع البيانات المرتبطة به بنجاح.");
-        draw();
+        nav('contracts'); // إعادة رسم صفحة العقود بدلاً من draw() المحلية
     } catch(err) {
         alert("فشل إنشاء العقد: " + err.message + "\n\nحدث خطأ أثناء محاولة حفظ البيانات. قد تكون بعض البيانات قد حفظت. يرجى مراجعة البيانات أو محاولة مرة أخرى.");
         // Rollback local state
