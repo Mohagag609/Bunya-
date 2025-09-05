@@ -13,10 +13,9 @@ DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://user:password@localh
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
-# Configure CORS to only allow requests from the deployed frontend URL.
-# This is the correct and secure way to handle CORS.
-frontend_url = "https://estate-pro-a62r.onrender.com"
-CORS(app, resources={r"/api/*": {"origins": frontend_url}})
+# Configure CORS to only allow requests from the deployed frontend URL,
+# with explicit methods and credentials support for better compatibility.
+CORS(app, origins=["https://estate-pro-a62r.onrender.com"], methods=["GET", "PUT", "POST", "DELETE"], supports_credentials=True)
 
 # --- Dynamic CRUD API Creation ---
 
