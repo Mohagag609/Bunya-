@@ -1,0 +1,52 @@
+services:
+  # Backend API Service
+  - type: web
+    name: estate-management-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_HOST
+        fromDatabase:
+          name: estate-management-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: estate-management-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: estate-management-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: estate-management-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: estate-management-db
+          property: password
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: https://estate-management-frontend.onrender.com
+
+  # Frontend Static Site
+  - type: web
+    name: estate-management-frontend
+    env: static
+    buildCommand: echo "Static site"
+    staticPublishPath: .
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index-render.html
+
+databases:
+  - name: estate-management-db
+    databaseName: estate_management
+    user: estate_user
+    plan: free
