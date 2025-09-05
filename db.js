@@ -2,15 +2,9 @@
 // It replaces the original IndexedDB logic but keeps the same function names
 // to minimize changes in the main application logic (app.js).
 
-// This global constant is required by app.js to know which data stores to load.
-const OBJECT_STORES = [
-    'customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments',
-    'partnerDebts', 'safes', 'transfers', 'auditLog', 'vouchers', 'brokerDues',
-    'brokers', 'partnerGroups', 'settings', 'keyval'
-];
-
-// Make OBJECT_STORES available globally
-window.OBJECT_STORES = OBJECT_STORES;
+// OBJECT_STORES is now defined in index.html before this script loads
+// This is just a reference for documentation purposes
+const OBJECT_STORES = window.OBJECT_STORES;
 
 // Use the window.location.origin to construct an absolute URL.
 // This is a more robust way to ensure the frontend calls the correct backend,

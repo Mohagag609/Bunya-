@@ -5,12 +5,7 @@ let historyIndex = -1;
 let currentView = 'dash';
 let currentParam = null;
 
-// Define OBJECT_STORES globally to ensure it's always available
-window.OBJECT_STORES = window.OBJECT_STORES || [
-    'customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments',
-    'partnerDebts', 'safes', 'transfers', 'auditLog', 'vouchers', 'brokerDues',
-    'brokers', 'partnerGroups', 'settings', 'keyval'
-];
+// OBJECT_STORES is now defined in index.html before this script loads
 
 /* ===== CORE APP INITIALIZATION ===== */
 document.addEventListener('DOMContentLoaded', initializeApp);
