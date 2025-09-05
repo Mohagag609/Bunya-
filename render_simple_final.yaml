@@ -2,7 +2,7 @@ services:
   - type: web
     name: estate-manager
     env: python
-    buildCommand: pip install -r backend/requirements.txt
+    buildCommand: pip install -r backend/requirements_final.txt
     startCommand: python3 backend/server_original_fixed.py
     healthCheckPath: /health
     envVars:
