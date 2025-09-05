@@ -1,10 +1,75 @@
 {
   "name": "مدير الاستثمار العقاري",
   "short_name": "مدير العقارات",
-  "description": "تطبيق لإدارة الاستثمارات العقارية مع دعم للعمل دون اتصال.",
-  "start_url": "/index.html",
+  "description": "نظام إدارة الاستثمار العقاري الحديث والمتطور",
+  "version": "2.0.0",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#0b1020",
-  "theme_color": "#2563eb",
-  "icons": []
+  "background_color": "#1a202c",
+  "theme_color": "#667eea",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏛️</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏛️</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "finance", "productivity"],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800'><rect width='1200' height='800' fill='%231a202c'/><text x='600' y='400' text-anchor='middle' font-size='48' fill='white'>مدير الاستثمار العقاري</text></svg>",
+      "sizes": "1200x800",
+      "type": "image/svg+xml",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "لوحة التحكم",
+      "short_name": "التحكم",
+      "description": "عرض لوحة التحكم الرئيسية",
+      "url": "/?view=dash",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "العملاء",
+      "short_name": "العملاء",
+      "description": "إدارة العملاء",
+      "url": "/?view=customers",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👥</text></svg>",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "الوحدات",
+      "short_name": "الوحدات",
+      "description": "إدارة الوحدات العقارية",
+      "url": "/?view=units",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ]
 }

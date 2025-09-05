@@ -1,50 +1,135 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl" data-theme="dark">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Cache-Control" content="max-age=3600">
-<title>مدير الاستثمار العقاري — النسخة النهائية (محلي) — محدثة</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
-<script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
-<link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css">
-
-
-
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="max-age=3600">
+    <title>مدير الاستثمار العقاري — النسخة المحدثة</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="نظام إدارة الاستثمار العقاري الحديث والمتطور">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="مدير الاستثمار العقاري">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏛️</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏛️</text></svg>">
+    
+    <!-- Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="src/styles/main.css">
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
-<div class="container">
-  <div class="header">
-    <div class="brand"><div class="logo">🏛️</div><h1>مدير الاستثمار العقاري — النسخة النهائية</h1></div>
-    <div class="tools">
-      <button class="btn secondary" id="undoBtn" disabled>↪️ تراجع</button>
-      <button class="btn secondary" id="redoBtn" disabled>↩️ تقدم</button>
-      <select class="select" id="themeSel"><option value="dark">داكن</option><option value="light">فاتح</option></select>
-      <select class="select" id="fontSel"><option value="14">خط 14</option><option value="16" selected>خط 16</option><option value="18">خط 18</option></select>
-      <button class="btn secondary" id="lockBtn">🔒 قفل</button>
-    </div>
-  </div>
-  <div class="main-layout">
-    <div class="sidebar" id="tabs"></div>
-    <div class="content" id="view"></div>
-  </div>
-  <div style="text-align:center;color:var(--muted);font-size:12px;margin-top:10px">💾 LocalStorage • PDF/CSV • بحث/فرز/تعديل مباشر • أقساط مرنة • عمولة/صيانة • تدفقات نقدية • فلاتر تاريخ للتقارير</div>
-</div>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="brand">
+                <div class="logo">🏛️</div>
+                <h1>مدير الاستثمار العقاري — النسخة المحدثة</h1>
+            </div>
+            <div class="tools">
+                <button class="btn btn-secondary" id="undoBtn" disabled>
+                    <span>↪️</span>
+                    <span>تراجع</span>
+                </button>
+                <button class="btn btn-secondary" id="redoBtn" disabled>
+                    <span>↩️</span>
+                    <span>تقدم</span>
+                </button>
+                <select class="select" id="themeSel">
+                    <option value="dark">🌙 داكن</option>
+                    <option value="light">☀️ فاتح</option>
+                </select>
+                <select class="select" id="fontSel">
+                    <option value="14">خط 14</option>
+                    <option value="16" selected>خط 16</option>
+                    <option value="18">خط 18</option>
+                </select>
+                <button class="btn btn-secondary" id="lockBtn">
+                    <span>🔒</span>
+                    <span>قفل</span>
+                </button>
+            </div>
+        </header>
 
-<script>
-// Define OBJECT_STORES globally before any other scripts
-window.OBJECT_STORES = [
-    'customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments',
-    'partnerDebts', 'safes', 'transfers', 'auditLog', 'vouchers', 'brokerDues',
-    'brokers', 'partnerGroups', 'settings', 'keyval'
-];
-console.log('OBJECT_STORES defined:', window.OBJECT_STORES);
-</script>
-<script src="db.js"></script>
-<script src="app.js" defer></script>
+        <!-- Main Layout -->
+        <main class="main-layout">
+            <!-- Sidebar Navigation -->
+            <aside class="sidebar" id="tabs">
+                <nav class="sidebar-nav">
+                    <button class="nav-item active" data-view="dash" id="nav-dash">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-label">لوحة التحكم</span>
+                    </button>
+                    <button class="nav-item" data-view="customers" id="nav-customers">
+                        <span class="nav-icon">👥</span>
+                        <span class="nav-label">العملاء</span>
+                    </button>
+                    <button class="nav-item" data-view="units" id="nav-units">
+                        <span class="nav-icon">🏠</span>
+                        <span class="nav-label">الوحدات</span>
+                    </button>
+                    <button class="nav-item" data-view="contracts" id="nav-contracts">
+                        <span class="nav-icon">📋</span>
+                        <span class="nav-label">العقود</span>
+                    </button>
+                    <button class="nav-item" data-view="partners" id="nav-partners">
+                        <span class="nav-icon">🤝</span>
+                        <span class="nav-label">الشركاء</span>
+                    </button>
+                    <button class="nav-item" data-view="safes" id="nav-safes">
+                        <span class="nav-icon">💰</span>
+                        <span class="nav-label">الخزائن</span>
+                    </button>
+                    <button class="nav-item" data-view="transfers" id="nav-transfers">
+                        <span class="nav-icon">🔄</span>
+                        <span class="nav-label">التحويلات</span>
+                    </button>
+                    <button class="nav-item" data-view="vouchers" id="nav-vouchers">
+                        <span class="nav-icon">🧾</span>
+                        <span class="nav-label">السندات</span>
+                    </button>
+                    <button class="nav-item" data-view="reports" id="nav-reports">
+                        <span class="nav-icon">📈</span>
+                        <span class="nav-label">التقارير</span>
+                    </button>
+                    <button class="nav-item" data-view="settings" id="nav-settings">
+                        <span class="nav-icon">⚙️</span>
+                        <span class="nav-label">الإعدادات</span>
+                    </button>
+                </nav>
+            </aside>
+
+            <!-- Main Content -->
+            <section class="content" id="view">
+                <div class="loading-container">
+                    <div class="spinner"></div>
+                    <p>جاري تحميل التطبيق...</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Service Worker Registration -->
+    <script>
+        // Define OBJECT_STORES globally before any other scripts
+        window.OBJECT_STORES = [
+            'customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments',
+            'partnerDebts', 'safes', 'transfers', 'auditLog', 'vouchers', 'brokerDues',
+            'brokers', 'partnerGroups', 'settings', 'keyval'
+        ];
+        console.log('OBJECT_STORES defined:', window.OBJECT_STORES);
+    </script>
+
+    <!-- Main Application Script -->
+    <script type="module" src="src/app.js"></script>
 </body>
 </html>

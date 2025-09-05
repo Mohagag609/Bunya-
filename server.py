@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize Flask app
-app = Flask(__name__, static_folder='..')
+app = Flask(__name__, static_folder='.')
 
 # Database configuration
 DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://neondb_owner:npg_mCShrFRbkc16@ep-small-salad-ad85fh4s-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require')
@@ -33,7 +33,8 @@ allowed_origins = [
     "http://localhost:8000", 
     "http://127.0.0.1:3000", 
     "http://127.0.0.1:8000", 
-    "https://estate-pro-a62r.onrender.com"
+    "https://estate-pro-a62r.onrender.com",
+    "https://estate-manager.onrender.com"
 ]
 
 # Add current domain for production
