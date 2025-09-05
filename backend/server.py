@@ -4,7 +4,7 @@ import os
 import click
 
 # Import the db instance and the dictionary of models using a relative import
-from .models import db, models
+from models import db, models
 
 # --- App Initialization & Config ---
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -13,9 +13,25 @@ DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://neondb_owner:npg_7NG
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
-# Configure CORS to only allow requests from the deployed frontend URL,
+# Configure CORS to allow requests from localhost and the deployed frontend URL,
 # with explicit methods and credentials support for better compatibility.
-CORS(app, origins=["https://estate-pro-a62r.onrender.com"], methods=["GET", "PUT", "POST", "DELETE"], supports_credentials=True)
+# Configure CORS for both local development and production
+allowed_origins = [
+    "http://localhost:3000", 
+    "http://localhost:8000", 
+    "http://127.0.0.1:3000", 
+    "http://127.0.0.1:8000", 
+    "https://estate-pro-a62r.onrender.com"
+]
+
+# Add the current domain to allowed origins for production
+if 'RENDER' in os.environ:
+    # Get the service URL from Render environment
+    service_url = os.environ.get('RENDER_EXTERNAL_URL', '')
+    if service_url:
+        allowed_origins.append(service_url)
+
+CORS(app, origins=allowed_origins, methods=["GET", "PUT", "POST", "DELETE"], supports_credentials=True)
 
 # --- Dynamic CRUD API Creation ---
 
@@ -114,4 +130,4 @@ def init_db_command():
     click.echo("Initialized the database.")
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8000)
+    app.run(debug=True, host='0.0.0.0', port=8000)

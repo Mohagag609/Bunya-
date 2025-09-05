@@ -5,6 +5,8 @@ let historyIndex = -1;
 let currentView = 'dash';
 let currentParam = null;
 
+// OBJECT_STORES is now defined in index.html before this script loads
+
 /* ===== CORE APP INITIALIZATION ===== */
 document.addEventListener('DOMContentLoaded', initializeApp);
 
@@ -23,13 +25,17 @@ async function initializeApp() {
         state = await loadStateFromAPI();
 
         // Ensure state has default empty arrays if they are missing from the DB
-        OBJECT_STORES.forEach(storeName => {
+        window.OBJECT_STORES.forEach(storeName => {
             if (storeName !== 'keyval' && storeName !== 'settings' && !state[storeName]) {
                 state[storeName] = [];
             }
         });
         if (typeof state.settings !== 'object' || state.settings === null) {
             state.settings = { theme: 'dark', font: 16, pass: null };
+        }
+        // Ensure settings has a key for saving
+        if (!state.settings.key) {
+            state.settings.key = 'main';
         }
         if (!state.locked) { state.locked = false; }
 
@@ -47,8 +53,8 @@ async function initializeApp() {
         }
 
         // Setup UI and global event listeners
-        applySettings();
         setupGlobalEventListeners();
+        applySettings(); // Apply settings after loading data
         checkLock();
         saveState(); // Save initial state for undo/redo
         updateUndoRedoButtons();
@@ -74,11 +80,11 @@ async function loadStateFromAPI() {
 
     // We need the list of all stores to fetch from.
     // This should be defined somewhere globally, e.g., in index.html before this script.
-    if (typeof OBJECT_STORES === 'undefined') {
+    if (typeof window.OBJECT_STORES === 'undefined') {
         throw new Error("Fatal: OBJECT_STORES is not defined.");
     }
 
-    const promises = OBJECT_STORES.map(storeName =>
+    const promises = window.OBJECT_STORES.map(storeName =>
         getAll(storeName).catch(e => {
             console.error(`Failed to load data for ${storeName}:`, e);
             return []; // Return empty array on failure to not break Promise.all
@@ -87,7 +93,7 @@ async function loadStateFromAPI() {
 
     const results = await Promise.all(promises);
 
-    OBJECT_STORES.forEach((storeName, index) => {
+    window.OBJECT_STORES.forEach((storeName, index) => {
         // The settings and keyval stores are not arrays of objects with 'id'
         // They are special cases. Our API returns them as arrays, so we need to handle that.
         if (storeName === 'settings') {
@@ -136,22 +142,28 @@ function saveState() { historyStack = historyStack.slice(0, historyIndex + 1); h
 function updateUndoRedoButtons() { const undoBtn = document.getElementById('undoBtn'); const redoBtn = document.getElementById('redoBtn'); if (undoBtn) undoBtn.disabled = historyIndex <= 0; if (redoBtn) redoBtn.disabled = historyIndex >= historyStack.length - 1; }
 
 function setupGlobalEventListeners() {
-    document.getElementById('themeSel').value = state.settings.theme || 'dark';
-    document.getElementById('fontSel').value = String(state.settings.font || 16);
+    console.log('Setting up global event listeners, state.settings:', state.settings);
+    // Don't set values here - let applySettings() handle it after data is loaded
 
     document.getElementById('themeSel').addEventListener('change', async (e) => {
+        console.log('Theme changed to:', e.target.value);
         state.settings.theme = e.target.value;
-        await put('settings', state.settings).catch(err => alert(err.message));
+        const settingsToSave = { key: 'main', ...state.settings };
+        await put('settings', settingsToSave).catch(err => alert(err.message));
+        applySettings(); // Apply the new theme immediately
     });
     document.getElementById('fontSel').addEventListener('change', async (e) => {
         state.settings.font = Number(e.target.value);
-        await put('settings', state.settings).catch(err => alert(err.message));
+        const settingsToSave = { key: 'main', ...state.settings };
+        await put('settings', settingsToSave).catch(err => alert(err.message));
+        applySettings(); // Apply the new font size immediately
     });
     document.getElementById('lockBtn').addEventListener('click', async () => {
         const pass = prompt('ضع كلمة مرور أو اتركها فارغة لإلغاء القفل', '');
         state.locked = !!pass;
         state.settings.pass = pass || null;
-        await put('settings', state.settings).catch(err => alert(err.message));
+        const settingsToSave = { key: 'main', ...state.settings };
+        await put('settings', settingsToSave).catch(err => alert(err.message));
         alert(state.locked ? 'تم تفعيل القفل' : 'تم إلغاء القفل');
         checkLock();
     });
@@ -174,7 +186,25 @@ function today(){ return new Date().toISOString().slice(0,10); }
 function logAction(description, details = {}) { if (!state.auditLog) state.auditLog = []; state.auditLog.push({ id: uid('LOG'), timestamp: new Date().toISOString(), description, details }); }
 const fmt = new Intl.NumberFormat('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 function egp(v){ v=Number(v||0); return isFinite(v)?fmt.format(v)+' ج.م':'' }
-function applySettings(){ if(state && state.settings) { document.documentElement.setAttribute('data-theme', state.settings.theme||'dark'); document.documentElement.style.fontSize=(state.settings.font||16)+'px'; } }
+function applySettings(){ 
+    if(state && state.settings) { 
+        const theme = state.settings.theme || 'dark';
+        const fontSize = state.settings.font || 16;
+        
+        document.documentElement.setAttribute('data-theme', theme); 
+        document.documentElement.style.fontSize = fontSize + 'px';
+        
+        // Update the select elements to match the current settings
+        const themeSel = document.getElementById('themeSel');
+        const fontSel = document.getElementById('fontSel');
+        if (themeSel) themeSel.value = theme;
+        if (fontSel) fontSel.value = String(fontSize);
+        
+        console.log('Settings applied:', { theme, fontSize, settings: state.settings });
+    } else {
+        console.log('Settings not available yet, state:', state);
+    }
+}
 function checkLock(){ if(state.locked){ const p=prompt('اكتب كلمة المرور للدخول'); if(p!==state.settings.pass){ alert('كلمة مرور غير صحيحة'); location.reload(); } } }
 function unitById(id){ return state.units.find(u=>u.id===id); }
 function custById(id){ return state.customers.find(c=>c.id===id); }

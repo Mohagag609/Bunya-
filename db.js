@@ -2,17 +2,18 @@
 // It replaces the original IndexedDB logic but keeps the same function names
 // to minimize changes in the main application logic (app.js).
 
-// This global constant is required by app.js to know which data stores to load.
-const OBJECT_STORES = [
-    'customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments',
-    'partnerDebts', 'safes', 'transfers', 'auditLog', 'vouchers', 'brokerDues',
-    'brokers', 'partnerGroups', 'settings', 'keyval'
-];
+// OBJECT_STORES is now defined in index.html before this script loads
+// This is just a reference for documentation purposes
+const OBJECT_STORES = window.OBJECT_STORES;
 
 // Use the window.location.origin to construct an absolute URL.
 // This is a more robust way to ensure the frontend calls the correct backend,
 // especially in environments with complex proxying.
-const API_BASE_URL = `${window.location.origin}/api`;
+// For local development, use port 8000 for the backend API
+// For production (Render), use the same origin
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+    ? `http://${window.location.hostname}:8000/api`
+    : `${window.location.origin}/api`;
 
 /**
  * A helper function to handle fetch responses, check for errors, and parse JSON.
