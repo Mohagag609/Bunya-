@@ -1,0 +1,47 @@
+{
+  "name": "estate-manager-modern",
+  "version": "2.0.0",
+  "description": "Modern Real Estate Investment Manager - مدير الاستثمار العقاري الحديث",
+  "main": "src/app.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "backend": "cd backend && python server.py",
+    "start": "npm run build && npm run backend",
+    "lint": "eslint src --ext .ts,.js",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "chart.js": "^4.4.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "@types/chart.js": "^2.9.41",
+    "typescript": "^5.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0"
+  },
+  "keywords": [
+    "real-estate",
+    "investment", 
+    "manager",
+    "arabic",
+    "pwa",
+    "typescript",
+    "modern"
+  ],
+  "author": "Estate Manager Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/estate-manager.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/estate-manager/issues"
+  },
+  "homepage": "https://github.com/your-username/estate-manager#readme"
+}

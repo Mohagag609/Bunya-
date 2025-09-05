@@ -1,21 +1,33 @@
 from flask import Flask, send_from_directory, jsonify, request
 from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.declarative import declarative_base
 import os
 import click
+from datetime import datetime
+import logging
 
-# Import the db instance and the dictionary of models using a relative import
-from models import db, models
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# --- App Initialization & Config ---
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-app = Flask(__name__, static_folder=project_root)
+# Initialize Flask app
+app = Flask(__name__, static_folder='..')
+
+# Database configuration
 DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://neondb_owner:npg_7NGtZKAk8BCU@ep-polished-glitter-adyad3gu-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require')
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db.init_app(app)
-# Configure CORS to allow requests from localhost and the deployed frontend URL,
-# with explicit methods and credentials support for better compatibility.
-# Configure CORS for both local development and production
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+}
+
+# Initialize database
+db = SQLAlchemy(app)
+
+# CORS configuration
 allowed_origins = [
     "http://localhost:3000", 
     "http://localhost:8000", 
@@ -24,110 +36,252 @@ allowed_origins = [
     "https://estate-pro-a62r.onrender.com"
 ]
 
-# Add the current domain to allowed origins for production
+# Add current domain for production
 if 'RENDER' in os.environ:
-    # Get the service URL from Render environment
     service_url = os.environ.get('RENDER_EXTERNAL_URL', '')
     if service_url:
         allowed_origins.append(service_url)
 
 CORS(app, origins=allowed_origins, methods=["GET", "PUT", "POST", "DELETE"], supports_credentials=True)
 
-# --- Dynamic CRUD API Creation ---
+# Generic model for all data stores
+class GenericModel(db.Model):
+    __abstract__ = True
+    
+    def to_dict(self):
+        result = {}
+        for column in self.__table__.columns:
+            if column.name == 'data':
+                result.update(self.data or {})
+            else:
+                result[column.name] = getattr(self, column.name)
+        return result
 
-def create_and_register_views(app, model_name, model_class):
-    """
-    A factory that creates a class with CRUD methods and registers its routes with the Flask app.
-    This prevents view function name collisions by encapsulating views in a class.
-    """
-    view_class_name = f"{model_name.capitalize()}API"
+# Create specific models
+def create_model(table_name, pk_name='id', pk_type=db.String(36)):
+    class_name = table_name.capitalize()
+    
+    attributes = {
+        '__tablename__': table_name,
+        pk_name: db.Column(pk_type, primary_key=True),
+        'data': db.Column(JSONB, nullable=False),
+        'created_at': db.Column(db.DateTime, default=datetime.utcnow),
+        'updated_at': db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow),
+        'to_dict': lambda self: {
+            pk_name: getattr(self, pk_name),
+            'createdAt': self.created_at.isoformat() if self.created_at else None,
+            'updatedAt': self.updated_at.isoformat() if self.updated_at else None,
+            **(self.data or {})
+        }
+    }
+    
+    return type(class_name, (GenericModel,), attributes)
 
-    # Get the name of the primary key column for this model
+# Object stores with 'id' as primary key
+OBJECT_STORES_WITH_ID = [
+    'customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments',
+    'partnerDebts', 'safes', 'transfers', 'auditLog', 'vouchers', 'brokerDues',
+    'brokers', 'partnerGroups'
+]
+
+# Create models
+models = {}
+for store in OBJECT_STORES_WITH_ID:
+    model = create_model(store)
+    models[store] = model
+
+# Special cases with 'key' as primary key
+settings_model = create_model('settings', pk_name='key')
+models['settings'] = settings_model
+
+keyval_model = create_model('keyval', pk_name='key')
+models['keyval'] = keyval_model
+
+# API Error handling
+class APIError(Exception):
+    def __init__(self, message, status_code=400):
+        self.message = message
+        self.status_code = status_code
+
+@app.errorhandler(APIError)
+def handle_api_error(error):
+    return jsonify({'error': error.message}), error.status_code
+
+@app.errorhandler(404)
+def handle_not_found(error):
+    return jsonify({'error': 'Resource not found'}), 404
+
+@app.errorhandler(500)
+def handle_internal_error(error):
+    logger.error(f"Internal server error: {error}")
+    return jsonify({'error': 'Internal server error'}), 500
+
+# Generic CRUD operations
+def create_crud_routes(app, model_name, model_class):
+    """Create CRUD routes for a model"""
     pk_name = db.inspect(model_class).primary_key[0].name
-
-    class CRUDView:
-        def get_all(self):
+    
+    @app.route(f'/api/{model_name}', methods=['GET'])
+    def get_all():
+        try:
             items = model_class.query.all()
             return jsonify([item.to_dict() for item in items])
-
-        def get_one(self, item_id):
+        except Exception as e:
+            logger.error(f"Error fetching {model_name}: {e}")
+            raise APIError(f"Failed to fetch {model_name}", 500)
+    
+    @app.route(f'/api/{model_name}/<item_id>', methods=['GET'])
+    def get_one(item_id):
+        try:
             item = model_class.query.get(item_id)
             if item is None:
-                return jsonify({"error": "Item not found"}), 404
+                raise APIError(f"{model_name} not found", 404)
             return jsonify(item.to_dict())
-
-        def upsert(self, item_id):
-            """
-            Handles both creating a new item and updating an existing one (upsert).
-            This is aligned with the original IndexedDB 'put' behavior.
-            """
-            item = model_class.query.get(item_id)
+        except APIError:
+            raise
+        except Exception as e:
+            logger.error(f"Error fetching {model_name} {item_id}: {e}")
+            raise APIError(f"Failed to fetch {model_name}", 500)
+    
+    @app.route(f'/api/{model_name}/<item_id>', methods=['PUT'])
+    def upsert(item_id):
+        try:
             data = request.get_json()
             if not data:
-                return jsonify({"error": "Invalid data"}), 400
-
-            # The full object data, excluding the PK, goes into the 'data' field.
+                raise APIError("Invalid data", 400)
+            
+            # Extract data excluding primary key
             item_data = {k: v for k, v in data.items() if k != pk_name}
-
-            if item is None:  # Item does not exist, so create it
-                pk_value = data.get(pk_name)
-                # Ensure the ID in the URL matches the one in the payload
-                if str(item_id) != str(pk_value):
-                    return jsonify({"error": "ID in URL and body do not match"}), 400
-
-                new_item = model_class(**{pk_name: pk_value, 'data': item_data})
+            
+            # Check if item exists
+            item = model_class.query.get(item_id)
+            
+            if item is None:
+                # Create new item
+                if str(item_id) != str(data.get(pk_name)):
+                    raise APIError("ID in URL and body do not match", 400)
+                
+                new_item = model_class(**{pk_name: item_id, 'data': item_data})
                 db.session.add(new_item)
                 db.session.commit()
-                return jsonify(new_item.to_dict()), 201  # Return 201 Created
-            else:  # Item exists, so update it
+                
+                logger.info(f"Created new {model_name}: {item_id}")
+                return jsonify(new_item.to_dict()), 201
+            else:
+                # Update existing item
                 item.data = item_data
+                item.updated_at = datetime.utcnow()
                 db.session.commit()
-                return jsonify(item.to_dict()), 200  # Return 200 OK
-
-        def delete(self, item_id):
+                
+                logger.info(f"Updated {model_name}: {item_id}")
+                return jsonify(item.to_dict()), 200
+                
+        except APIError:
+            raise
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error upserting {model_name} {item_id}: {e}")
+            raise APIError(f"Failed to save {model_name}", 500)
+    
+    @app.route(f'/api/{model_name}/<item_id>', methods=['DELETE'])
+    def delete(item_id):
+        try:
             item = model_class.query.get(item_id)
             if item is None:
-                return jsonify({"error": "Item not found"}), 404
-
+                raise APIError(f"{model_name} not found", 404)
+            
             db.session.delete(item)
             db.session.commit()
-            return jsonify({"message": "Item deleted successfully"}), 200
+            
+            logger.info(f"Deleted {model_name}: {item_id}")
+            return jsonify({"message": f"{model_name} deleted successfully"}), 200
+            
+        except APIError:
+            raise
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error deleting {model_name} {item_id}: {e}")
+            raise APIError(f"Failed to delete {model_name}", 500)
 
-    view_instance = CRUDView()
-
-    # Generate unique endpoint names for Flask's internal registry
-    endpoint_prefix = f"{model_name}_api"
-
-    # Register the URL rules using the methods from the class instance
-    app.add_url_rule(f'/api/{model_name}', view_func=view_instance.get_all, methods=['GET'], endpoint=f'{endpoint_prefix}_get_all')
-    app.add_url_rule(f'/api/{model_name}/<item_id>', view_func=view_instance.get_one, methods=['GET'], endpoint=f'{endpoint_prefix}_get_one')
-    app.add_url_rule(f'/api/{model_name}/<item_id>', view_func=view_instance.upsert, methods=['PUT'], endpoint=f'{endpoint_prefix}_upsert')
-    app.add_url_rule(f'/api/{model_name}/<item_id>', view_func=view_instance.delete, methods=['DELETE'], endpoint=f'{endpoint_prefix}_delete')
-
-# --- Register all model routes ---
-# This must be done within an app context to access db.inspect
+# Register all model routes
 with app.app_context():
     for name, model_cls in models.items():
-        create_and_register_views(app, name, model_cls)
-        print(f"Registered CRUD endpoints for: /api/{name}")
+        create_crud_routes(app, name, model_cls)
+        logger.info(f"Registered CRUD endpoints for: /api/{name}")
 
-# --- Static File Serving & CLI ---
+# Health check endpoint
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    try:
+        # Test database connection
+        db.session.execute('SELECT 1')
+        return jsonify({
+            'status': 'healthy',
+            'timestamp': datetime.utcnow().isoformat(),
+            'database': 'connected'
+        })
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return jsonify({
+            'status': 'unhealthy',
+            'timestamp': datetime.utcnow().isoformat(),
+            'database': 'disconnected',
+            'error': str(e)
+        }), 503
+
+# Static file serving
 @app.route('/', defaults={'path': 'index.html'})
 @app.route('/<path:path>')
 def serve_static(path):
-    safe_path = os.path.abspath(os.path.join(app.static_folder, path))
-    if not safe_path.startswith(app.static_folder):
+    try:
+        safe_path = os.path.abspath(os.path.join(app.static_folder, path))
+        if not safe_path.startswith(app.static_folder):
+            return "Not Found", 404
+        
+        if os.path.exists(safe_path):
+            return send_from_directory(app.static_folder, path)
+        else:
+            # Serve index.html for SPA routing
+            return send_from_directory(app.static_folder, 'index.html')
+    except Exception as e:
+        logger.error(f"Error serving static file {path}: {e}")
         return "Not Found", 404
-    if os.path.exists(safe_path):
-        return send_from_directory(app.static_folder, path)
-    else:
-        return send_from_directory(app.static_folder, 'index.html')
 
+# CLI commands
 @app.cli.command("init-db")
 def init_db_command():
-    with app.app_context():
-        db.create_all()
-    click.echo("Initialized the database.")
+    """Initialize the database"""
+    try:
+        with app.app_context():
+            db.create_all()
+        click.echo("Database initialized successfully.")
+    except Exception as e:
+        click.echo(f"Error initializing database: {e}")
 
+@app.cli.command("migrate")
+def migrate_command():
+    """Run database migrations"""
+    try:
+        with app.app_context():
+            db.create_all()
+        click.echo("Migrations completed successfully.")
+    except Exception as e:
+        click.echo(f"Error running migrations: {e}")
+
+# Application startup
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=8000)
+    try:
+        # Initialize database
+        with app.app_context():
+            db.create_all()
+            logger.info("Database initialized")
+        
+        # Start server
+        port = int(os.environ.get('PORT', 8000))
+        debug = os.environ.get('FLASK_ENV') == 'development'
+        
+        logger.info(f"Starting server on port {port}")
+        app.run(debug=debug, host='0.0.0.0', port=port)
+    except Exception as e:
+        logger.error(f"Failed to start server: {e}")
+        raise
