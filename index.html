@@ -6,11 +6,11 @@
     <title>إدارة العقارات</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; }
+        body { font-family: Arial, sans-serif; background: #f5f5f5; }
         .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .header { background: #2c3e50; color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
-        .nav { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-        .btn { padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .header { background: #2c3e50; color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: center; }
+        .nav { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center; }
+        .btn { padding: 15px 25px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
         .btn:hover { background: #2980b9; }
         .btn.success { background: #27ae60; }
         .btn.danger { background: #e74c3c; }
@@ -19,18 +19,18 @@
         .stat { text-align: center; padding: 20px; background: #ecf0f1; border-radius: 10px; }
         .stat h3 { color: #2c3e50; margin-bottom: 10px; }
         .stat-value { font-size: 2em; font-weight: bold; color: #27ae60; }
-        .error { background: #e74c3c; color: white; padding: 10px; border-radius: 5px; margin: 10px 0; }
-        .success { background: #27ae60; color: white; padding: 10px; border-radius: 5px; margin: 10px 0; }
-        .loading { text-align: center; padding: 20px; }
-        .form-group { margin: 10px 0; }
-        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
-        .form-group input, .form-group select, .form-group textarea { 
-            width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; 
-        }
+        .error { background: #e74c3c; color: white; padding: 15px; border-radius: 5px; margin: 10px 0; text-align: center; }
+        .success { background: #27ae60; color: white; padding: 15px; border-radius: 5px; margin: 10px 0; text-align: center; }
         .list-item { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #3498db; }
         .list-item h4 { margin-bottom: 5px; color: #2c3e50; }
         .list-item p { color: #666; margin: 5px 0; }
+        .form-group { margin: 15px 0; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input, .form-group select, .form-group textarea { 
+            width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px;
+        }
         .hidden { display: none; }
+        .working { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; padding: 15px; border-radius: 5px; margin: 10px 0; }
     </style>
 </head>
 <body>
@@ -51,10 +51,9 @@
         </div>
 
         <div id="content" class="card">
-            <div class="loading">
-                <h3>🔄 جاري تحميل النظام...</h3>
-                <p>إذا استمرت هذه الرسالة، اضغط F5 لتحديث الصفحة</p>
-                <button class="btn" onclick="location.reload()">تحديث الصفحة</button>
+            <div class="working">
+                <h3>✅ النظام يعمل!</h3>
+                <p>اضغط على أي زر في الأعلى للبدء</p>
             </div>
         </div>
     </div>
@@ -71,15 +70,23 @@
 
         // Load data from localStorage
         function loadData() {
-            const saved = localStorage.getItem('estateData');
-            if (saved) {
-                state = { ...state, ...JSON.parse(saved) };
+            try {
+                const saved = localStorage.getItem('estateData');
+                if (saved) {
+                    state = { ...state, ...JSON.parse(saved) };
+                }
+            } catch (error) {
+                console.log('No saved data found, using defaults');
             }
         }
 
         // Save data to localStorage
         function saveData() {
-            localStorage.setItem('estateData', JSON.stringify(state));
+            try {
+                localStorage.setItem('estateData', JSON.stringify(state));
+            } catch (error) {
+                alert('خطأ في حفظ البيانات: ' + error.message);
+            }
         }
 
         // Utility functions
@@ -97,78 +104,73 @@
         // UI Functions
         function showMessage(message, type) {
             const content = document.getElementById('content');
-            content.innerHTML = `<div class="${type}">${message}</div>`;
+            content.innerHTML = '<div class="' + type + '">' + message + '</div>';
         }
 
         function showDashboard() {
             const content = document.getElementById('content');
-            const totalSafes = state.safes.reduce((sum, safe) => sum + (safe.balance || 0), 0);
+            const totalSafes = state.safes.reduce(function(sum, safe) { return sum + (safe.balance || 0); }, 0);
             
-            content.innerHTML = `
-                <h2>🏠 لوحة التحكم</h2>
-                <div class="stats">
-                    <div class="stat">
-                        <h3>العملاء</h3>
-                        <div class="stat-value">${state.customers.length}</div>
-                    </div>
-                    <div class="stat">
-                        <h3>الوحدات</h3>
-                        <div class="stat-value">${state.units.length}</div>
-                    </div>
-                    <div class="stat">
-                        <h3>العقود</h3>
-                        <div class="stat-value">${state.contracts.length}</div>
-                    </div>
-                    <div class="stat">
-                        <h3>إجمالي الخزن</h3>
-                        <div class="stat-value">${formatCurrency(totalSafes)}</div>
-                    </div>
-                </div>
-                <div class="card">
-                    <h3>حالة النظام</h3>
-                    <p>✅ البيانات محفوظة محلياً</p>
-                    <p>🔄 يمكن تصدير واستيراد البيانات</p>
-                </div>
-            `;
+            content.innerHTML = 
+                '<h2>🏠 لوحة التحكم</h2>' +
+                '<div class="stats">' +
+                    '<div class="stat">' +
+                        '<h3>العملاء</h3>' +
+                        '<div class="stat-value">' + state.customers.length + '</div>' +
+                    '</div>' +
+                    '<div class="stat">' +
+                        '<h3>الوحدات</h3>' +
+                        '<div class="stat-value">' + state.units.length + '</div>' +
+                    '</div>' +
+                    '<div class="stat">' +
+                        '<h3>العقود</h3>' +
+                        '<div class="stat-value">' + state.contracts.length + '</div>' +
+                    '</div>' +
+                    '<div class="stat">' +
+                        '<h3>إجمالي الخزن</h3>' +
+                        '<div class="stat-value">' + formatCurrency(totalSafes) + '</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="card">' +
+                    '<h3>حالة النظام</h3>' +
+                    '<p>✅ البيانات محفوظة محلياً</p>' +
+                    '<p>🔄 يمكن تصدير واستيراد البيانات</p>' +
+                '</div>';
         }
 
         function showCustomers() {
             const content = document.getElementById('content');
-            content.innerHTML = `
-                <h2>👥 العملاء</h2>
-                <button class="btn" onclick="addCustomer()">إضافة عميل جديد</button>
-                <div id="customersList"></div>
-            `;
+            content.innerHTML = 
+                '<h2>👥 العملاء</h2>' +
+                '<button class="btn" onclick="addCustomer()">إضافة عميل جديد</button>' +
+                '<div id="customersList"></div>';
             renderCustomersList();
         }
 
         function showUnits() {
             const content = document.getElementById('content');
-            content.innerHTML = `
-                <h2>🏢 الوحدات</h2>
-                <button class="btn" onclick="addUnit()">إضافة وحدة جديدة</button>
-                <div id="unitsList"></div>
-            `;
+            content.innerHTML = 
+                '<h2>🏢 الوحدات</h2>' +
+                '<button class="btn" onclick="addUnit()">إضافة وحدة جديدة</button>' +
+                '<div id="unitsList"></div>';
             renderUnitsList();
         }
 
         function showContracts() {
             const content = document.getElementById('content');
-            content.innerHTML = `
-                <h2>📋 العقود</h2>
-                <button class="btn" onclick="addContract()">إضافة عقد جديد</button>
-                <div id="contractsList"></div>
-            `;
+            content.innerHTML = 
+                '<h2>📋 العقود</h2>' +
+                '<button class="btn" onclick="addContract()">إضافة عقد جديد</button>' +
+                '<div id="contractsList"></div>';
             renderContractsList();
         }
 
         function showSafes() {
             const content = document.getElementById('content');
-            content.innerHTML = `
-                <h2>💰 الخزن</h2>
-                <button class="btn" onclick="addSafe()">إضافة خزنة جديدة</button>
-                <div id="safesList"></div>
-            `;
+            content.innerHTML = 
+                '<h2>💰 الخزن</h2>' +
+                '<button class="btn" onclick="addSafe()">إضافة خزنة جديدة</button>' +
+                '<div id="safesList"></div>';
             renderSafesList();
         }
 
@@ -177,14 +179,17 @@
             if (state.customers.length === 0) {
                 list.innerHTML = '<p>لا يوجد عملاء</p>';
             } else {
-                list.innerHTML = state.customers.map(customer => `
-                    <div class="list-item">
-                        <h4>${customer.name || 'بدون اسم'}</h4>
-                        <p>الهاتف: ${customer.phone || 'غير محدد'}</p>
-                        <p>البريد الإلكتروني: ${customer.email || 'غير محدد'}</p>
-                        <button class="btn danger" onclick="deleteCustomer('${customer.id}')">حذف</button>
-                    </div>
-                `).join('');
+                var html = '';
+                for (var i = 0; i < state.customers.length; i++) {
+                    var customer = state.customers[i];
+                    html += '<div class="list-item">' +
+                        '<h4>' + (customer.name || 'بدون اسم') + '</h4>' +
+                        '<p>الهاتف: ' + (customer.phone || 'غير محدد') + '</p>' +
+                        '<p>البريد الإلكتروني: ' + (customer.email || 'غير محدد') + '</p>' +
+                        '<button class="btn danger" onclick="deleteCustomer(\'' + customer.id + '\')">حذف</button>' +
+                    '</div>';
+                }
+                list.innerHTML = html;
             }
         }
 
@@ -193,14 +198,17 @@
             if (state.units.length === 0) {
                 list.innerHTML = '<p>لا يوجد وحدات</p>';
             } else {
-                list.innerHTML = state.units.map(unit => `
-                    <div class="list-item">
-                        <h4>${unit.name || 'بدون اسم'}</h4>
-                        <p>المساحة: ${unit.area || 'غير محدد'}</p>
-                        <p>السعر: ${formatCurrency(unit.price)}</p>
-                        <button class="btn danger" onclick="deleteUnit('${unit.id}')">حذف</button>
-                    </div>
-                `).join('');
+                var html = '';
+                for (var i = 0; i < state.units.length; i++) {
+                    var unit = state.units[i];
+                    html += '<div class="list-item">' +
+                        '<h4>' + (unit.name || 'بدون اسم') + '</h4>' +
+                        '<p>المساحة: ' + (unit.area || 'غير محدد') + '</p>' +
+                        '<p>السعر: ' + formatCurrency(unit.price) + '</p>' +
+                        '<button class="btn danger" onclick="deleteUnit(\'' + unit.id + '\')">حذف</button>' +
+                    '</div>';
+                }
+                list.innerHTML = html;
             }
         }
 
@@ -209,14 +217,17 @@
             if (state.contracts.length === 0) {
                 list.innerHTML = '<p>لا يوجد عقود</p>';
             } else {
-                list.innerHTML = state.contracts.map(contract => `
-                    <div class="list-item">
-                        <h4>${contract.customerName || 'بدون اسم عميل'}</h4>
-                        <p>القيمة: ${formatCurrency(contract.amount)}</p>
-                        <p>التاريخ: ${contract.date || 'غير محدد'}</p>
-                        <button class="btn danger" onclick="deleteContract('${contract.id}')">حذف</button>
-                    </div>
-                `).join('');
+                var html = '';
+                for (var i = 0; i < state.contracts.length; i++) {
+                    var contract = state.contracts[i];
+                    html += '<div class="list-item">' +
+                        '<h4>' + (contract.customerName || 'بدون اسم عميل') + '</h4>' +
+                        '<p>القيمة: ' + formatCurrency(contract.amount) + '</p>' +
+                        '<p>التاريخ: ' + (contract.date || 'غير محدد') + '</p>' +
+                        '<button class="btn danger" onclick="deleteContract(\'' + contract.id + '\')">حذف</button>' +
+                    '</div>';
+                }
+                list.innerHTML = html;
             }
         }
 
@@ -225,28 +236,31 @@
             if (state.safes.length === 0) {
                 list.innerHTML = '<p>لا يوجد خزن</p>';
             } else {
-                list.innerHTML = state.safes.map(safe => `
-                    <div class="list-item">
-                        <h4>${safe.name || 'بدون اسم'}</h4>
-                        <p>الرصيد: ${formatCurrency(safe.balance)}</p>
-                        <button class="btn" onclick="editSafe('${safe.id}')">تعديل</button>
-                        <button class="btn danger" onclick="deleteSafe('${safe.id}')">حذف</button>
-                    </div>
-                `).join('');
+                var html = '';
+                for (var i = 0; i < state.safes.length; i++) {
+                    var safe = state.safes[i];
+                    html += '<div class="list-item">' +
+                        '<h4>' + (safe.name || 'بدون اسم') + '</h4>' +
+                        '<p>الرصيد: ' + formatCurrency(safe.balance) + '</p>' +
+                        '<button class="btn" onclick="editSafe(\'' + safe.id + '\')">تعديل</button>' +
+                        '<button class="btn danger" onclick="deleteSafe(\'' + safe.id + '\')">حذف</button>' +
+                    '</div>';
+                }
+                list.innerHTML = html;
             }
         }
 
         // Add functions
         function addCustomer() {
-            const name = prompt('اسم العميل:');
-            const phone = prompt('رقم الهاتف:');
-            const email = prompt('البريد الإلكتروني:');
+            var name = prompt('اسم العميل:');
+            var phone = prompt('رقم الهاتف:');
+            var email = prompt('البريد الإلكتروني:');
             if (name) {
-                const customer = { 
+                var customer = { 
                     id: generateId('c'), 
-                    name, 
-                    phone, 
-                    email,
+                    name: name, 
+                    phone: phone, 
+                    email: email,
                     createdAt: new Date().toISOString()
                 };
                 state.customers.push(customer);
@@ -257,14 +271,14 @@
         }
 
         function addUnit() {
-            const name = prompt('اسم الوحدة:');
-            const area = prompt('المساحة:');
-            const price = prompt('السعر:');
+            var name = prompt('اسم الوحدة:');
+            var area = prompt('المساحة:');
+            var price = prompt('السعر:');
             if (name) {
-                const unit = { 
+                var unit = { 
                     id: generateId('u'), 
-                    name, 
-                    area, 
+                    name: name, 
+                    area: area, 
                     price: parseFloat(price) || 0,
                     createdAt: new Date().toISOString()
                 };
@@ -276,13 +290,13 @@
         }
 
         function addContract() {
-            const customerName = prompt('اسم العميل:');
-            const amount = prompt('قيمة العقد:');
-            const date = prompt('تاريخ العقد (YYYY-MM-DD):');
+            var customerName = prompt('اسم العميل:');
+            var amount = prompt('قيمة العقد:');
+            var date = prompt('تاريخ العقد (YYYY-MM-DD):');
             if (customerName) {
-                const contract = { 
+                var contract = { 
                     id: generateId('ct'), 
-                    customerName, 
+                    customerName: customerName, 
                     amount: parseFloat(amount) || 0,
                     date: date || new Date().toISOString().slice(0, 10),
                     createdAt: new Date().toISOString()
@@ -295,12 +309,12 @@
         }
 
         function addSafe() {
-            const name = prompt('اسم الخزنة:');
-            const balance = prompt('الرصيد الابتدائي:');
+            var name = prompt('اسم الخزنة:');
+            var balance = prompt('الرصيد الابتدائي:');
             if (name) {
-                const safe = { 
+                var safe = { 
                     id: generateId('s'), 
-                    name, 
+                    name: name, 
                     balance: parseFloat(balance) || 0,
                     createdAt: new Date().toISOString()
                 };
@@ -314,7 +328,7 @@
         // Delete functions
         function deleteCustomer(id) {
             if (confirm('هل أنت متأكد من حذف هذا العميل؟')) {
-                state.customers = state.customers.filter(c => c.id !== id);
+                state.customers = state.customers.filter(function(c) { return c.id !== id; });
                 saveData();
                 renderCustomersList();
                 showMessage('تم حذف العميل!', 'success');
@@ -323,7 +337,7 @@
 
         function deleteUnit(id) {
             if (confirm('هل أنت متأكد من حذف هذه الوحدة؟')) {
-                state.units = state.units.filter(u => u.id !== id);
+                state.units = state.units.filter(function(u) { return u.id !== id; });
                 saveData();
                 renderUnitsList();
                 showMessage('تم حذف الوحدة!', 'success');
@@ -332,7 +346,7 @@
 
         function deleteContract(id) {
             if (confirm('هل أنت متأكد من حذف هذا العقد؟')) {
-                state.contracts = state.contracts.filter(c => c.id !== id);
+                state.contracts = state.contracts.filter(function(c) { return c.id !== id; });
                 saveData();
                 renderContractsList();
                 showMessage('تم حذف العقد!', 'success');
@@ -341,7 +355,7 @@
 
         function deleteSafe(id) {
             if (confirm('هل أنت متأكد من حذف هذه الخزنة؟')) {
-                state.safes = state.safes.filter(s => s.id !== id);
+                state.safes = state.safes.filter(function(s) { return s.id !== id; });
                 saveData();
                 renderSafesList();
                 showMessage('تم حذف الخزنة!', 'success');
@@ -349,9 +363,9 @@
         }
 
         function editSafe(id) {
-            const safe = state.safes.find(s => s.id === id);
+            var safe = state.safes.find(function(s) { return s.id === id; });
             if (safe) {
-                const newBalance = prompt('الرصيد الجديد:', safe.balance);
+                var newBalance = prompt('الرصيد الجديد:', safe.balance);
                 if (newBalance !== null) {
                     safe.balance = parseFloat(newBalance) || 0;
                     saveData();
@@ -363,10 +377,10 @@
 
         // Export/Import functions
         function exportData() {
-            const dataStr = JSON.stringify(state, null, 2);
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(dataBlob);
-            const link = document.createElement('a');
+            var dataStr = JSON.stringify(state, null, 2);
+            var dataBlob = new Blob([dataStr], { type: 'application/json' });
+            var url = URL.createObjectURL(dataBlob);
+            var link = document.createElement('a');
             link.href = url;
             link.download = 'estate-data-' + new Date().toISOString().slice(0, 10) + '.json';
             link.click();
@@ -375,17 +389,17 @@
         }
 
         function importData() {
-            const input = document.createElement('input');
+            var input = document.createElement('input');
             input.type = 'file';
             input.accept = '.json';
-            input.onchange = (e) => {
-                const file = e.target.files[0];
+            input.onchange = function(e) {
+                var file = e.target.files[0];
                 if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
+                    var reader = new FileReader();
+                    reader.onload = function(e) {
                         try {
-                            const importedData = JSON.parse(e.target.result);
-                            state = { ...state, ...importedData };
+                            var importedData = JSON.parse(e.target.result);
+                            state = Object.assign({}, state, importedData);
                             saveData();
                             showMessage('تم استيراد البيانات بنجاح!', 'success');
                             showDashboard();
@@ -400,23 +414,8 @@
         }
 
         // Initialize app
-        document.addEventListener('DOMContentLoaded', () => {
-            loadData();
-            showDashboard();
-        });
-
-        // Fallback - if loading takes too long
-        setTimeout(() => {
-            const loadingEl = document.querySelector('.loading');
-            if (loadingEl) {
-                loadingEl.innerHTML = `
-                    <h3>⚠️ مشكلة في التحميل</h3>
-                    <p>يبدو أن هناك مشكلة في تحميل النظام</p>
-                    <button class="btn" onclick="location.reload()">تحديث الصفحة</button>
-                    <button class="btn success" onclick="showDashboard()">محاولة مرة أخرى</button>
-                `;
-            }
-        }, 5000);
+        loadData();
+        showDashboard();
     </script>
 </body>
 </html>
