@@ -10,7 +10,72 @@ let currentParam = null;
 /* ===== CORE APP INITIALIZATION ===== */
 document.addEventListener('DOMContentLoaded', initializeApp);
 
+// Loading indicator functions
+function showLoadingIndicator() {
+    const loadingHTML = `
+        <div id="loading-overlay" style="
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            font-family: 'Cairo', system-ui, Segoe UI, Roboto;
+        ">
+            <div style="
+                width: 80px;
+                height: 80px;
+                border: 4px solid rgba(255, 255, 255, 0.1);
+                border-top: 4px solid #667eea;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+                margin-bottom: 20px;
+            "></div>
+            <h2 style="
+                color: #ffffff;
+                font-size: 24px;
+                margin: 0;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+            ">جاري التحميل...</h2>
+            <p style="
+                color: rgba(255, 255, 255, 0.7);
+                font-size: 16px;
+                margin: 10px 0 0 0;
+            ">مدير الاستثمار العقاري</p>
+        </div>
+        <style>
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        </style>
+    `;
+    document.body.insertAdjacentHTML('beforeend', loadingHTML);
+}
+
+function hideLoadingIndicator() {
+    const loadingOverlay = document.getElementById('loading-overlay');
+    if (loadingOverlay) {
+        loadingOverlay.style.opacity = '0';
+        loadingOverlay.style.transition = 'opacity 0.5s ease';
+        setTimeout(() => {
+            loadingOverlay.remove();
+        }, 500);
+    }
+}
+
 async function initializeApp() {
+    // Show loading indicator
+    showLoadingIndicator();
+
     // Register Service Worker
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
@@ -63,9 +128,17 @@ async function initializeApp() {
         updateUndoRedoButtons();
         createTabs();
         applySettings(); // Apply settings after loading data and UI setup
+        
+        // Show UI immediately
         nav('dash');
+        
+        // Hide loading indicator after a short delay to ensure UI is ready
+        setTimeout(() => {
+            hideLoadingIndicator();
+        }, 500);
     } catch (error) {
         console.error("Failed to initialize the application:", error);
+        hideLoadingIndicator();
         const viewEl = document.getElementById('view');
         if (viewEl) {
             viewEl.innerHTML = `<div class="card warn"><h3>خطأ فادح</h3><p>لم يتمكن التطبيق من الاتصال بالخادم الخلفي.</p><pre>${error.message}</pre></div>`;
@@ -83,36 +156,56 @@ async function loadStateFromAPI() {
     const newState = {};
 
     // We need the list of all stores to fetch from.
-    // This should be defined somewhere globally, e.g., in index.html before this script.
     if (typeof window.OBJECT_STORES === 'undefined') {
         throw new Error("Fatal: OBJECT_STORES is not defined.");
     }
 
-    // Load data in batches to improve performance
-    const batchSize = 5;
-    const results = [];
-    
-    for (let i = 0; i < window.OBJECT_STORES.length; i += batchSize) {
-        const batch = window.OBJECT_STORES.slice(i, i + batchSize);
-        const batchPromises = batch.map(storeName =>
-            getAll(storeName).catch(e => {
-                console.error(`Failed to load data for ${storeName}:`, e);
-                return []; // Return empty array on failure to not break Promise.all
-            })
-        );
-        
-        const batchResults = await Promise.all(batchPromises);
-        results.push(...batchResults);
-    }
+    // Load critical data first (settings, customers, units, contracts)
+    const criticalStores = ['settings', 'customers', 'units', 'contracts'];
+    const otherStores = window.OBJECT_STORES.filter(store => !criticalStores.includes(store));
 
-    window.OBJECT_STORES.forEach((storeName, index) => {
-        // The settings and keyval stores are not arrays of objects with 'id'
-        // They are special cases. Our API returns them as arrays, so we need to handle that.
+    // Load critical data first with timeout
+    const criticalPromises = criticalStores.map(storeName =>
+        Promise.race([
+            getAll(storeName),
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error(`Timeout loading ${storeName}`)), 5000)
+            )
+        ]).catch(e => {
+            console.error(`Failed to load critical data for ${storeName}:`, e);
+            return [];
+        })
+    );
+
+    const criticalResults = await Promise.all(criticalPromises);
+    
+    // Process critical data immediately
+    criticalStores.forEach((storeName, index) => {
         if (storeName === 'settings') {
-             newState.settings = results[index].length > 0 ? results[index][0] : {theme:'dark',font:16, pass:null};
+            newState.settings = criticalResults[index].length > 0 ? criticalResults[index][0] : {theme:'dark',font:16, pass:null};
         } else {
-            newState[storeName] = results[index];
+            newState[storeName] = criticalResults[index];
         }
+    });
+
+    // Load other data in background with timeout
+    const otherPromises = otherStores.map(storeName =>
+        Promise.race([
+            getAll(storeName),
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error(`Timeout loading ${storeName}`)), 10000)
+            )
+        ]).catch(e => {
+            console.error(`Failed to load data for ${storeName}:`, e);
+            return [];
+        })
+    );
+
+    const otherResults = await Promise.all(otherPromises);
+    
+    // Process other data
+    otherStores.forEach((storeName, index) => {
+        newState[storeName] = otherResults[index];
     });
 
     console.log("State loaded successfully from API.", newState);
