@@ -1,6 +1,6 @@
 /* ===== RENDER PRODUCTION DATABASE CONNECTION ===== */
 // رابط Backend على Render
-const API_BASE_URL = 'https://estate-management-backend.onrender.com/api';
+const API_BASE_URL = 'https://bunya.onrender.com/api';
 let authToken = null;
 
 // Authentication functions
