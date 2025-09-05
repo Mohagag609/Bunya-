@@ -13,7 +13,9 @@ DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://user:password@localh
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+# Enable CORS for all origins and all routes. This is more permissive and can
+# help diagnose issues in proxied environments like Render.
+CORS(app)
 
 # --- Dynamic CRUD API Creation ---
 
