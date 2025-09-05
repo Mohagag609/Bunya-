@@ -49,7 +49,9 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Static files
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+    index: 'index.html'
+}));
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -72,6 +74,11 @@ app.get('/api/health', (req, res) => {
 
 // Serve the main application
 app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'simple.html'));
+});
+
+// Serve the original application
+app.get('/app', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 

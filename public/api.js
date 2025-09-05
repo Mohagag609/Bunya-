@@ -67,6 +67,10 @@ class EstateAPI {
         return await this.request('/auth/profile');
     }
 
+    async verifyToken() {
+        return await this.request('/auth/verify');
+    }
+
     // Customers
     async getCustomers(page = 1, limit = 50, search = '') {
         const params = new URLSearchParams({ page, limit, search });
