@@ -89,6 +89,21 @@ def create_and_register_views(app, model_name, model_class):
 
 # --- Register all model routes ---
 with app.app_context():
+    # Create all tables first
+    db.create_all()
+    print("Database tables created successfully!")
+    
+    # Create main safe if it doesn't exist
+    from models import models
+    safes_model = models.get('safes')
+    if safes_model:
+        existing_safe = safes_model.query.filter_by(id='S-main').first()
+        if not existing_safe:
+            main_safe = safes_model(id='S-main', data={'name': 'الخزنة الرئيسية', 'balance': 0})
+            db.session.add(main_safe)
+            db.session.commit()
+            print("Main safe created successfully!")
+    
     for name, model_cls in models.items():
         create_and_register_views(app, name, model_cls)
         print(f"Registered CRUD endpoints for: /api/{name}")
