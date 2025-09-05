@@ -138,16 +138,20 @@ function saveState() { historyStack = historyStack.slice(0, historyIndex + 1); h
 function updateUndoRedoButtons() { const undoBtn = document.getElementById('undoBtn'); const redoBtn = document.getElementById('redoBtn'); if (undoBtn) undoBtn.disabled = historyIndex <= 0; if (redoBtn) redoBtn.disabled = historyIndex >= historyStack.length - 1; }
 
 function setupGlobalEventListeners() {
+    console.log('Setting up global event listeners, state.settings:', state.settings);
     document.getElementById('themeSel').value = state.settings.theme || 'dark';
     document.getElementById('fontSel').value = String(state.settings.font || 16);
 
     document.getElementById('themeSel').addEventListener('change', async (e) => {
+        console.log('Theme changed to:', e.target.value);
         state.settings.theme = e.target.value;
         await put('settings', state.settings).catch(err => alert(err.message));
+        applySettings(); // Apply the new theme immediately
     });
     document.getElementById('fontSel').addEventListener('change', async (e) => {
         state.settings.font = Number(e.target.value);
         await put('settings', state.settings).catch(err => alert(err.message));
+        applySettings(); // Apply the new font size immediately
     });
     document.getElementById('lockBtn').addEventListener('click', async () => {
         const pass = prompt('ضع كلمة مرور أو اتركها فارغة لإلغاء القفل', '');
@@ -176,7 +180,15 @@ function today(){ return new Date().toISOString().slice(0,10); }
 function logAction(description, details = {}) { if (!state.auditLog) state.auditLog = []; state.auditLog.push({ id: uid('LOG'), timestamp: new Date().toISOString(), description, details }); }
 const fmt = new Intl.NumberFormat('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 function egp(v){ v=Number(v||0); return isFinite(v)?fmt.format(v)+' ج.م':'' }
-function applySettings(){ if(state && state.settings) { document.documentElement.setAttribute('data-theme', state.settings.theme||'dark'); document.documentElement.style.fontSize=(state.settings.font||16)+'px'; } }
+function applySettings(){ 
+    if(state && state.settings) { 
+        document.documentElement.setAttribute('data-theme', state.settings.theme||'dark'); 
+        document.documentElement.style.fontSize=(state.settings.font||16)+'px'; 
+        console.log('Settings applied:', state.settings);
+    } else {
+        console.log('Settings not available yet');
+    }
+}
 function checkLock(){ if(state.locked){ const p=prompt('اكتب كلمة المرور للدخول'); if(p!==state.settings.pass){ alert('كلمة مرور غير صحيحة'); location.reload(); } } }
 function unitById(id){ return state.units.find(u=>u.id===id); }
 function custById(id){ return state.customers.find(c=>c.id===id); }
