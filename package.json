@@ -1,0 +1,30 @@
+{
+  "name": "estate-management-system",
+  "version": "2.0.0",
+  "description": "Real Estate Management System with SQL Database",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve .",
+    "build": "echo 'No build step required'",
+    "dev": "npx serve . -l 3000",
+    "deploy": "netlify deploy --prod"
+  },
+  "keywords": [
+    "real-estate",
+    "management",
+    "sql",
+    "arabic",
+    "property"
+  ],
+  "author": "Estate Management Team",
+  "license": "MIT",
+  "devDependencies": {
+    "serve": "^14.2.1"
+  },
+  "dependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/estate-management-system.git"
+  },
+  "homepage": "https://your-app-name.netlify.app"
+}
