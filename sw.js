@@ -1,4 +1,4 @@
-const CACHE_NAME = 'estate-pro-cache-v2'; // Start with v2 to be safe
+const CACHE_NAME = 'estate-pro-cache-v3'; // Static cache name
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -46,8 +46,16 @@ self.addEventListener('fetch', (event) => {
                 if (response) {
                     return response; // Serve from cache
                 }
-                return fetch(event.request); // Fetch from network
-            }
-        )
+                return fetch(event.request).then((response) => {
+                    // Update cache with fresh content
+                    if (response.status === 200) {
+                        const responseClone = response.clone();
+                        caches.open(CACHE_NAME).then((cache) => {
+                            cache.put(event.request, responseClone);
+                        });
+                    }
+                    return response;
+                });
+            })
     );
 });

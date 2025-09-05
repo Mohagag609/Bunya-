@@ -10,12 +10,55 @@ let currentParam = null;
 /* ===== CORE APP INITIALIZATION ===== */
 document.addEventListener('DOMContentLoaded', initializeApp);
 
+// Loading indicator functions
+function showLoadingIndicator() {
+    const loadingHTML = `
+        <div id="loading-overlay" style="
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        ">
+            <div style="
+                width: 40px;
+                height: 40px;
+                border: 3px solid rgba(255, 255, 255, 0.1);
+                border-top: 3px solid #667eea;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+            "></div>
+        </div>
+        <style>
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        </style>
+    `;
+    document.body.insertAdjacentHTML('beforeend', loadingHTML);
+}
+
+function hideLoadingIndicator() {
+    const loadingOverlay = document.getElementById('loading-overlay');
+    if (loadingOverlay) {
+        loadingOverlay.remove();
+    }
+}
+
 async function initializeApp() {
     // Register Service Worker
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('/sw.js')
-                .then(reg => console.log('ServiceWorker registered.', reg))
+                .then(reg => {
+                    console.log('ServiceWorker registered.', reg);
+                })
                 .catch(err => console.error('ServiceWorker registration failed:', err));
         });
     }
@@ -54,11 +97,13 @@ async function initializeApp() {
 
         // Setup UI and global event listeners
         setupGlobalEventListeners();
-        applySettings(); // Apply settings after loading data
         checkLock();
         saveState(); // Save initial state for undo/redo
         updateUndoRedoButtons();
         createTabs();
+        applySettings(); // Apply settings after loading data and UI setup
+        
+        // Show UI immediately
         nav('dash');
     } catch (error) {
         console.error("Failed to initialize the application:", error);
@@ -74,30 +119,35 @@ async function initializeApp() {
 // The 'persist' function is now obsolete. Data is saved directly via API calls
 // in the event handler functions (e.g., addCustomer, delRow).
 
+// دالة persist للتوافق مع الكود الموجود
+function persist() {
+    // لا نحتاج إلى فعل شيء هنا لأن البيانات تحفظ مباشرة عبر API
+    console.log('persist() called - data already saved via API');
+}
+
 async function loadStateFromAPI() {
     console.log("Loading all application data from the backend...");
     const newState = {};
 
     // We need the list of all stores to fetch from.
-    // This should be defined somewhere globally, e.g., in index.html before this script.
     if (typeof window.OBJECT_STORES === 'undefined') {
         throw new Error("Fatal: OBJECT_STORES is not defined.");
     }
 
+    // Load all data at once
     const promises = window.OBJECT_STORES.map(storeName =>
         getAll(storeName).catch(e => {
             console.error(`Failed to load data for ${storeName}:`, e);
-            return []; // Return empty array on failure to not break Promise.all
+            return [];
         })
     );
 
     const results = await Promise.all(promises);
-
+    
+    // Process all data
     window.OBJECT_STORES.forEach((storeName, index) => {
-        // The settings and keyval stores are not arrays of objects with 'id'
-        // They are special cases. Our API returns them as arrays, so we need to handle that.
         if (storeName === 'settings') {
-             newState.settings = results[index].length > 0 ? results[index][0] : {theme:'dark',font:16, pass:null};
+            newState.settings = results[index].length > 0 ? results[index][0] : {theme:'dark',font:16, pass:null};
         } else {
             newState[storeName] = results[index];
         }
@@ -148,15 +198,15 @@ function setupGlobalEventListeners() {
     document.getElementById('themeSel').addEventListener('change', async (e) => {
         console.log('Theme changed to:', e.target.value);
         state.settings.theme = e.target.value;
+        applySettings(); // Apply the new theme immediately
         const settingsToSave = { key: 'main', ...state.settings };
         await put('settings', settingsToSave).catch(err => alert(err.message));
-        applySettings(); // Apply the new theme immediately
     });
     document.getElementById('fontSel').addEventListener('change', async (e) => {
         state.settings.font = Number(e.target.value);
+        applySettings(); // Apply the new font size immediately
         const settingsToSave = { key: 'main', ...state.settings };
         await put('settings', settingsToSave).catch(err => alert(err.message));
-        applySettings(); // Apply the new font size immediately
     });
     document.getElementById('lockBtn').addEventListener('click', async () => {
         const pass = prompt('ضع كلمة مرور أو اتركها فارغة لإلغاء القفل', '');
@@ -191,6 +241,7 @@ function applySettings(){
         const theme = state.settings.theme || 'dark';
         const fontSize = state.settings.font || 16;
         
+        // Apply theme immediately
         document.documentElement.setAttribute('data-theme', theme); 
         document.documentElement.style.fontSize = fontSize + 'px';
         
@@ -202,10 +253,157 @@ function applySettings(){
         
         console.log('Settings applied:', { theme, fontSize, settings: state.settings });
     } else {
-        console.log('Settings not available yet, state:', state);
+        // Apply default settings if state is not ready
+        document.documentElement.setAttribute('data-theme', 'dark'); 
+        document.documentElement.style.fontSize = '16px';
+        console.log('Applied default settings, state not ready yet');
     }
 }
 function checkLock(){ if(state.locked){ const p=prompt('اكتب كلمة المرور للدخول'); if(p!==state.settings.pass){ alert('كلمة مرور غير صحيحة'); location.reload(); } } }
+
+// دالة مساعدة لإعادة رسم الصفحة الحالية بعد الإضافة
+function refreshCurrentView() {
+    console.log('Refreshing current view:', currentView);
+    
+    // قائمة الدوال المتاحة للرسم
+    const renderFunctions = {
+        'brokers': 'renderBrokers',
+        'safes': 'renderSafes', 
+        'customers': 'renderCustomers',
+        'units': 'renderUnits',
+        'contracts': 'renderContracts',
+        'partners': 'renderPartners',
+        'dash': 'renderDashboard'
+    };
+    
+    if (currentView && renderFunctions[currentView]) {
+        const functionName = renderFunctions[currentView];
+        if (typeof window[functionName] === 'function') {
+            console.log('Calling render function:', functionName);
+            try {
+                window[functionName]();
+                console.log('Render function called successfully');
+                return;
+            } catch (error) {
+                console.error('Error calling render function:', error);
+            }
+        }
+    }
+    
+    // إذا لم نجد دالة الرسم، نعيد رسم الصفحة الحالية
+    console.log('Falling back to nav:', currentView);
+    nav(currentView, currentParam);
+}
+
+// دالة الإشعارات
+function showNotification(message, type = 'info') {
+    // إزالة الإشعارات السابقة
+    const existingNotifications = document.querySelectorAll('.notification');
+    existingNotifications.forEach(notif => notif.remove());
+    
+    // إنشاء الإشعار الجديد
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.innerHTML = `
+        <div class="notification-content">
+            <span class="notification-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️'}</span>
+            <span class="notification-message">${message}</span>
+            <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+        </div>
+    `;
+    
+    // إضافة الأنماط
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 10000;
+        max-width: 400px;
+        padding: 16px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        animation: slideInRight 0.3s ease-out;
+        font-family: 'Cairo', system-ui, sans-serif;
+    `;
+    
+    // ألوان مختلفة حسب النوع
+    if (type === 'success') {
+        notification.style.background = 'linear-gradient(135deg, rgba(34, 197, 94, 0.9) 0%, rgba(22, 163, 74, 0.9) 100%)';
+        notification.style.color = 'white';
+    } else if (type === 'error') {
+        notification.style.background = 'linear-gradient(135deg, rgba(239, 68, 68, 0.9) 0%, rgba(220, 38, 38, 0.9) 100%)';
+        notification.style.color = 'white';
+    } else if (type === 'warning') {
+        notification.style.background = 'linear-gradient(135deg, rgba(245, 158, 11, 0.9) 0%, rgba(217, 119, 6, 0.9) 100%)';
+        notification.style.color = 'white';
+    } else {
+        notification.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.9) 0%, rgba(37, 99, 235, 0.9) 100%)';
+        notification.style.color = 'white';
+    }
+    
+    // إضافة الإشعار للصفحة
+    document.body.appendChild(notification);
+    
+    // إزالة الإشعار تلقائياً بعد 3 ثوان
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.style.animation = 'slideOutRight 0.3s ease-in';
+            setTimeout(() => notification.remove(), 300);
+        }
+    }, 3000);
+    
+    // إضافة الأنماط المتحركة
+    if (!document.getElementById('notification-styles')) {
+        const style = document.createElement('style');
+        style.id = 'notification-styles';
+        style.textContent = `
+            @keyframes slideInRight {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOutRight {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+            .notification-content {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+            .notification-icon {
+                font-size: 20px;
+                flex-shrink: 0;
+            }
+            .notification-message {
+                flex: 1;
+                font-size: 14px;
+                font-weight: 500;
+                line-height: 1.4;
+            }
+            .notification-close {
+                background: none;
+                border: none;
+                color: inherit;
+                font-size: 20px;
+                cursor: pointer;
+                padding: 0;
+                width: 24px;
+                height: 24px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 50%;
+                transition: background-color 0.2s ease;
+            }
+            .notification-close:hover {
+                background-color: rgba(255, 255, 255, 0.2);
+            }
+        `;
+        document.head.appendChild(style);
+    }
+}
 function unitById(id){ return state.units.find(u=>u.id===id); }
 function custById(id){ return state.customers.find(c=>c.id===id); }
 function partnerById(id){ return state.partners.find(p=>p.id===id); }
@@ -810,7 +1008,8 @@ function renderCustomers(){
         document.getElementById('c-address').value = '';
         document.getElementById('c-notes').value = '';
 
-        draw();
+        // إعادة رسم الصفحة الحالية
+        refreshCurrentView();
     } catch(err) {
         alert("فشل حفظ العميل: " + err.message);
     }
@@ -976,6 +1175,44 @@ window.delRow= async (coll,id)=>{
         state[coll]=state[coll].filter(x=>x.id!==id);
         if (coll === 'unitPartners') {
           renderUnitDetails(itemToDelete.unitId);
+        } else if (coll === 'contracts') {
+          // إعادة رسم صفحة العقود مباشرة
+          if (currentView === 'contracts') {
+            // إعادة رسم الجدول مباشرة
+            const q = (document.getElementById('ct-q')?.value || '').trim().toLowerCase();
+            let list = state.contracts.slice();
+            if (q) {
+                list = list.filter(c => {
+                    const customerName = (custById(c.customerId) || {}).name || '';
+                    const unitName = getUnitDisplayName(unitById(c.unitId));
+                    const searchable = `${c.code || ''} ${unitName} ${customerName} ${c.brokerName || ''}`.toLowerCase();
+                    return searchable.includes(q);
+                });
+            }
+
+            const rows=list.map(c=> {
+                const broker = state.brokers.find(b => b.name === c.brokerName);
+                const brokerNav = broker ? `nav('broker-details', '${broker.id}')` : `alert('لم يتم العثور على هذا السمسار في القائمة.')`;
+                return [
+                    c.code,
+                    getUnitDisplayName(unitById(c.unitId)),
+                    (custById(c.customerId)||{}).name||'—',
+                    c.brokerName ? `<a href="#" onclick="${brokerNav}; return false;">${c.brokerName}</a>` : '—',
+                    egp(c.totalPrice),
+                    c.start,
+                    `<button class="btn" onclick="openContractDetails('${c.id}')">عرض</button> <button class="btn gold" onclick="editContract('${c.id}')">تعديل</button>`,
+                    `<button class="btn secondary" onclick="deleteContract('${c.id}')">حذف</button>`
+                ];
+            });
+            
+            const ctListElement = document.getElementById('ct-list');
+            if (ctListElement) {
+                ctListElement.innerHTML = table(['كود العقد','الوحدة','العميل','السمسار','السعر','تاريخ البدء','إجراءات',''], rows);
+            }
+            showNotification('تم حذف العقد بنجاح.', 'success');
+          } else {
+            nav(coll);
+          }
         } else {
           nav(coll);
         }
@@ -1143,7 +1380,12 @@ function renderUnits(){
         }
         logAction('ربط مجموعة شركاء بوحدة', { unitId: newUnit.id, partnerGroupId });
 
-        nav('unit-details', newUnit.id);
+        // إعادة رسم صفحة الوحدات
+        if (currentView === 'units') {
+            draw();
+        } else {
+            nav('unit-details', newUnit.id);
+        }
         alert('تم حفظ الوحدة وربط مجموعة الشركاء بنجاح.');
     } catch (err) {
         alert("فشل حفظ الوحدة: " + err.message);
@@ -1285,7 +1527,7 @@ function renderSafes(){
   window.addSafe = async () => {
       const name = document.getElementById('s-name').value.trim();
       const balance = parseNumber(document.getElementById('s-balance').value);
-      if (!name) return alert('الرجاء إدخال اسم الخزنة.');
+      if (!name) return showNotification('الرجاء إدخال اسم الخزنة.', 'error');
 
       const newSafe = { id: uid('S'), name, balance };
 
@@ -1294,12 +1536,15 @@ function renderSafes(){
           saveState();
           logAction('إضافة خزنة جديدة', { safeId: savedSafe.id, name, initialBalance: balance });
           state.safes.push(savedSafe);
+          persist(); // إضافة persist() بعد put()
 
           document.getElementById('s-name').value = '';
           document.getElementById('s-balance').value = '0';
-          draw();
+          // إعادة رسم الصفحة الحالية
+          refreshCurrentView();
+          showNotification('تم إضافة الخزنة بنجاح!', 'success');
       } catch (err) {
-          alert("فشل إضافة الخزنة: " + err.message);
+          showNotification("فشل إضافة الخزنة: " + err.message, 'error');
       }
   };
 
@@ -1489,14 +1734,11 @@ function renderUnitDetails(unitId){
 async function deleteContract(contractId) {
     const contract = state.contracts.find(c => c.id === contractId);
     if (!contract) {
-      alert('لم يتم العثور على العقد.');
-      return;
+        showNotification('لم يتم العثور على العقد.', 'error');
+        return;
     }
 
     if (!confirm(`هل أنت متأكد من حذف العقد ${contract.code}؟ سيتم حذف جميع البيانات المرتبطة به من الخادم.`)) return;
-
-    // This is a complex transaction. We will try to delete everything, but if one part fails,
-    // the data might become inconsistent. A better solution would be a single API endpoint for this.
 
     const originalState = JSON.parse(JSON.stringify(state)); // For potential rollback
     saveState(); // For undo
@@ -1514,9 +1756,15 @@ async function deleteContract(contractId) {
         );
 
         // Perform deletions from the backend
-        for (const voucher of vouchersToDelete) { await deleteItem('vouchers', voucher.id); }
-        if (brokerDueToDelete) { await deleteItem('brokerDues', brokerDueToDelete.id); }
-        for (const inst of installmentsToDelete) { await deleteItem('installments', inst.id); }
+        for (const voucher of vouchersToDelete) { 
+            await deleteItem('vouchers', voucher.id); 
+        }
+        if (brokerDueToDelete) { 
+            await deleteItem('brokerDues', brokerDueToDelete.id); 
+        }
+        for (const inst of installmentsToDelete) { 
+            await deleteItem('installments', inst.id); 
+        }
         await deleteItem('contracts', contract.id);
 
         // Update the unit's status
@@ -1528,16 +1776,57 @@ async function deleteContract(contractId) {
 
         // Update local state on success
         state.vouchers = state.vouchers.filter(v => !vouchersToDelete.some(vd => vd.id === v.id));
-        if (brokerDueToDelete) { state.brokerDues = state.brokerDues.filter(d => d.id !== brokerDueToDelete.id); }
+        if (brokerDueToDelete) { 
+            state.brokerDues = state.brokerDues.filter(d => d.id !== brokerDueToDelete.id); 
+        }
         state.installments = state.installments.filter(i => !installmentsToDelete.some(id => id.id === i.id));
         state.contracts = state.contracts.filter(c => c.id !== contractId);
+        
+        // إضافة persist() لضمان الحفظ
+        persist();
 
         logAction('حذف عقد وكل ما يتعلق به', { contractId, unitId, deletedContract: JSON.stringify(contract) });
-        alert('تم حذف العقد بنجاح.');
-        nav('contracts');
+        showNotification('تم حذف العقد بنجاح.', 'success');
+        
+        // إعادة رسم صفحة العقود
+        if (currentView === 'contracts') {
+            // إعادة رسم الجدول مباشرة
+            const q = (document.getElementById('ct-q')?.value || '').trim().toLowerCase();
+            let list = state.contracts.slice();
+            if (q) {
+                list = list.filter(c => {
+                    const customerName = (custById(c.customerId) || {}).name || '';
+                    const unitName = getUnitDisplayName(unitById(c.unitId));
+                    const searchable = `${c.code || ''} ${unitName} ${customerName} ${c.brokerName || ''}`.toLowerCase();
+                    return searchable.includes(q);
+                });
+            }
+
+            const rows=list.map(c=> {
+                const broker = state.brokers.find(b => b.name === c.brokerName);
+                const brokerNav = broker ? `nav('broker-details', '${broker.id}')` : `alert('لم يتم العثور على هذا السمسار في القائمة.')`;
+                return [
+                    c.code,
+                    getUnitDisplayName(unitById(c.unitId)),
+                    (custById(c.customerId)||{}).name||'—',
+                    c.brokerName ? `<a href="#" onclick="${brokerNav}; return false;">${c.brokerName}</a>` : '—',
+                    egp(c.totalPrice),
+                    c.start,
+                    `<button class="btn" onclick="openContractDetails('${c.id}')">عرض</button> <button class="btn gold" onclick="editContract('${c.id}')">تعديل</button>`,
+                    `<button class="btn secondary" onclick="deleteContract('${c.id}')">حذف</button>`
+                ];
+            });
+            
+            const ctListElement = document.getElementById('ct-list');
+            if (ctListElement) {
+                ctListElement.innerHTML = table(['كود العقد','الوحدة','العميل','السمسار','السعر','تاريخ البدء','إجراءات',''], rows);
+            }
+        } else {
+            nav('contracts');
+        }
 
     } catch (err) {
-        alert("فشل حذف العقد بالكامل: " + err.message + "\n\nقد تكون البيانات غير متناسقة. يوصى بتحديث الصفحة.");
+        showNotification("فشل حذف العقد: " + err.message, 'error');
         // Rollback local state
         Object.keys(originalState).forEach(key => state[key] = originalState[key]);
     }
@@ -1590,8 +1879,15 @@ function renderContracts(){
             `<button class="btn secondary" onclick="deleteContract('${c.id}')">حذف</button>`
         ];
     });
-    document.getElementById('ct-list').innerHTML=table(['كود العقد','الوحدة','العميل','السمسار','السعر','تاريخ البدء','إجراءات',''], rows);
+    const ctListElement = document.getElementById('ct-list');
+    if (ctListElement) {
+        ctListElement.innerHTML = table(['كود العقد','الوحدة','العميل','السمسار','السعر','تاريخ البدء','إجراءات',''], rows);
+        console.log('Contracts table updated. Rows:', rows.length);
+    } else {
+        console.error('ct-list element not found!');
+    }
   }
+  
   view.innerHTML=`
   <div class="grid">
     <div class="card">
@@ -1656,14 +1952,20 @@ function renderContracts(){
     const maintenanceDeposit = parseNumber(document.getElementById('ct-maintenance-deposit').value);
     const startStr=document.getElementById('ct-start').value||today(); const start=new Date(startStr);
 
+    // --- 1.1. Check for existing contracts for this unit ---
+    const existingContract = state.contracts.find(c => c.unitId === unitId);
+    if (existingContract) {
+        return showNotification('خطأ: هذه الوحدة لها عقد موجود بالفعل!', 'error');
+    }
+
     if (paymentType === 'installment' && down >= total) { paymentType = 'cash'; }
-    if (brokerAmt > 0 && !commissionSafeId) return alert('الرجاء تحديد الخزنة التي سيتم دفع العمولة منها.');
-    if (down > 0 && !downPaymentSafeId) return alert('الرجاء تحديد الخزنة التي سيتم إيداع المقدم بها.');
-    if(!unitId||!customerId) return alert('الرجاء اختيار الوحدة والعميل.');
+    if (brokerAmt > 0 && !commissionSafeId) return showNotification('الرجاء تحديد الخزنة التي سيتم دفع العمولة منها.', 'error');
+    if (down > 0 && !downPaymentSafeId) return showNotification('الرجاء تحديد الخزنة التي سيتم إيداع المقدم بها.', 'error');
+    if(!unitId||!customerId) return showNotification('الرجاء اختيار الوحدة والعميل.', 'error');
     const unitPartners = state.unitPartners.filter(up => up.unitId === unitId);
-    if (unitPartners.length === 0) return alert('لا يمكن إنشاء عقد. يجب تحديد شركاء لهذه الوحدة أولاً.');
-    if (unitPartners.reduce((s, p) => s + p.percent, 0) !== 100) return alert(`لا يمكن إنشاء عقد. مجموع نسب الشركاء ليس 100%.`);
-    if(paymentType === 'installment' && count <= 0 && extra <= 0) return alert('الرجاء إدخال عدد دفعات أو عدد دفعات سنوية.');
+    if (unitPartners.length === 0) return showNotification('لا يمكن إنشاء عقد. يجب تحديد شركاء لهذه الوحدة أولاً.', 'error');
+    if (unitPartners.reduce((s, p) => s + p.percent, 0) !== 100) return showNotification(`لا يمكن إنشاء عقد. مجموع نسب الشركاء ليس 100%.`, 'error');
+    if(paymentType === 'installment' && count <= 0 && extra <= 0) return showNotification('الرجاء إدخال عدد دفعات أو عدد دفعات سنوية.', 'error');
 
     // --- 2. Prepare all new objects to be created ---
     const originalState = JSON.parse(JSON.stringify(state)); // For rollback
@@ -1688,12 +1990,12 @@ function renderContracts(){
     }
 
     if (paymentType === 'installment') {
-        // ... (installment generation logic is complex and remains the same)
         const installmentBase = total - (ct.maintenanceDeposit || 0);
         const totalAfterDown = installmentBase - discount - down;
         const totalAnnualPayments = extra * annualBonusValue;
         const amountForRegularInstallments = totalAfterDown - totalAnnualPayments;
         const months={'شهري':1,'ربع سنوي':3,'نصف سنوي':6,'سنوي':12}[type]||1;
+        
         if (count > 0) {
             const baseAmount = Math.floor((amountForRegularInstallments / count) * 100) / 100;
             let accumulatedAmount = 0;
@@ -1733,7 +2035,10 @@ function renderContracts(){
         }
 
         // --- 4. Update local state on success ---
-        for(const coll in itemsToCreate) { state[coll].push(...itemsToCreate[coll]); }
+        for(const coll in itemsToCreate) { 
+            if (!state[coll]) state[coll] = [];
+            state[coll].push(...itemsToCreate[coll]); 
+        }
         for(const coll in itemsToUpdate) {
             itemsToUpdate[coll].forEach(item => {
                 const index = state[coll].findIndex(i => i.id === item.id);
@@ -1742,10 +2047,25 @@ function renderContracts(){
         }
 
         logAction('إنشاء عقد جديد', { contractId: ct.id, unitId, customerId, price: total });
-        alert("تم إنشاء العقد وجميع البيانات المرتبطة به بنجاح.");
-        draw();
+        
+        let successMessage = "تم إنشاء العقد بنجاح.";
+        if (paymentType === 'installment') {
+            const installmentsCount = itemsToCreate.installments.length;
+            successMessage += ` تم توليد ${installmentsCount} قسط.`;
+        }
+        if (brokerAmt > 0) {
+            successMessage += ` تم إضافة عمولة السمسار.`;
+        }
+        if (down > 0) {
+            successMessage += ` تم إضافة المقدم.`;
+        }
+        
+        showNotification(successMessage, 'success');
+        
+        
+        nav('contracts'); // إعادة رسم صفحة العقود بدلاً من draw() المحلية
     } catch(err) {
-        alert("فشل إنشاء العقد: " + err.message + "\n\nحدث خطأ أثناء محاولة حفظ البيانات. قد تكون بعض البيانات قد حفظت. يرجى مراجعة البيانات أو محاولة مرة أخرى.");
+        showNotification("فشل إنشاء العقد: " + err.message, 'error');
         // Rollback local state
         Object.keys(originalState).forEach(key => state[key] = originalState[key]);
     }
@@ -1830,6 +2150,7 @@ function renderContracts(){
   document.getElementById('ct-count').oninput = updateTotalInstallments;
   document.getElementById('ct-annual-bonus').oninput = updateTotalInstallments;
 
+  console.log('Rendering contracts page. Total contracts:', state.contracts.length);
   draw();
   updateFormForUnit();
   updateTotalInstallments();
@@ -1920,24 +2241,34 @@ function renderBrokers() {
         };
     });
 
-    window.addBroker = () => {
+    window.addBroker = async () => {
         const name = document.getElementById('b-name').value.trim();
         const phone = document.getElementById('b-phone').value.trim();
         const notes = document.getElementById('b-notes').value.trim();
 
-        if (!name) return alert('الرجاء إدخال اسم السمسار.');
+        if (!name) return showNotification('الرجاء إدخال اسم السمسار.', 'error');
         if (state.brokers.some(b => b.name.toLowerCase() === name.toLowerCase())) {
-            return alert('هذا السمسار موجود بالفعل.');
+            return showNotification('هذا السمسار موجود بالفعل.', 'error');
         }
-        saveState();
+        
         const newBroker = { id: uid('B'), name, phone, notes };
-        state.brokers.push(newBroker);
-        logAction('إضافة سمسار جديد', { id: newBroker.id, name: newBroker.name });
-        persist();
-        draw();
-        document.getElementById('b-name').value = '';
-        document.getElementById('b-phone').value = '';
-        document.getElementById('b-notes').value = '';
+        
+        try {
+            const savedBroker = await put('brokers', newBroker);
+            saveState();
+            logAction('إضافة سمسار جديد', { id: savedBroker.id, name: savedBroker.name });
+            state.brokers.push(savedBroker);
+            persist(); // إضافة persist() بعد put()
+            
+            // إعادة رسم الصفحة الحالية
+            refreshCurrentView();
+            document.getElementById('b-name').value = '';
+            document.getElementById('b-phone').value = '';
+            document.getElementById('b-notes').value = '';
+            showNotification('تم إضافة السمسار بنجاح!', 'success');
+        } catch (err) {
+            showNotification("فشل إضافة السمسار: " + err.message, 'error');
+        }
     };
 
     draw();
@@ -2314,7 +2645,12 @@ function showAddExpenseModal() {
             await put('vouchers', newVoucher);
             state.vouchers.push(newVoucher);
             logAction('إضافة سند صرف يدوي', newVoucher);
-            nav('vouchers');
+            // إعادة رسم صفحة السندات إذا كانت مفتوحة
+            if (currentView === 'vouchers') {
+                draw();
+            } else {
+                nav('vouchers');
+            }
             return true;
         } catch(err) {
             alert("فشل إضافة السند: " + err.message);
@@ -2579,7 +2915,8 @@ function renderPartners(){
         saveState();
         logAction('إضافة شريك جديد', { partnerId: savedPartner.id, name });
         state.partners.push(savedPartner);
-        draw();
+        // إعادة رسم الصفحة الحالية
+        refreshCurrentView();
     } catch(err) {
         alert("فشل إضافة الشريك: " + err.message);
     }
@@ -2596,7 +2933,12 @@ function renderPartners(){
         saveState();
         state.partnerGroups.push(savedGroup);
         logAction('إنشاء مجموعة شركاء جديدة', { groupId: savedGroup.id, name });
-        nav('partner-group-details', newGroup.id);
+        // إعادة رسم صفحة الشركاء إذا كانت مفتوحة
+        if (currentView === 'partners') {
+            draw();
+        } else {
+            nav('partner-group-details', newGroup.id);
+        }
     } catch(err) {
         alert("فشل إنشاء المجموعة: " + err.message);
     }
@@ -3409,7 +3751,12 @@ function renderTransfers(){
 
     persist();
     alert('تم تنفيذ التحويل بنجاح!');
-    nav('transfers'); // Refresh the view
+    // إعادة رسم صفحة التحويلات إذا كانت مفتوحة
+    if (currentView === 'transfers') {
+        draw();
+    } else {
+        nav('transfers');
+    }
   };
 
   draw();
