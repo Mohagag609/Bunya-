@@ -255,16 +255,45 @@ function renderMainContent() {
     const view = document.querySelector('#view');
     if (!view) return;
 
-    // Show loading state initially
-    if (appState.currentView === 'dash' && appState.customers.length === 0 && appState.units.length === 0) {
-        view.innerHTML = `
-            <div class="loading-container">
-                <div class="spinner"></div>
-                <p>جاري تحميل البيانات...</p>
-            </div>
-        `;
+    // Don't show loading state if we're not on dashboard
+    if (appState.currentView !== 'dash') {
+        // Render the requested view directly
+        switch (appState.currentView) {
+            case 'customers':
+                renderCustomers(view);
+                break;
+            case 'units':
+                renderUnits(view);
+                break;
+            case 'contracts':
+                renderContracts(view);
+                break;
+            case 'partners':
+                renderPartners(view);
+                break;
+            case 'safes':
+                renderSafes(view);
+                break;
+            case 'transfers':
+                renderTransfers(view);
+                break;
+            case 'vouchers':
+                renderVouchers(view);
+                break;
+            case 'reports':
+                renderReports(view);
+                break;
+            case 'settings':
+                renderSettings(view);
+                break;
+            default:
+                view.innerHTML = '<div class="card"><h2>صفحة غير موجودة</h2></div>';
+        }
         return;
     }
+
+    // Always show dashboard, even with empty data
+    // The dashboard will show 0 for empty data, which is fine
 
     switch (appState.currentView) {
         case 'dash':
@@ -774,6 +803,8 @@ async function initializeApp() {
             console.log('Data loaded successfully');
             // Refresh the current view after data is loaded
             renderMainContent();
+            // Update navigation counts if needed
+            updateNavigation();
         } catch (error) {
             console.error('Data loading failed, but app will continue:', error);
         }
