@@ -4,13 +4,10 @@ import sys
 import click
 from flask.cli import with_appcontext
 
-# This is a bit of a hack to allow this script to import from its parent directory
-# where server.py and models.py are located.
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-# Now we can import the app and db objects
-from server import app, db
-from models import models
+# Now we can import the app and db objects using relative imports
+# because __init__.py makes 'backend' a package.
+from .server import app, db
+from .models import models
 
 @click.command('import-json')
 @click.argument('json_file', type=click.Path(exists=True))

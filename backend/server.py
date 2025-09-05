@@ -3,8 +3,8 @@ from flask_cors import CORS
 import os
 import click
 
-# Import the db instance and the dictionary of models
-from models import db, models
+# Import the db instance and the dictionary of models using a relative import
+from .models import db, models
 
 # --- App Initialization & Config ---
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
