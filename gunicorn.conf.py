@@ -1,5 +1,9 @@
 # Gunicorn configuration file for Render deployment
 import os
+import sys
+
+# Add the backend directory to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'backend'))
 
 bind = "0.0.0.0:{}".format(os.environ.get("PORT", 8000))
 workers = 2
