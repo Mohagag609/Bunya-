@@ -6,6 +6,7 @@ const path = require('path');
 require('dotenv').config();
 
 // Import routes
+const simpleRoutes = require('./routes/simple');
 const authRoutes = require('./routes/auth');
 const customerRoutes = require('./routes/customers');
 const unitRoutes = require('./routes/units');
@@ -53,15 +54,18 @@ app.use(express.static(path.join(__dirname, 'public'), {
     index: 'index.html'
 }));
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/customers', customerRoutes);
-app.use('/api/units', unitRoutes);
-app.use('/api/partners', partnerRoutes);
-app.use('/api/contracts', contractRoutes);
-app.use('/api/safes', safeRoutes);
-app.use('/api/vouchers', voucherRoutes);
-app.use('/api/reports', reportRoutes);
+// API Routes - Simple version first
+app.use('/api', simpleRoutes);
+
+// Full API Routes (commented out for now)
+// app.use('/api/auth', authRoutes);
+// app.use('/api/customers', customerRoutes);
+// app.use('/api/units', unitRoutes);
+// app.use('/api/partners', partnerRoutes);
+// app.use('/api/contracts', contractRoutes);
+// app.use('/api/safes', safeRoutes);
+// app.use('/api/vouchers', voucherRoutes);
+// app.use('/api/reports', reportRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -74,6 +78,11 @@ app.get('/api/health', (req, res) => {
 
 // Serve the main application
 app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'working.html'));
+});
+
+// Serve the simple application
+app.get('/simple', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'simple.html'));
 });
 
