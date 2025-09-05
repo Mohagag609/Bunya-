@@ -51,7 +51,11 @@
         </div>
 
         <div id="content" class="card">
-            <div class="loading">جاري التحميل...</div>
+            <div class="loading">
+                <h3>🔄 جاري تحميل النظام...</h3>
+                <p>إذا استمرت هذه الرسالة، اضغط F5 لتحديث الصفحة</p>
+                <button class="btn" onclick="location.reload()">تحديث الصفحة</button>
+            </div>
         </div>
     </div>
 
@@ -400,6 +404,19 @@
             loadData();
             showDashboard();
         });
+
+        // Fallback - if loading takes too long
+        setTimeout(() => {
+            const loadingEl = document.querySelector('.loading');
+            if (loadingEl) {
+                loadingEl.innerHTML = `
+                    <h3>⚠️ مشكلة في التحميل</h3>
+                    <p>يبدو أن هناك مشكلة في تحميل النظام</p>
+                    <button class="btn" onclick="location.reload()">تحديث الصفحة</button>
+                    <button class="btn success" onclick="showDashboard()">محاولة مرة أخرى</button>
+                `;
+            }
+        }, 5000);
     </script>
 </body>
 </html>
