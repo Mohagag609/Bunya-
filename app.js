@@ -5,6 +5,16 @@ let historyIndex = -1;
 let currentView = 'dash';
 let currentParam = null;
 
+// Define OBJECT_STORES here as a fallback if db.js doesn't load properly
+if (typeof OBJECT_STORES === 'undefined') {
+    const OBJECT_STORES = [
+        'customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments',
+        'partnerDebts', 'safes', 'transfers', 'auditLog', 'vouchers', 'brokerDues',
+        'brokers', 'partnerGroups', 'settings', 'keyval'
+    ];
+    window.OBJECT_STORES = OBJECT_STORES;
+}
+
 /* ===== CORE APP INITIALIZATION ===== */
 document.addEventListener('DOMContentLoaded', initializeApp);
 
