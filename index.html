@@ -1,513 +1,265 @@
-<!doctype html>
-<html lang="ar" dir="rtl" data-theme="dark">
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>مدير الاستثمار العقاري — النسخة النهائية (Render) — محدثة</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
-<script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous"></script>
-<link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة العقارات</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header { background: #2c3e50; color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+        .nav { display: flex; gap: 10px; margin-bottom: 20px; }
+        .btn { padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .btn:hover { background: #2980b9; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+        .stat { text-align: center; padding: 20px; background: #ecf0f1; border-radius: 10px; }
+        .stat h3 { color: #2c3e50; margin-bottom: 10px; }
+        .stat-value { font-size: 2em; font-weight: bold; color: #27ae60; }
+        .error { background: #e74c3c; color: white; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .success { background: #27ae60; color: white; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .loading { text-align: center; padding: 20px; }
+    </style>
 </head>
 <body>
-<div class="container">
-  <div class="header">
-    <div class="brand"><div class="logo">🏛️</div><h1>مدير الاستثمار العقاري — النسخة النهائية (Render)</h1></div>
-    <div class="tools">
-      <button class="btn secondary" id="undoBtn" disabled>↪️ تراجع</button>
-      <button class="btn secondary" id="redoBtn" disabled>↩️ تقدم</button>
-      <select class="select" id="themeSel"><option value="dark">داكن</option><option value="light">فاتح</option></select>
-      <select class="select" id="fontSel"><option value="14">خط 14</option><option value="16" selected>خط 16</option><option value="18">خط 18</option></select>
-      <button class="btn secondary" id="lockBtn">🔒 قفل</button>
-      <button class="btn secondary" id="migrationBtn">🔄 هجرة</button>
-    </div>
-  </div>
-  <div class="main-layout">
-    <div class="sidebar" id="tabs"></div>
-    <div class="content" id="view"></div>
-  </div>
-  <div style="text-align:center;color:var(--muted);font-size:12px;margin-top:10px">💾 PostgreSQL • PDF/CSV • بحث/فرز/تعديل مباشر • أقساط مرنة • عمولة/صيانة • تدفقات نقدية • فلاتر تاريخ للتقارير</div>
-</div>
-
-<script>
-// Backend API Configuration
-const API_BASE_URL = 'https://bunya.onrender.com/api';
-let authToken = null;
-
-// Authentication
-async function login() {
-  try {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: 'admin', password: 'admin123' })
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      authToken = data.token;
-      localStorage.setItem('authToken', authToken);
-      return true;
-    }
-    return false;
-  } catch (error) {
-    console.error('Login error:', error);
-    return false;
-  }
-}
-
-// API Request
-async function apiRequest(endpoint, options = {}) {
-  try {
-    if (!authToken) {
-      await login();
-    }
-    
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`,
-        ...options.headers
-      },
-      ...options
-    });
-    
-    if (response.status === 401) {
-      authToken = null;
-      localStorage.removeItem('authToken');
-      await login();
-      return apiRequest(endpoint, options);
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.error('API request error:', error);
-    throw error;
-  }
-}
-
-// Database functions
-const db = {
-  async initialize() {
-    try {
-      await login();
-      console.log('Backend connected successfully');
-      return true;
-    } catch (error) {
-      console.error('Failed to connect to backend:', error);
-      return false;
-    }
-  },
-
-  async getAll(tableName) {
-    try {
-      const response = await apiRequest(`/data/${tableName}`);
-      return response.data || [];
-    } catch (error) {
-      console.error(`Error fetching ${tableName}:`, error);
-      return [];
-    }
-  },
-
-  async insert(tableName, data) {
-    try {
-      return await apiRequest(`/data/${tableName}`, {
-        method: 'POST',
-        body: JSON.stringify(data)
-      });
-    } catch (error) {
-      console.error(`Error inserting into ${tableName}:`, error);
-      throw error;
-    }
-  },
-
-  async update(tableName, id, data) {
-    try {
-      return await apiRequest(`/data/${tableName}/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data)
-      });
-    } catch (error) {
-      console.error(`Error updating ${tableName}:`, error);
-      throw error;
-    }
-  },
-
-  async delete(tableName, id) {
-    try {
-      return await apiRequest(`/data/${tableName}/${id}`, {
-        method: 'DELETE'
-      });
-    } catch (error) {
-      console.error(`Error deleting from ${tableName}:`, error);
-      throw error;
-    }
-  }
-};
-
-// State management
-let state = {};
-
-async function loadStateFromBackend() {
-  try {
-    console.log('Loading state from backend...');
-    
-    const [
-      customers, units, partners, unitPartners, contracts, installments,
-      partnerDebts, safes, transfers, auditLog, vouchers, brokerDues,
-      brokers, partnerGroups, settings, keyval
-    ] = await Promise.all([
-      db.getAll('customers'), db.getAll('units'), db.getAll('partners'),
-      db.getAll('unit-partners'), db.getAll('contracts'), db.getAll('installments'),
-      db.getAll('partner-debts'), db.getAll('safes'), db.getAll('transfers'),
-      db.getAll('audit-log'), db.getAll('vouchers'), db.getAll('broker-dues'),
-      db.getAll('brokers'), db.getAll('partner-groups'), db.getAll('settings'),
-      db.getAll('keyval')
-    ]);
-
-    const settingsObj = settings.find(s => s.key === 'appSettings')?.value || { theme: 'dark', font: 16, pass: null };
-    const keyvalObj = {};
-    keyval.forEach(kv => { keyvalObj[kv.key] = kv.value; });
-
-    state = {
-      customers, units, partners, unitPartners, contracts, installments,
-      partnerDebts, safes, transfers, auditLog, vouchers, brokerDues,
-      brokers, partnerGroups, settings: settingsObj, keyval: keyvalObj, locked: false
-    };
-
-    console.log('State loaded from backend successfully');
-    return state;
-  } catch (error) {
-    console.error('Failed to load state from backend:', error);
-    return {
-      customers: [], units: [], partners: [], unitPartners: [], contracts: [],
-      installments: [], partnerDebts: [], safes: [{ id: 'S-default', name: 'الخزنة الرئيسية', balance: 0 }],
-      transfers: [], auditLog: [], vouchers: [], brokerDues: [], brokers: [],
-      partnerGroups: [], settings: { theme: 'dark', font: 16, pass: null }, keyval: {}, locked: false
-    };
-  }
-}
-
-async function persistToBackend() {
-  try {
-    console.log('Persisting state to backend...');
-    
-    const tables = ['customers', 'units', 'partners', 'unit-partners', 'contracts',
-                   'installments', 'partner-debts', 'safes', 'transfers', 'audit-log',
-                   'vouchers', 'broker-dues', 'brokers', 'partner-groups'];
-
-    for (const table of tables) {
-      const tableData = state[table] || [];
-      if (tableData.length > 0) {
-        await db.insert(table, tableData);
-      }
-    }
-
-    if (state.settings) {
-      await db.update('settings', 'appSettings', {
-        key: 'appSettings',
-        value: JSON.stringify(state.settings)
-      });
-    }
-
-    console.log('State persisted to backend successfully');
-  } catch (error) {
-    console.error('Failed to persist state to backend:', error);
-    throw error;
-  }
-}
-
-// Utility functions
-function uid(p){ return p+'-'+Math.random().toString(36).slice(2,9); }
-function today(){ return new Date().toISOString().slice(0,10); }
-function logAction(description, details = {}) { 
-    if (!state.auditLog) state.auditLog = []; 
-    state.auditLog.push({ id: uid('LOG'), timestamp: new Date().toISOString(), description, details }); 
-}
-const fmt = new Intl.NumberFormat('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-function egp(v){ v=Number(v||0); return isFinite(v)?fmt.format(v)+' ج.م':'' }
-function applySettings(){ 
-    if(state && state.settings) { 
-        document.documentElement.setAttribute('data-theme', state.settings.theme||'dark'); 
-        document.documentElement.style.fontSize=(state.settings.font||16)+'px'; 
-    } 
-}
-function checkLock(){ 
-    if(state.locked){ 
-        const p=prompt('اكتب كلمة المرور للدخول'); 
-        if(p!==state.settings.pass){ 
-            alert('كلمة مرور غير صحيحة'); 
-            location.reload(); 
-        } 
-    } 
-}
-
-// Global state variables
-let historyStack = [];
-let historyIndex = -1;
-let currentView = 'dash';
-let currentParam = null;
-
-// Undo/Redo functions
-function saveState() { 
-    historyStack = historyStack.slice(0, historyIndex + 1); 
-    historyStack.push(JSON.parse(JSON.stringify(state))); 
-    if (historyStack.length > 50) { 
-        historyStack.shift(); 
-    } 
-    historyIndex = historyStack.length - 1; 
-    updateUndoRedoButtons(); 
-}
-
-function updateUndoRedoButtons() { 
-    const undoBtn = document.getElementById('undoBtn'); 
-    const redoBtn = document.getElementById('redoBtn'); 
-    if (undoBtn) undoBtn.disabled = historyIndex <= 0; 
-    if (redoBtn) redoBtn.disabled = historyIndex >= historyStack.length - 1; 
-}
-
-async function undo() { 
-    if (historyIndex > 0) { 
-        historyIndex--; 
-        const restoredState = JSON.parse(JSON.stringify(historyStack[historyIndex])); 
-        Object.keys(state).forEach(key => delete state[key]); 
-        Object.assign(state, restoredState); 
-        await persistToBackend(); 
-        nav(currentView, currentParam); 
-        updateUndoRedoButtons(); 
-    } 
-}
-
-async function redo() { 
-    if (historyIndex < historyStack.length - 1) { 
-        historyIndex++; 
-        const restoredState = JSON.parse(JSON.stringify(historyStack[historyIndex])); 
-        Object.keys(state).forEach(key => delete state[key]); 
-        Object.assign(state, restoredState); 
-        await persistToBackend(); 
-        nav(currentView, currentParam); 
-        updateUndoRedoButtons(); 
-    } 
-}
-
-// Navigation functions
-function nav(id, param = null){
-    currentView = id;
-    currentParam = param;
-    const viewEl = document.getElementById('view');
-    if (!viewEl) return;
-    
-    // Update active tab
-    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-    const activeTab = document.querySelector(`[data-view="${id}"]`);
-    if (activeTab) activeTab.classList.add('active');
-    
-    // Render view
-    if (id === 'dash') viewEl.innerHTML = renderDash();
-    else if (id === 'customers') viewEl.innerHTML = renderCustomers();
-    else if (id === 'units') viewEl.innerHTML = renderUnits();
-    else if (id === 'contracts') viewEl.innerHTML = renderContracts();
-    else if (id === 'safes') viewEl.innerHTML = renderSafes();
-    else if (id === 'reports') viewEl.innerHTML = renderReports();
-    else if (id === 'settings') viewEl.innerHTML = renderSettings();
-    else if (id === 'backup') viewEl.innerHTML = renderBackup();
-    else viewEl.innerHTML = '<div class="card"><h3>صفحة غير موجودة</h3></div>';
-}
-
-function createTabs() {
-    const tabsEl = document.getElementById('tabs');
-    if (!tabsEl) return;
-    
-    const tabs = [
-        { id: 'dash', label: '🏠 لوحة التحكم', icon: '🏠' },
-        { id: 'customers', label: '👥 العملاء', icon: '👥' },
-        { id: 'units', label: '🏢 الوحدات', icon: '🏢' },
-        { id: 'contracts', label: '📋 العقود', icon: '📋' },
-        { id: 'safes', label: '💰 الخزن', icon: '💰' },
-        { id: 'reports', label: '📊 التقارير', icon: '📊' },
-        { id: 'backup', label: '💾 حفظ وتحميل', icon: '💾' },
-        { id: 'settings', label: '⚙️ الإعدادات', icon: '⚙️' }
-    ];
-    
-    tabsEl.innerHTML = tabs.map(tab => 
-        `<div class="tab" data-view="${tab.id}" onclick="nav('${tab.id}')">
-            <span class="tab-icon">${tab.icon}</span>
-            <span class="tab-label">${tab.label}</span>
-        </div>`
-    ).join('');
-}
-
-function setupGlobalEventListeners() {
-    document.getElementById('themeSel').value = state.settings.theme || 'dark';
-    document.getElementById('fontSel').value = String(state.settings.font || 16);
-
-    document.getElementById('themeSel').addEventListener('change', async (e) => { 
-        state.settings.theme = e.target.value; 
-        await persistToBackend(); 
-    });
-    
-    document.getElementById('fontSel').addEventListener('change', async (e) => { 
-        state.settings.font = Number(e.target.value); 
-        await persistToBackend(); 
-    });
-    
-    document.getElementById('lockBtn').addEventListener('click', async () => {
-        const pass = prompt('ضع كلمة مرور أو اتركها فارغة لإلغاء القفل', '');
-        state.locked = !!pass;
-        state.settings.pass = pass || null;
-        await persistToBackend();
-        alert(state.locked ? 'تم تفعيل القفل' : 'تم إلغاء القفل');
-        checkLock();
-    });
-    
-    document.getElementById('undoBtn').addEventListener('click', undo);
-    document.getElementById('redoBtn').addEventListener('click', redo);
-
-    // Migration button
-    const migrationBtn = document.getElementById('migrationBtn');
-    if (migrationBtn) {
-        migrationBtn.addEventListener('click', async () => {
-            try {
-                const fileInput = document.createElement('input');
-                fileInput.type = 'file';
-                fileInput.accept = '.json';
-                fileInput.onchange = async (e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                        const text = await file.text();
-                        const data = JSON.parse(text);
-                        // Import data to backend
-                        alert('تم استيراد البيانات بنجاح');
-                        location.reload();
-                    }
-                };
-                fileInput.click();
-            } catch (error) {
-                console.error('Migration error:', error);
-                alert('فشل في استيراد البيانات');
-            }
-        });
-    }
-
-    document.addEventListener('keydown', (e) => {
-        const targetNode = e.target.nodeName.toLowerCase();
-        if (targetNode === 'input' || targetNode === 'textarea' || e.target.isContentEditable) return;
-        if (e.ctrlKey) {
-            if (e.key === 'z') { e.preventDefault(); undo(); }
-            else if (e.key === 'y') { e.preventDefault(); redo(); }
-        }
-    });
-}
-
-// Render functions
-function renderDash() {
-    return `
-        <div class="card">
-            <h2>لوحة التحكم</h2>
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <h3>إجمالي العملاء</h3>
-                    <div class="stat-value">${state.customers?.length || 0}</div>
-                </div>
-                <div class="stat-card">
-                    <h3>إجمالي الوحدات</h3>
-                    <div class="stat-value">${state.units?.length || 0}</div>
-                </div>
-                <div class="stat-card">
-                    <h3>إجمالي العقود</h3>
-                    <div class="stat-value">${state.contracts?.length || 0}</div>
-                </div>
-                <div class="stat-card">
-                    <h3>إجمالي الخزن</h3>
-                    <div class="stat-value">${egp(state.safes?.reduce((sum, s) => sum + (s.balance || 0), 0) || 0)}</div>
-                </div>
-            </div>
-            <div class="card">
-                <h3>حالة الاتصال</h3>
-                <p>✅ متصل بقاعدة البيانات PostgreSQL</p>
-                <p>🔄 البيانات متزامنة مع الـ Backend</p>
-            </div>
+    <div class="container">
+        <div class="header">
+            <h1>🏢 إدارة العقارات</h1>
+            <p>نظام إدارة العقارات مع قاعدة بيانات PostgreSQL</p>
         </div>
-    `;
-}
 
-function renderCustomers() { 
-    return `<div class="card"><h2>العملاء</h2><p>قائمة العملاء - ${state.customers?.length || 0} عميل</p></div>`; 
-}
-function renderUnits() { 
-    return `<div class="card"><h2>الوحدات</h2><p>قائمة الوحدات - ${state.units?.length || 0} وحدة</p></div>`; 
-}
-function renderContracts() { 
-    return `<div class="card"><h2>العقود</h2><p>قائمة العقود - ${state.contracts?.length || 0} عقد</p></div>`; 
-}
-function renderSafes() { 
-    return `<div class="card"><h2>الخزن</h2><p>قائمة الخزن - ${state.safes?.length || 0} خزنة</p></div>`; 
-}
-function renderReports() { 
-    return `<div class="card"><h2>التقارير</h2><p>التقارير والإحصائيات</p></div>`; 
-}
-function renderSettings() { 
-    return `<div class="card"><h2>الإعدادات</h2><p>إعدادات النظام</p></div>`; 
-}
-function renderBackup() { 
-    return `<div class="card"><h2>حفظ وتحميل</h2><p>استيراد وتصدير البيانات</p></div>`; 
-}
+        <div class="nav">
+            <button class="btn" onclick="showDashboard()">🏠 لوحة التحكم</button>
+            <button class="btn" onclick="showCustomers()">👥 العملاء</button>
+            <button class="btn" onclick="showUnits()">🏢 الوحدات</button>
+            <button class="btn" onclick="showContracts()">📋 العقود</button>
+            <button class="btn" onclick="testConnection()">🔗 اختبار الاتصال</button>
+        </div>
 
-// Export functions
-window.db = db;
-window.loadStateFromBackend = loadStateFromBackend;
-window.persistToBackend = persistToBackend;
+        <div id="content" class="card">
+            <div class="loading">جاري التحميل...</div>
+        </div>
+    </div>
 
-// Initialize app after db is ready
-document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        // Initialize backend database connection
-        const dbConnected = await db.initialize();
-        if (!dbConnected) {
-            throw new Error('Failed to connect to backend database');
-        }
+    <script>
+        // API Configuration
+        const API_BASE_URL = 'https://bunya.onrender.com/api';
+        
+        // Global state
+        let state = {
+            customers: [],
+            units: [],
+            contracts: [],
+            safes: [{ id: 'safe-1', name: 'الخزنة الرئيسية', balance: 0 }]
+        };
 
-        console.log("Loading state from backend...");
-        state = await loadStateFromBackend();
-
-        // Ensure state has default empty arrays for all stores if they are null/undefined
-        const OBJECT_STORES = [
-            'customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments',
-            'partnerDebts', 'safes', 'transfers', 'auditLog', 'vouchers', 'brokerDues',
-            'brokers', 'partnerGroups', 'settings', 'keyval'
-        ];
-
-        OBJECT_STORES.forEach(storeName => {
-            if (storeName !== 'keyval' && storeName !== 'settings' && !state[storeName]) {
-                state[storeName] = [];
+        // Database functions
+        async function testConnection() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/test`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('✅ تم الاتصال بقاعدة البيانات بنجاح!', 'success');
+                    await loadData();
+                } else {
+                    showMessage('❌ فشل الاتصال بقاعدة البيانات', 'error');
+                }
+            } catch (error) {
+                showMessage('❌ خطأ في الاتصال: ' + error.message, 'error');
             }
-        });
-        if (typeof state.settings !== 'object' || state.settings === null) { 
-            state.settings = {theme:'dark',font:16, pass:null}; 
-        }
-        if (!state.locked) { state.locked = false; }
-        if (!state.safes || state.safes.length === 0) {
-            state.safes = [{ id: uid('S'), name: 'الخزنة الرئيسية', balance: 0 }];
-            await persistToBackend();
         }
 
-        // Setup UI and global event listeners
-        applySettings();
-        setupGlobalEventListeners();
-        checkLock();
-        saveState(); // Save initial state for undo/redo
-        updateUndoRedoButtons();
-        createTabs(); // Create navigation tabs
-        nav('dash');
-    } catch (error) {
-        console.error("Failed to initialize the application:", error);
-        const viewEl = document.getElementById('view');
-        if (viewEl) {
-            viewEl.innerHTML = `<div class="card warn"><h3>خطأ فادح</h3><p>لم يتمكن التطبيق من التحميل. تأكد من تشغيل الـ backend على المنفذ 3000.</p><pre>${error.stack}</pre></div>`;
+        async function loadData() {
+            try {
+                // Load customers
+                const customersResponse = await fetch(`${API_BASE_URL}/data/customers`);
+                const customersData = await customersResponse.json();
+                state.customers = customersData.data || [];
+
+                // Load units
+                const unitsResponse = await fetch(`${API_BASE_URL}/data/units`);
+                const unitsData = await unitsResponse.json();
+                state.units = unitsData.data || [];
+
+                // Load contracts
+                const contractsResponse = await fetch(`${API_BASE_URL}/data/contracts`);
+                const contractsData = await contractsResponse.json();
+                state.contracts = contractsData.data || [];
+
+                showMessage('✅ تم تحميل البيانات بنجاح!', 'success');
+                showDashboard();
+            } catch (error) {
+                showMessage('❌ خطأ في تحميل البيانات: ' + error.message, 'error');
+            }
         }
-    }
-});
-</script>
+
+        async function saveData(entity, data) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/data/${entity}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    showMessage('✅ تم حفظ البيانات بنجاح!', 'success');
+                    await loadData();
+                } else {
+                    showMessage('❌ فشل في حفظ البيانات', 'error');
+                }
+            } catch (error) {
+                showMessage('❌ خطأ في حفظ البيانات: ' + error.message, 'error');
+            }
+        }
+
+        // UI Functions
+        function showMessage(message, type) {
+            const content = document.getElementById('content');
+            content.innerHTML = `<div class="${type}">${message}</div>`;
+        }
+
+        function showDashboard() {
+            const content = document.getElementById('content');
+            content.innerHTML = `
+                <h2>🏠 لوحة التحكم</h2>
+                <div class="stats">
+                    <div class="stat">
+                        <h3>العملاء</h3>
+                        <div class="stat-value">${state.customers.length}</div>
+                    </div>
+                    <div class="stat">
+                        <h3>الوحدات</h3>
+                        <div class="stat-value">${state.units.length}</div>
+                    </div>
+                    <div class="stat">
+                        <h3>العقود</h3>
+                        <div class="stat-value">${state.contracts.length}</div>
+                    </div>
+                    <div class="stat">
+                        <h3>الخزن</h3>
+                        <div class="stat-value">${state.safes.length}</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>حالة النظام</h3>
+                    <p>✅ متصل بقاعدة البيانات PostgreSQL</p>
+                    <p>🔄 البيانات محدثة</p>
+                </div>
+            `;
+        }
+
+        function showCustomers() {
+            const content = document.getElementById('content');
+            content.innerHTML = `
+                <h2>👥 العملاء</h2>
+                <p>إجمالي العملاء: ${state.customers.length}</p>
+                <button class="btn" onclick="addCustomer()">إضافة عميل جديد</button>
+                <div id="customersList"></div>
+            `;
+            renderCustomersList();
+        }
+
+        function showUnits() {
+            const content = document.getElementById('content');
+            content.innerHTML = `
+                <h2>🏢 الوحدات</h2>
+                <p>إجمالي الوحدات: ${state.units.length}</p>
+                <button class="btn" onclick="addUnit()">إضافة وحدة جديدة</button>
+                <div id="unitsList"></div>
+            `;
+            renderUnitsList();
+        }
+
+        function showContracts() {
+            const content = document.getElementById('content');
+            content.innerHTML = `
+                <h2>📋 العقود</h2>
+                <p>إجمالي العقود: ${state.contracts.length}</p>
+                <button class="btn" onclick="addContract()">إضافة عقد جديد</button>
+                <div id="contractsList"></div>
+            `;
+            renderContractsList();
+        }
+
+        function renderCustomersList() {
+            const list = document.getElementById('customersList');
+            if (state.customers.length === 0) {
+                list.innerHTML = '<p>لا يوجد عملاء</p>';
+            } else {
+                list.innerHTML = state.customers.map(customer => `
+                    <div class="card" style="margin: 10px 0;">
+                        <h4>${customer.name || 'بدون اسم'}</h4>
+                        <p>الهاتف: ${customer.phone || 'غير محدد'}</p>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function renderUnitsList() {
+            const list = document.getElementById('unitsList');
+            if (state.units.length === 0) {
+                list.innerHTML = '<p>لا يوجد وحدات</p>';
+            } else {
+                list.innerHTML = state.units.map(unit => `
+                    <div class="card" style="margin: 10px 0;">
+                        <h4>${unit.name || 'بدون اسم'}</h4>
+                        <p>المساحة: ${unit.area || 'غير محدد'}</p>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function renderContractsList() {
+            const list = document.getElementById('contractsList');
+            if (state.contracts.length === 0) {
+                list.innerHTML = '<p>لا يوجد عقود</p>';
+            } else {
+                list.innerHTML = state.contracts.map(contract => `
+                    <div class="card" style="margin: 10px 0;">
+                        <h4>${contract.customerName || 'بدون اسم عميل'}</h4>
+                        <p>القيمة: ${contract.amount || 'غير محدد'}</p>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function addCustomer() {
+            const name = prompt('اسم العميل:');
+            const phone = prompt('رقم الهاتف:');
+            if (name) {
+                const customer = { id: 'c-' + Date.now(), name, phone };
+                state.customers.push(customer);
+                saveData('customers', customer);
+            }
+        }
+
+        function addUnit() {
+            const name = prompt('اسم الوحدة:');
+            const area = prompt('المساحة:');
+            if (name) {
+                const unit = { id: 'u-' + Date.now(), name, area };
+                state.units.push(unit);
+                saveData('units', unit);
+            }
+        }
+
+        function addContract() {
+            const customerName = prompt('اسم العميل:');
+            const amount = prompt('قيمة العقد:');
+            if (customerName) {
+                const contract = { id: 'ct-' + Date.now(), customerName, amount };
+                state.contracts.push(contract);
+                saveData('contracts', contract);
+            }
+        }
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', async () => {
+            showMessage('🔄 جاري اختبار الاتصال...', 'loading');
+            await testConnection();
+        });
+    </script>
 </body>
 </html>
