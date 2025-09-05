@@ -15,7 +15,23 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 # Configure CORS to allow requests from localhost and the deployed frontend URL,
 # with explicit methods and credentials support for better compatibility.
-CORS(app, origins=["http://localhost:3000", "http://localhost:8000", "http://127.0.0.1:3000", "http://127.0.0.1:8000", "https://estate-pro-a62r.onrender.com"], methods=["GET", "PUT", "POST", "DELETE"], supports_credentials=True)
+# Configure CORS for both local development and production
+allowed_origins = [
+    "http://localhost:3000", 
+    "http://localhost:8000", 
+    "http://127.0.0.1:3000", 
+    "http://127.0.0.1:8000", 
+    "https://estate-pro-a62r.onrender.com"
+]
+
+# Add the current domain to allowed origins for production
+if 'RENDER' in os.environ:
+    # Get the service URL from Render environment
+    service_url = os.environ.get('RENDER_EXTERNAL_URL', '')
+    if service_url:
+        allowed_origins.append(service_url)
+
+CORS(app, origins=allowed_origins, methods=["GET", "PUT", "POST", "DELETE"], supports_credentials=True)
 
 # --- Dynamic CRUD API Creation ---
 
