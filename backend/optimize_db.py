@@ -10,9 +10,13 @@ import sys
 from sqlalchemy import text
 from dotenv import load_dotenv
 
+# Load environment variables first
+load_dotenv()
+
 # Add the backend directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 
+# Import after setting up environment
 from server import app, db
 
 def create_indexes():

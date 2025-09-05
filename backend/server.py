@@ -32,7 +32,10 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_pre_ping': True,
     'pool_recycle': 300,
     'pool_timeout': 20,
-    'max_overflow': 0
+    'max_overflow': 0,
+    'connect_args': {
+        'options': '-c timezone=utc'
+    }
 }
 
 db.init_app(app)
