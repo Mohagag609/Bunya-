@@ -3,10 +3,13 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+package-lock.json
+yarn.lock
 
 # Production builds
 dist/
 build/
+out/
 
 # Environment variables
 .env
@@ -20,6 +23,8 @@ build/
 .idea/
 *.swp
 *.swo
+*.sublime-project
+*.sublime-workspace
 
 # OS generated files
 .DS_Store
@@ -29,22 +34,24 @@ build/
 .Trashes
 ehthumbs.db
 Thumbs.db
+desktop.ini
 
 # Logs
-logs
+logs/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Runtime data
-pids
+pids/
 *.pid
 *.seed
 *.pid.lock
 
 # Coverage directory used by tools like istanbul
 coverage/
-
-# nyc test coverage
-.nyc_output
+.nyc_output/
 
 # Dependency directories
 jspm_packages/
@@ -65,20 +72,20 @@ jspm_packages/
 .env
 
 # parcel-bundler cache (https://parceljs.org/)
-.cache
-.parcel-cache
+.cache/
+.parcel-cache/
 
 # next.js build output
-.next
+.next/
 
 # nuxt.js build output
-.nuxt
+.nuxt/
 
 # vuepress build output
-.vuepress/dist
+.vuepress/dist/
 
 # Serverless directories
-.serverless
+.serverless/
 
 # FuseBox cache
 .fusebox/
@@ -92,3 +99,74 @@ jspm_packages/
 # Backup files
 *.backup
 *.bak
+*.tmp
+*.temp
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Local development
+.local/
+.localhost/
+
+# Netlify
+.netlify/
+
+# Vercel
+.vercel/
+
+# Firebase
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Editor directories and files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+# MacOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
