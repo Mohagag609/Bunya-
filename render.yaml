@@ -2,7 +2,10 @@ services:
   - type: web
     name: estate-manager
     env: python
-    buildCommand: ./build.sh
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements-py311.txt
+      python backend/optimize_db.py
     startCommand: gunicorn backend.server:app --config gunicorn.conf.py
     healthCheckPath: /health
     envVars:
@@ -11,7 +14,7 @@ services:
           name: estate-db
           property: connectionString
       - key: PYTHON_VERSION
-        value: 3.13.0
+        value: 3.11.0
       - key: FLASK_ENV
         value: production
       - key: SECRET_KEY

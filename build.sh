@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Build script for Render deployment
-# This script handles Python 3.13 compatibility issues
+# This script handles Python 3.11 compatibility
 
 set -e
 
@@ -11,9 +11,9 @@ echo "🚀 Starting build process for Estate Manager..."
 echo "📦 Upgrading pip..."
 pip install --upgrade pip
 
-# Install requirements
-echo "📦 Installing requirements..."
-pip install -r requirements.txt
+# Install requirements for Python 3.11
+echo "📦 Installing requirements for Python 3.11..."
+pip install -r requirements-py311.txt
 
 # Test database connection
 echo "🔌 Testing database connection..."
