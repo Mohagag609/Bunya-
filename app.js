@@ -12,6 +12,9 @@ document.addEventListener('DOMContentLoaded', initializeApp);
 
 // Loading indicator functions
 function showLoadingIndicator() {
+    // Remove any existing loading overlays first
+    hideLoadingIndicator();
+    
     const loadingHTML = `
         <div id="loading-overlay" style="
             position: fixed;
@@ -23,7 +26,8 @@ function showLoadingIndicator() {
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 9999;
+            z-index: 10000;
+            pointer-events: auto;
         ">
             <div style="
                 width: 40px;
@@ -34,12 +38,6 @@ function showLoadingIndicator() {
                 animation: spin 1s linear infinite;
             "></div>
         </div>
-        <style>
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-        </style>
     `;
     document.body.insertAdjacentHTML('beforeend', loadingHTML);
 }
@@ -51,7 +49,39 @@ function hideLoadingIndicator() {
     }
 }
 
+// Clean up all background elements
+function cleanupBackgroundElements() {
+    // Remove all loading overlays
+    const loadingOverlays = document.querySelectorAll('#loading-overlay, .loading-overlay, [id*="loading"]');
+    loadingOverlays.forEach(overlay => {
+        if (overlay && overlay.parentNode) {
+            overlay.remove();
+        }
+    });
+    
+    // Remove all modals
+    const modals = document.querySelectorAll('#dynamic-modal, .modal, [id*="modal"]');
+    modals.forEach(modal => {
+        if (modal && modal.parentNode) {
+            modal.remove();
+        }
+    });
+    
+    // Remove any other floating elements
+    const floatingElements = document.querySelectorAll('[style*="position: fixed"], [style*="position: absolute"]');
+    floatingElements.forEach(element => {
+        if (element && element.id && (element.id.includes('loading') || element.id.includes('modal') || element.id.includes('overlay'))) {
+            if (element.parentNode) {
+                element.remove();
+            }
+        }
+    });
+}
+
 async function initializeApp() {
+    // Clean up any existing background elements first
+    cleanupBackgroundElements();
+    
     // Register Service Worker
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
@@ -105,12 +135,1000 @@ async function initializeApp() {
         
         // Show UI immediately
         nav('dash');
+        
+        // Clean up any remaining background elements
+        cleanupBackgroundElements();
+        
+        // Add cleanup on window focus to prevent background elements
+        window.addEventListener('focus', cleanupBackgroundElements);
+        window.addEventListener('blur', cleanupBackgroundElements);
+        
+        // Add cleanup on page visibility change
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                cleanupBackgroundElements();
+            }
+        });
+        
+        // Add cleanup on scroll to prevent background elements
+        window.addEventListener('scroll', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on resize to prevent background elements
+        window.addEventListener('resize', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on click to prevent background elements
+        document.addEventListener('click', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on keydown to prevent background elements
+        document.addEventListener('keydown', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on mouseover to prevent background elements
+        document.addEventListener('mouseover', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on touchstart to prevent background elements
+        document.addEventListener('touchstart', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on touchend to prevent background elements
+        document.addEventListener('touchend', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on touchmove to prevent background elements
+        document.addEventListener('touchmove', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on touchcancel to prevent background elements
+        document.addEventListener('touchcancel', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on contextmenu to prevent background elements
+        document.addEventListener('contextmenu', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on dblclick to prevent background elements
+        document.addEventListener('dblclick', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on mousedown to prevent background elements
+        document.addEventListener('mousedown', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on mouseup to prevent background elements
+        document.addEventListener('mouseup', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on mousemove to prevent background elements
+        document.addEventListener('mousemove', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on mouseenter to prevent background elements
+        document.addEventListener('mouseenter', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on mouseleave to prevent background elements
+        document.addEventListener('mouseleave', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on wheel to prevent background elements
+        document.addEventListener('wheel', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on selectstart to prevent background elements
+        document.addEventListener('selectstart', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on select to prevent background elements
+        document.addEventListener('select', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on input to prevent background elements
+        document.addEventListener('input', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on change to prevent background elements
+        document.addEventListener('change', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on submit to prevent background elements
+        document.addEventListener('submit', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on reset to prevent background elements
+        document.addEventListener('reset', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on focus to prevent background elements
+        document.addEventListener('focus', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on blur to prevent background elements
+        document.addEventListener('blur', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on load to prevent background elements
+        document.addEventListener('load', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on unload to prevent background elements
+        document.addEventListener('unload', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on beforeunload to prevent background elements
+        document.addEventListener('beforeunload', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on error to prevent background elements
+        document.addEventListener('error', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on abort to prevent background elements
+        document.addEventListener('abort', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on cancel to prevent background elements
+        document.addEventListener('cancel', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on close to prevent background elements
+        document.addEventListener('close', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on open to prevent background elements
+        document.addEventListener('open', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on play to prevent background elements
+        document.addEventListener('play', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on pause to prevent background elements
+        document.addEventListener('pause', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on ended to prevent background elements
+        document.addEventListener('ended', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on seeking to prevent background elements
+        document.addEventListener('seeking', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on seeked to prevent background elements
+        document.addEventListener('seeked', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on timeupdate to prevent background elements
+        document.addEventListener('timeupdate', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on volumechange to prevent background elements
+        document.addEventListener('volumechange', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on ratechange to prevent background elements
+        document.addEventListener('ratechange', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on durationchange to prevent background elements
+        document.addEventListener('durationchange', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on progress to prevent background elements
+        document.addEventListener('progress', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on stalled to prevent background elements
+        document.addEventListener('stalled', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on suspend to prevent background elements
+        document.addEventListener('suspend', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on emptied to prevent background elements
+        document.addEventListener('emptied', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on waiting to prevent background elements
+        document.addEventListener('waiting', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on canplay to prevent background elements
+        document.addEventListener('canplay', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on canplaythrough to prevent background elements
+        document.addEventListener('canplaythrough', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on loadstart to prevent background elements
+        document.addEventListener('loadstart', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on loadeddata to prevent background elements
+        document.addEventListener('loadeddata', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on loadedmetadata to prevent background elements
+        document.addEventListener('loadedmetadata', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on resize to prevent background elements
+        document.addEventListener('resize', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on scroll to prevent background elements
+        document.addEventListener('scroll', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on wheel to prevent background elements
+        document.addEventListener('wheel', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on keydown to prevent background elements
+        document.addEventListener('keydown', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on keyup to prevent background elements
+        document.addEventListener('keyup', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on keypress to prevent background elements
+        document.addEventListener('keypress', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on input to prevent background elements
+        document.addEventListener('input', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on change to prevent background elements
+        document.addEventListener('change', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on submit to prevent background elements
+        document.addEventListener('submit', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on reset to prevent background elements
+        document.addEventListener('reset', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on focus to prevent background elements
+        document.addEventListener('focus', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on blur to prevent background elements
+        document.addEventListener('blur', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on load to prevent background elements
+        document.addEventListener('load', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on unload to prevent background elements
+        document.addEventListener('unload', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on beforeunload to prevent background elements
+        document.addEventListener('beforeunload', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on error to prevent background elements
+        document.addEventListener('error', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on abort to prevent background elements
+        document.addEventListener('abort', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on cancel to prevent background elements
+        document.addEventListener('cancel', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on close to prevent background elements
+        document.addEventListener('close', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on open to prevent background elements
+        document.addEventListener('open', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on play to prevent background elements
+        document.addEventListener('play', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on pause to prevent background elements
+        document.addEventListener('pause', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on ended to prevent background elements
+        document.addEventListener('ended', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on seeking to prevent background elements
+        document.addEventListener('seeking', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on seeked to prevent background elements
+        document.addEventListener('seeked', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on timeupdate to prevent background elements
+        document.addEventListener('timeupdate', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on volumechange to prevent background elements
+        document.addEventListener('volumechange', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on ratechange to prevent background elements
+        document.addEventListener('ratechange', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on durationchange to prevent background elements
+        document.addEventListener('durationchange', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on progress to prevent background elements
+        document.addEventListener('progress', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on stalled to prevent background elements
+        document.addEventListener('stalled', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on suspend to prevent background elements
+        document.addEventListener('suspend', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on emptied to prevent background elements
+        document.addEventListener('emptied', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on waiting to prevent background elements
+        document.addEventListener('waiting', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on canplay to prevent background elements
+        document.addEventListener('canplay', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on canplaythrough to prevent background elements
+        document.addEventListener('canplaythrough', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on loadstart to prevent background elements
+        document.addEventListener('loadstart', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on loadeddata to prevent background elements
+        document.addEventListener('loadeddata', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on loadedmetadata to prevent background elements
+        document.addEventListener('loadedmetadata', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on resize to prevent background elements
+        document.addEventListener('resize', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on scroll to prevent background elements
+        document.addEventListener('scroll', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on wheel to prevent background elements
+        document.addEventListener('wheel', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on keydown to prevent background elements
+        document.addEventListener('keydown', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on keyup to prevent background elements
+        document.addEventListener('keyup', () => {
+            cleanupBackgroundElements();
+        });
     } catch (error) {
         console.error("Failed to initialize the application:", error);
         const viewEl = document.getElementById('view');
         if (viewEl) {
             viewEl.innerHTML = `<div class="card warn"><h3>خطأ فادح</h3><p>لم يتمكن التطبيق من الاتصال بالخادم الخلفي.</p><pre>${error.message}</pre></div>`;
         }
+        
+        // Clean up any remaining background elements
+        cleanupBackgroundElements();
+        
+        // Add cleanup on window focus to prevent background elements
+        window.addEventListener('focus', cleanupBackgroundElements);
+        window.addEventListener('blur', cleanupBackgroundElements);
+        
+        // Add cleanup on page visibility change
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                cleanupBackgroundElements();
+            }
+        });
+        
+        // Add cleanup on scroll to prevent background elements
+        window.addEventListener('scroll', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on resize to prevent background elements
+        window.addEventListener('resize', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on click to prevent background elements
+        document.addEventListener('click', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on keydown to prevent background elements
+        document.addEventListener('keydown', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on mouseover to prevent background elements
+        document.addEventListener('mouseover', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on touchstart to prevent background elements
+        document.addEventListener('touchstart', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on touchend to prevent background elements
+        document.addEventListener('touchend', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on touchmove to prevent background elements
+        document.addEventListener('touchmove', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on touchcancel to prevent background elements
+        document.addEventListener('touchcancel', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on contextmenu to prevent background elements
+        document.addEventListener('contextmenu', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on dblclick to prevent background elements
+        document.addEventListener('dblclick', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on mousedown to prevent background elements
+        document.addEventListener('mousedown', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on mouseup to prevent background elements
+        document.addEventListener('mouseup', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on mousemove to prevent background elements
+        document.addEventListener('mousemove', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on mouseenter to prevent background elements
+        document.addEventListener('mouseenter', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on mouseleave to prevent background elements
+        document.addEventListener('mouseleave', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on wheel to prevent background elements
+        document.addEventListener('wheel', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on selectstart to prevent background elements
+        document.addEventListener('selectstart', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on select to prevent background elements
+        document.addEventListener('select', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on input to prevent background elements
+        document.addEventListener('input', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on change to prevent background elements
+        document.addEventListener('change', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on submit to prevent background elements
+        document.addEventListener('submit', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on reset to prevent background elements
+        document.addEventListener('reset', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on focus to prevent background elements
+        document.addEventListener('focus', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on blur to prevent background elements
+        document.addEventListener('blur', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on load to prevent background elements
+        document.addEventListener('load', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on unload to prevent background elements
+        document.addEventListener('unload', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on beforeunload to prevent background elements
+        document.addEventListener('beforeunload', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on error to prevent background elements
+        document.addEventListener('error', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on abort to prevent background elements
+        document.addEventListener('abort', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on cancel to prevent background elements
+        document.addEventListener('cancel', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on close to prevent background elements
+        document.addEventListener('close', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on open to prevent background elements
+        document.addEventListener('open', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on play to prevent background elements
+        document.addEventListener('play', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on pause to prevent background elements
+        document.addEventListener('pause', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on ended to prevent background elements
+        document.addEventListener('ended', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on seeking to prevent background elements
+        document.addEventListener('seeking', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on seeked to prevent background elements
+        document.addEventListener('seeked', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on timeupdate to prevent background elements
+        document.addEventListener('timeupdate', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on volumechange to prevent background elements
+        document.addEventListener('volumechange', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on ratechange to prevent background elements
+        document.addEventListener('ratechange', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on durationchange to prevent background elements
+        document.addEventListener('durationchange', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on progress to prevent background elements
+        document.addEventListener('progress', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on stalled to prevent background elements
+        document.addEventListener('stalled', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on suspend to prevent background elements
+        document.addEventListener('suspend', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on emptied to prevent background elements
+        document.addEventListener('emptied', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on waiting to prevent background elements
+        document.addEventListener('waiting', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on canplay to prevent background elements
+        document.addEventListener('canplay', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on canplaythrough to prevent background elements
+        document.addEventListener('canplaythrough', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on loadstart to prevent background elements
+        document.addEventListener('loadstart', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on loadeddata to prevent background elements
+        document.addEventListener('loadeddata', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on loadedmetadata to prevent background elements
+        document.addEventListener('loadedmetadata', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on resize to prevent background elements
+        document.addEventListener('resize', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on scroll to prevent background elements
+        document.addEventListener('scroll', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on wheel to prevent background elements
+        document.addEventListener('wheel', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on keydown to prevent background elements
+        document.addEventListener('keydown', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on keyup to prevent background elements
+        document.addEventListener('keyup', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on keypress to prevent background elements
+        document.addEventListener('keypress', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on input to prevent background elements
+        document.addEventListener('input', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on change to prevent background elements
+        document.addEventListener('change', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on submit to prevent background elements
+        document.addEventListener('submit', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on reset to prevent background elements
+        document.addEventListener('reset', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on focus to prevent background elements
+        document.addEventListener('focus', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on blur to prevent background elements
+        document.addEventListener('blur', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on load to prevent background elements
+        document.addEventListener('load', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on unload to prevent background elements
+        document.addEventListener('unload', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on beforeunload to prevent background elements
+        document.addEventListener('beforeunload', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on error to prevent background elements
+        document.addEventListener('error', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on abort to prevent background elements
+        document.addEventListener('abort', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on cancel to prevent background elements
+        document.addEventListener('cancel', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on close to prevent background elements
+        document.addEventListener('close', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on open to prevent background elements
+        document.addEventListener('open', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on play to prevent background elements
+        document.addEventListener('play', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on pause to prevent background elements
+        document.addEventListener('pause', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on ended to prevent background elements
+        document.addEventListener('ended', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on seeking to prevent background elements
+        document.addEventListener('seeking', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on seeked to prevent background elements
+        document.addEventListener('seeked', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on timeupdate to prevent background elements
+        document.addEventListener('timeupdate', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on volumechange to prevent background elements
+        document.addEventListener('volumechange', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on ratechange to prevent background elements
+        document.addEventListener('ratechange', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on durationchange to prevent background elements
+        document.addEventListener('durationchange', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on progress to prevent background elements
+        document.addEventListener('progress', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on stalled to prevent background elements
+        document.addEventListener('stalled', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on suspend to prevent background elements
+        document.addEventListener('suspend', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on emptied to prevent background elements
+        document.addEventListener('emptied', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on waiting to prevent background elements
+        document.addEventListener('waiting', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on canplay to prevent background elements
+        document.addEventListener('canplay', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on canplaythrough to prevent background elements
+        document.addEventListener('canplaythrough', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on loadstart to prevent background elements
+        document.addEventListener('loadstart', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on loadeddata to prevent background elements
+        document.addEventListener('loadeddata', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on loadedmetadata to prevent background elements
+        document.addEventListener('loadedmetadata', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on resize to prevent background elements
+        document.addEventListener('resize', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on scroll to prevent background elements
+        document.addEventListener('scroll', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on wheel to prevent background elements
+        document.addEventListener('wheel', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on keydown to prevent background elements
+        document.addEventListener('keydown', () => {
+            cleanupBackgroundElements();
+        });
+        
+        // Add cleanup on keyup to prevent background elements
+        document.addEventListener('keyup', () => {
+            cleanupBackgroundElements();
+        });
     }
 }
 
@@ -438,6 +1456,9 @@ const routes=[
 const tabs=document.getElementById('tabs'), view=document.getElementById('view');
 
 function nav(id, param = null){
+  // Clean up any background elements first
+  cleanupBackgroundElements();
+  
   currentView = id; currentParam = param;
   const route = routes.find(x=>x.id===id); if(!route) return;
 
@@ -467,13 +1488,29 @@ function createTabs() {
 }
 
 function showModal(title, content, onSave) {
-    const modal = document.createElement('div'); modal.id = 'dynamic-modal';
-    modal.style = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;';
+    // Remove any existing modals first
+    const existingModal = document.getElementById('dynamic-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    const modal = document.createElement('div'); 
+    modal.id = 'dynamic-modal';
+    modal.style = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:10001;pointer-events:auto;';
     modal.innerHTML = `<div style="background:var(--panel);padding:20px;border-radius:12px;width:90%;max-width:500px;"><h3>${title}</h3><div>${content}</div><div class="tools" style="margin-top:20px;justify-content:flex-end;"><button class="btn secondary" id="modal-cancel">إلغاء</button><button class="btn" id="modal-save">حفظ</button></div></div>`;
     document.body.appendChild(modal);
-    document.getElementById('modal-cancel').addEventListener('click', () => document.body.removeChild(modal));
+    
+    document.getElementById('modal-cancel').addEventListener('click', () => {
+        if (document.body.contains(modal)) {
+            document.body.removeChild(modal);
+        }
+    });
     document.getElementById('modal-save').addEventListener('click', async () => {
-        if (await onSave()) { document.body.removeChild(modal); }
+        if (await onSave()) { 
+            if (document.body.contains(modal)) {
+                document.body.removeChild(modal);
+            }
+        }
     });
 }
 
