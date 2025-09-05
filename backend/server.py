@@ -107,6 +107,16 @@ if 'RENDER' in os.environ:
     service_url = os.environ.get('RENDER_EXTERNAL_URL', '')
     if service_url:
         allowed_origins.append(service_url)
+        app.logger.info(f"Added Render service URL to CORS: {service_url}")
+    
+    # Also add any custom domains from environment
+    custom_domains = os.environ.get('CUSTOM_DOMAINS', '')
+    if custom_domains:
+        for domain in custom_domains.split(','):
+            domain = domain.strip()
+            if domain:
+                allowed_origins.append(f"https://{domain}")
+                app.logger.info(f"Added custom domain to CORS: {domain}")
 
 CORS(app, origins=allowed_origins, methods=["GET", "PUT", "POST", "DELETE"], supports_credentials=True)
 
