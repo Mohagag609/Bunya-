@@ -22,10 +22,15 @@ async function handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
         let errorData: any;
         try {
-            errorData = await response.json();
+            const text = await response.text();
+            if (text) {
+                errorData = JSON.parse(text);
+            } else {
+                errorData = { error: 'Empty response from server' };
+            }
         } catch {
             errorData = { 
-                error: 'An unknown server error occurred. The response was not valid JSON.' 
+                error: `Server error: ${response.status} ${response.statusText}` 
             };
         }
         

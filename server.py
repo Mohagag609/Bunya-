@@ -283,13 +283,39 @@ def migrate_command():
     except Exception as e:
         click.echo(f"Error running migrations: {e}")
 
+# Initialize database and create default data
+def initialize_app():
+    with app.app_context():
+        try:
+            # Create all tables
+            db.create_all()
+            logger.info("Database tables created")
+            
+            # Create default safe if none exists
+            from sqlalchemy import text
+            result = db.session.execute(text("SELECT COUNT(*) FROM safes")).scalar()
+            if result == 0:
+                default_safe = models['safes'](
+                    id='S_main',
+                    data={
+                        'name': 'الخزنة الرئيسية',
+                        'balance': 0
+                    }
+                )
+                db.session.add(default_safe)
+                db.session.commit()
+                logger.info("Default safe created")
+            
+            logger.info("App initialization completed")
+        except Exception as e:
+            logger.error(f"App initialization failed: {e}")
+            raise
+
 # Application startup
 if __name__ == '__main__':
     try:
-        # Initialize database
-        with app.app_context():
-            db.create_all()
-            logger.info("Database initialized")
+        # Initialize app
+        initialize_app()
         
         # Start server
         port = int(os.environ.get('PORT', 8000))
