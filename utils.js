@@ -1,6 +1,5 @@
 import { state, saveState } from './state.js';
 import { persist } from './data.js';
-import { nav } from './app.js';
 
 /* ===== UTILS & HELPERS ===== */
 export function uid(p){ return p+'-'+Math.random().toString(36).slice(2,9); }
@@ -23,40 +22,3 @@ export function exportCSV(headers, rows, name){
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a'); a.href=url; a.download=name; a.click(); URL.revokeObjectURL(url);
 }
-export function delRow(coll,id) {
-  const nameMap = {
-    customers: 'العميل',
-    units: 'الوحدة',
-    partners: 'الشريك',
-    unitPartners: 'ربط شريك بوحدة',
-    contracts: 'العقد',
-    installments: 'القسط',
-    safes: 'الخزنة'
-  };
-  const collName = nameMap[coll] || coll;
-  const itemToDelete = state[coll] ? state[coll].find(x=>x.id===id) : undefined;
-  const itemName = itemToDelete?.name || itemToDelete?.code || id;
-
-  if(confirm(`هل أنت متأكد من حذف ${collName} "${itemName}"؟ هذا الإجراء لا يمكن التراجع عنه.`)){
-    saveState();
-    logAction(`حذف ${collName}`, { collection: coll, id, deletedItem: JSON.stringify(itemToDelete) });
-    state[coll]=state[coll].filter(x=>x.id!==id);
-    persist();
-    if (coll === 'unitPartners') {
-      nav('unit-details', itemToDelete.unitId);
-    } else {
-      nav(coll);
-    }
-  }
-}
-
-export function inlineUpd(coll,id,key,val){
-  saveState();
-  const o=state[coll].find(x=>x.id===id);
-  if(o){
-    const oldValue = o[key];
-    o[key]=val;
-    logAction(`تعديل مباشر في ${coll}`, { collection: coll, id, key, oldValue, newValue: val });
-    persist();
-  }
-};

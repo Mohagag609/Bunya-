@@ -1,5 +1,5 @@
 import { openDB, getKeyVal, setKeyVal, OBJECT_STORES } from './db.js';
-import { state, saveState, updateUndoRedoButtons, setCurrentView, undo, redo } from './state.js';
+import { state, saveState, updateUndoRedoButtons, setCurrentView, undo, redo, initState } from './state.js';
 import { persist, loadStateFromDB, loadFromLocalStorage } from './data.js';
 import { applySettings, checkLock, uid } from './utils.js';
 
@@ -145,6 +145,7 @@ async function initializeApp() {
         setupGlobalEventListeners();
         checkLock();
         saveState();
+        initState(nav);
         updateUndoRedoButtons();
         createTabs();
         nav('dash');

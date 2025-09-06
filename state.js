@@ -1,5 +1,10 @@
 import { persist } from './data.js';
-import { nav } from './app.js';
+
+let nav;
+
+export function initState(navFunc) {
+    nav = navFunc;
+}
 
 /* ===== GLOBAL STATE & CONFIG ===== */
 export let state = {};

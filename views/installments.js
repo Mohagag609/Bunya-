@@ -1,8 +1,35 @@
 import { state, saveState } from '../state.js';
-import { egp, getUnitDisplayName, unitById, custById, exportCSV, parseNumber, logAction, delRow } from '../utils.js';
+import { egp, getUnitDisplayName, unitById, custById, exportCSV, parseNumber, logAction } from '../utils.js';
 import { table, showModal } from '../ui.js';
 import { persist } from '../data.js';
 import { nav } from '../app.js';
+
+function delRow(coll,id) {
+  const nameMap = {
+    customers: 'العميل',
+    units: 'الوحدة',
+    partners: 'الشريك',
+    unitPartners: 'ربط شريك بوحدة',
+    contracts: 'العقد',
+    installments: 'القسط',
+    safes: 'الخزنة'
+  };
+  const collName = nameMap[coll] || coll;
+  const itemToDelete = state[coll] ? state[coll].find(x=>x.id===id) : undefined;
+  const itemName = itemToDelete?.name || itemToDelete?.code || id;
+
+  if(confirm(`هل أنت متأكد من حذف ${collName} "${itemName}"؟ هذا الإجراء لا يمكن التراجع عنه.`)){
+    saveState();
+    logAction(`حذف ${collName}`, { collection: coll, id, deletedItem: JSON.stringify(itemToDelete) });
+    state[coll]=state[coll].filter(x=>x.id!==id);
+    persist();
+    if (coll === 'unitPartners') {
+      nav('unit-details', itemToDelete.unitId);
+    } else {
+      nav(coll);
+    }
+  }
+}
 
 function processPayment(unitId, amount, method, date, safeId, installmentId = null) {
     if (!unitId || !amount || !date || !safeId) {
