@@ -12,7 +12,7 @@ services:
       - key: FLASK_ENV
         value: production
       - key: DATABASE_URL
-        value: postgresql://postgres:password@localhost:5432/real_estate_db
+        value: postgresql://neondb_owner:npg_y2HEKXndz1Sc@ep-orange-salad-ad5gd6zq-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
     healthCheckPath: /health
     autoDeploy: true
     branch: main
