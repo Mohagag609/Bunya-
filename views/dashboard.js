@@ -1,5 +1,6 @@
 import { state } from '../state.js';
-import { egp, today, getUnitDisplayName, unitById, custById } from '../utils.js';
+import { egp, today } from '../helpers.js';
+import { getUnitDisplayName, unitById, custById } from '../state-utils.js';
 import { table, printHTML } from '../ui.js';
 import { nav } from '../app.js';
 import { calcRemaining } from './units.js';

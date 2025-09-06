@@ -1,5 +1,6 @@
 import { state, saveState } from '../state.js';
-import { egp, parseNumber, today, uid, logAction, exportCSV } from '../utils.js';
+import { egp, parseNumber, today, uid, exportCSV } from '../helpers.js';
+import { logAction } from '../state-utils.js';
 import { table, showModal } from '../ui.js';
 import { persist } from '../data.js';
 import { nav } from '../app.js';

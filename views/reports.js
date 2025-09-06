@@ -1,5 +1,6 @@
 import { state } from '../state.js';
-import { egp, getUnitDisplayName, custById, unitById } from '../utils.js';
+import { egp } from '../helpers.js';
+import { getUnitDisplayName, custById, unitById } from '../state-utils.js';
 import { table, printHTML } from '../ui.js';
 import { nav } from '../app.js';
 

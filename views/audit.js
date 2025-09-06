@@ -1,5 +1,5 @@
 import { state } from '../state.js';
-import { exportCSV } from '../utils.js';
+import { exportCSV } from '../helpers.js';
 import { table } from '../ui.js';
 
 function expAuditLog(currentLogs) {

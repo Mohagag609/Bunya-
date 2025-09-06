@@ -1,7 +1,8 @@
 import { openDB, getKeyVal, setKeyVal, OBJECT_STORES } from './db.js';
 import { state, saveState, updateUndoRedoButtons, setCurrentView, undo, redo, initState } from './state.js';
 import { persist, loadStateFromDB, loadFromLocalStorage } from './data.js';
-import { applySettings, checkLock, uid } from './utils.js';
+import { applySettings, checkLock } from './state-utils.js';
+import { uid } from './helpers.js';
 
 // Import Renderers
 import { renderDash, renderOldDash } from './views/dashboard.js';

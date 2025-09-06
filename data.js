@@ -1,7 +1,7 @@
 import { openDB, OBJECT_STORES, setKeyVal, getKeyVal } from './db.js';
 import { state } from './state.js';
-import { applySettings } from './utils.js';
-import { uid } from './utils.js';
+import { applySettings } from './state-utils.js';
+import { uid } from './helpers.js';
 
 /* ===== DATA PERSISTENCE & MIGRATION ===== */
 export async function persist() {
