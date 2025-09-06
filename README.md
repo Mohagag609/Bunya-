@@ -57,9 +57,24 @@ docker-compose up
 
 ### للنشر على Render
 ```bash
-# البرنامج جاهز للنشر على Render
-# فقط ارفع الملفات وستعمل تلقائياً
+# 1. ارفع الكود إلى GitHub
+git add .
+git commit -m "Ready for Render deployment"
+git push
+
+# 2. في Render Dashboard:
+# - أنشئ Web Service جديد
+# - اربط مع GitHub repository
+# - Build Command: pip install -r requirements.txt
+# - Start Command: ./start.sh
+# - أضف Environment Variables (DATABASE_URL, SECRET_KEY)
 ```
+
+**ملفات النشر الجاهزة:**
+- `Procfile` ✅
+- `start.sh` ✅
+- `render.yaml` ✅
+- `requirements.txt` ✅
 
 ## ✨ الميزات الرئيسية
 

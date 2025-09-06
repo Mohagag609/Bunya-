@@ -1,1 +1,1 @@
-web: python backend/server.py
+web: ./start.sh

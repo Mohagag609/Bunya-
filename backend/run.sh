@@ -7,11 +7,10 @@ set -e
 
 # Install dependencies
 echo "Installing dependencies..."
-pip install -r requirements.txt
+pip install -r ../requirements.txt
 
 # Run database migrations/initializations
 echo "Running database initialization..."
-cd backend
 python -m flask --app server:app init-db
 
 # Start the Gunicorn production server
