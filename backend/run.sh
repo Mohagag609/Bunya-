@@ -11,7 +11,8 @@ pip install -r ../requirements.txt
 
 # Run database migrations/initializations
 echo "Running database initialization..."
-python -m flask --app server:app init-db
+export FLASK_APP=server.py
+python -m flask init-db
 
 # Start the Gunicorn production server
 echo "Starting Gunicorn server..."

@@ -71,10 +71,15 @@ git push
 ```
 
 **ملفات النشر الجاهزة:**
-- `Procfile` ✅
-- `start.sh` ✅
-- `render.yaml` ✅
-- `requirements.txt` ✅
+- `Procfile` ✅ (يستخدم simple_start.sh)
+- `simple_start.sh` ✅ (سكريبت تشغيل مبسط)
+- `render.yaml` ✅ (إعدادات Render)
+- `requirements.txt` ✅ (متوافق مع Python 3.11)
+
+**ملاحظة مهمة:** 
+- تم إصلاح مشكلة psycopg2
+- تم تبسيط عملية التشغيل
+- قاعدة البيانات ستُهيأ تلقائياً عند أول تشغيل
 
 ## ✨ الميزات الرئيسية
 
