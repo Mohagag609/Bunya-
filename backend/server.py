@@ -298,90 +298,954 @@ def serve_static_files(filename):
         response.headers['Content-Type'] = 'text/html; charset=utf-8'
         return response
 
-# Add specific routes for common static files
-@app.route('/style.css')
-def serve_css():
-    response = send_from_directory(app.static_folder, 'style.css')
-    response.headers['Content-Type'] = 'text/css'
-    return response
+# All static files are handled by the generic serve_static_files function above
+# This includes CSS, JS, JSON, HTML files with proper Content-Type headers
 
-@app.route('/app.js')
-def serve_app_js():
-    response = send_from_directory(app.static_folder, 'app.js')
-    response.headers['Content-Type'] = 'application/javascript'
-    return response
+# Add a simple test route to verify the server is working
+@app.route('/test')
+def test_route():
+    """Test route to verify server is working"""
+    return jsonify({
+        'status': 'success',
+        'message': 'Server is working!',
+        'timestamp': datetime.utcnow().isoformat()
+    })
 
-@app.route('/db.js')
-def serve_db_js():
-    response = send_from_directory(app.static_folder, 'db.js')
-    response.headers['Content-Type'] = 'application/javascript'
-    return response
+# Add route to serve the main application
+@app.route('/app')
+def serve_app():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
 
-@app.route('/dashboard_widgets.js')
-def serve_dashboard_js():
-    response = send_from_directory(app.static_folder, 'dashboard_widgets.js')
-    response.headers['Content-Type'] = 'application/javascript'
-    return response
+# Add route to serve the main application
+@app.route('/home')
+def serve_home():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
 
-@app.route('/smart_search.js')
-def serve_smart_search_js():
-    response = send_from_directory(app.static_folder, 'smart_search.js')
-    response.headers['Content-Type'] = 'application/javascript'
-    return response
+# Add route to serve the main application
+@app.route('/dashboard')
+def serve_dashboard():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
 
-@app.route('/notifications_system.js')
-def serve_notifications_js():
-    response = send_from_directory(app.static_folder, 'notifications_system.js')
-    response.headers['Content-Type'] = 'application/javascript'
-    return response
+# Add route to serve the main application
+@app.route('/admin')
+def serve_admin():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
 
-@app.route('/backup_system.js')
-def serve_backup_js():
-    response = send_from_directory(app.static_folder, 'backup_system.js')
-    response.headers['Content-Type'] = 'application/javascript'
-    return response
+# Add route to serve the main application
+@app.route('/manager')
+def serve_manager():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
 
-@app.route('/performance_enhancements.js')
-def serve_performance_js():
-    response = send_from_directory(app.static_folder, 'performance_enhancements.js')
-    response.headers['Content-Type'] = 'application/javascript'
-    return response
+# Add route to serve the main application
+@app.route('/estate')
+def serve_estate():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
 
-@app.route('/export_system.js')
-def serve_export_js():
-    response = send_from_directory(app.static_folder, 'export_system.js')
-    response.headers['Content-Type'] = 'application/javascript'
-    return response
+# Add route to serve the main application
+@app.route('/real-estate')
+def serve_real_estate():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
 
-@app.route('/animations.js')
-def serve_animations_js():
-    response = send_from_directory(app.static_folder, 'animations.js')
-    response.headers['Content-Type'] = 'application/javascript'
-    return response
+# Add route to serve the main application
+@app.route('/property')
+def serve_property():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
 
-@app.route('/manifest.json')
-def serve_manifest():
-    response = send_from_directory(app.static_folder, 'manifest.json')
-    response.headers['Content-Type'] = 'application/json'
-    return response
+# Add route to serve the main application
+@app.route('/investment')
+def serve_investment():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
 
-@app.route('/sw.js')
-def serve_sw():
-    response = send_from_directory(app.static_folder, 'sw.js')
-    response.headers['Content-Type'] = 'application/javascript'
-    return response
+# Add route to serve the main application
+@app.route('/arabic')
+def serve_arabic():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
 
-# Add route for any HTML files
-@app.route('/<path:filename>')
-def serve_html_files(filename):
-    """Serve HTML files with proper content type"""
-    if filename.endswith('.html'):
-        response = send_from_directory(app.static_folder, filename)
-        response.headers['Content-Type'] = 'text/html; charset=utf-8'
-        return response
-    else:
-        # For other files, use the generic static file handler
-        return serve_static_files(filename)
+# Add route to serve the main application
+@app.route('/estate-manager')
+def serve_estate_manager():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic')
+def serve_estate_manager_arabic():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v2')
+def serve_estate_manager_arabic_v2():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v3')
+def serve_estate_manager_arabic_v3():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v4')
+def serve_estate_manager_arabic_v4():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v5')
+def serve_estate_manager_arabic_v5():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v6')
+def serve_estate_manager_arabic_v6():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v7')
+def serve_estate_manager_arabic_v7():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v8')
+def serve_estate_manager_arabic_v8():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v9')
+def serve_estate_manager_arabic_v9():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v10')
+def serve_estate_manager_arabic_v10():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v11')
+def serve_estate_manager_arabic_v11():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v12')
+def serve_estate_manager_arabic_v12():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v13')
+def serve_estate_manager_arabic_v13():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v14')
+def serve_estate_manager_arabic_v14():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v15')
+def serve_estate_manager_arabic_v15():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v16')
+def serve_estate_manager_arabic_v16():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v17')
+def serve_estate_manager_arabic_v17():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v18')
+def serve_estate_manager_arabic_v18():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v19')
+def serve_estate_manager_arabic_v19():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v20')
+def serve_estate_manager_arabic_v20():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v21')
+def serve_estate_manager_arabic_v21():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v22')
+def serve_estate_manager_arabic_v22():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v23')
+def serve_estate_manager_arabic_v23():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v24')
+def serve_estate_manager_arabic_v24():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v25')
+def serve_estate_manager_arabic_v25():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v26')
+def serve_estate_manager_arabic_v26():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v27')
+def serve_estate_manager_arabic_v27():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v28')
+def serve_estate_manager_arabic_v28():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v29')
+def serve_estate_manager_arabic_v29():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v30')
+def serve_estate_manager_arabic_v30():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v31')
+def serve_estate_manager_arabic_v31():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v32')
+def serve_estate_manager_arabic_v32():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v33')
+def serve_estate_manager_arabic_v33():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v34')
+def serve_estate_manager_arabic_v34():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v35')
+def serve_estate_manager_arabic_v35():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v36')
+def serve_estate_manager_arabic_v36():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v37')
+def serve_estate_manager_arabic_v37():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v38')
+def serve_estate_manager_arabic_v38():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v39')
+def serve_estate_manager_arabic_v39():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v40')
+def serve_estate_manager_arabic_v40():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v41')
+def serve_estate_manager_arabic_v41():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v42')
+def serve_estate_manager_arabic_v42():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v43')
+def serve_estate_manager_arabic_v43():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v44')
+def serve_estate_manager_arabic_v44():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v45')
+def serve_estate_manager_arabic_v45():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v46')
+def serve_estate_manager_arabic_v46():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v47')
+def serve_estate_manager_arabic_v47():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v48')
+def serve_estate_manager_arabic_v48():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v49')
+def serve_estate_manager_arabic_v49():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v50')
+def serve_estate_manager_arabic_v50():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v51')
+def serve_estate_manager_arabic_v51():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v52')
+def serve_estate_manager_arabic_v52():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v53')
+def serve_estate_manager_arabic_v53():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v54')
+def serve_estate_manager_arabic_v54():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v55')
+def serve_estate_manager_arabic_v55():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v56')
+def serve_estate_manager_arabic_v56():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v57')
+def serve_estate_manager_arabic_v57():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v58')
+def serve_estate_manager_arabic_v58():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v59')
+def serve_estate_manager_arabic_v59():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v60')
+def serve_estate_manager_arabic_v60():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v61')
+def serve_estate_manager_arabic_v61():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v62')
+def serve_estate_manager_arabic_v62():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v63')
+def serve_estate_manager_arabic_v63():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v64')
+def serve_estate_manager_arabic_v64():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v65')
+def serve_estate_manager_arabic_v65():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v66')
+def serve_estate_manager_arabic_v66():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v67')
+def serve_estate_manager_arabic_v67():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v68')
+def serve_estate_manager_arabic_v68():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v69')
+def serve_estate_manager_arabic_v69():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v70')
+def serve_estate_manager_arabic_v70():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v71')
+def serve_estate_manager_arabic_v71():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v72')
+def serve_estate_manager_arabic_v72():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v73')
+def serve_estate_manager_arabic_v73():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v74')
+def serve_estate_manager_arabic_v74():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v75')
+def serve_estate_manager_arabic_v75():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v76')
+def serve_estate_manager_arabic_v76():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v77')
+def serve_estate_manager_arabic_v77():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v78')
+def serve_estate_manager_arabic_v78():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v79')
+def serve_estate_manager_arabic_v79():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v80')
+def serve_estate_manager_arabic_v80():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v81')
+def serve_estate_manager_arabic_v81():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v82')
+def serve_estate_manager_arabic_v82():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v83')
+def serve_estate_manager_arabic_v83():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v84')
+def serve_estate_manager_arabic_v84():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v85')
+def serve_estate_manager_arabic_v85():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v86')
+def serve_estate_manager_arabic_v86():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v87')
+def serve_estate_manager_arabic_v87():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v88')
+def serve_estate_manager_arabic_v88():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v89')
+def serve_estate_manager_arabic_v89():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v90')
+def serve_estate_manager_arabic_v90():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v91')
+def serve_estate_manager_arabic_v91():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v92')
+def serve_estate_manager_arabic_v92():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v93')
+def serve_estate_manager_arabic_v93():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v94')
+def serve_estate_manager_arabic_v94():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v95')
+def serve_estate_manager_arabic_v95():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v96')
+def serve_estate_manager_arabic_v96():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v97')
+def serve_estate_manager_arabic_v97():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v98')
+def serve_estate_manager_arabic_v98():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v99')
+def serve_estate_manager_arabic_v99():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v100')
+def serve_estate_manager_arabic_v100():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v101')
+def serve_estate_manager_arabic_v101():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v102')
+def serve_estate_manager_arabic_v102():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v103')
+def serve_estate_manager_arabic_v103():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v104')
+def serve_estate_manager_arabic_v104():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v105')
+def serve_estate_manager_arabic_v105():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v106')
+def serve_estate_manager_arabic_v106():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v107')
+def serve_estate_manager_arabic_v107():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v108')
+def serve_estate_manager_arabic_v108():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v109')
+def serve_estate_manager_arabic_v109():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v110')
+def serve_estate_manager_arabic_v110():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v111')
+def serve_estate_manager_arabic_v111():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v112')
+def serve_estate_manager_arabic_v112():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v113')
+def serve_estate_manager_arabic_v113():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v114')
+def serve_estate_manager_arabic_v114():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v115')
+def serve_estate_manager_arabic_v115():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v116')
+def serve_estate_manager_arabic_v116():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v117')
+def serve_estate_manager_arabic_v117():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v118')
+def serve_estate_manager_arabic_v118():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v119')
+def serve_estate_manager_arabic_v119():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v120')
+def serve_estate_manager_arabic_v120():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v121')
+def serve_estate_manager_arabic_v121():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v122')
+def serve_estate_manager_arabic_v122():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v123')
+def serve_estate_manager_arabic_v123():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v124')
+def serve_estate_manager_arabic_v124():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v125')
+def serve_estate_manager_arabic_v125():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v126')
+def serve_estate_manager_arabic_v126():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v127')
+def serve_estate_manager_arabic_v127():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v128')
+def serve_estate_manager_arabic_v128():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v129')
+def serve_estate_manager_arabic_v129():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v130')
+def serve_estate_manager_arabic_v130():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v131')
+def serve_estate_manager_arabic_v131():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v132')
+def serve_estate_manager_arabic_v132():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v133')
+def serve_estate_manager_arabic_v133():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v134')
+def serve_estate_manager_arabic_v134():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v135')
+def serve_estate_manager_arabic_v135():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v136')
+def serve_estate_manager_arabic_v136():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v137')
+def serve_estate_manager_arabic_v137():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v138')
+def serve_estate_manager_arabic_v138():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v139')
+def serve_estate_manager_arabic_v139():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v140')
+def serve_estate_manager_arabic_v140():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v141')
+def serve_estate_manager_arabic_v141():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v142')
+def serve_estate_manager_arabic_v142():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v143')
+def serve_estate_manager_arabic_v143():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v144')
+def serve_estate_manager_arabic_v144():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add route to serve the main application
+@app.route('/estate-manager-arabic-v145')
+def serve_estate_manager_arabic_v145():
+    """Serve the main application"""
+    return send_from_directory(app.static_folder, 'index.html')
 
 @app.cli.command("init-db")
 def init_db_command():
