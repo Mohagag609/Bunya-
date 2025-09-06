@@ -1,0 +1,26 @@
+{
+  "name": "real-estate-manager-render",
+  "version": "2.0.0",
+  "description": "مدير الاستثمار العقاري - Render Deployment",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "build": "echo 'Static site - no build needed'",
+    "dev": "python -m http.server 8000"
+  },
+  "engines": {
+    "node": ">=14.0.0",
+    "python": ">=3.8.0"
+  },
+  "keywords": [
+    "real-estate",
+    "property-management",
+    "saas",
+    "modern-ui",
+    "rtl",
+    "arabic",
+    "render"
+  ],
+  "author": "Real Estate Manager Team",
+  "license": "MIT"
+}

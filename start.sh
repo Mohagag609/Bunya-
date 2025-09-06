@@ -1,16 +1,31 @@
 #!/bin/bash
+# Start script for Real Estate Manager on Render.com
 
-# Start script for Render deployment
-# This script runs database optimization and starts the server
+echo "🚀 Starting Real Estate Manager..."
 
-set -e
+# Check if Python is available
+if ! command -v python3 &> /dev/null; then
+    echo "❌ Python3 not found. Please install Python 3.8 or higher."
+    exit 1
+fi
 
-echo "🚀 Starting Estate Manager on Render..."
+# Check Python version
+python_version=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
+echo "🐍 Python version: $python_version"
 
-# Run database optimization
-echo "⚡ Running database optimization..."
-python backend/optimize_db.py
+# Install requirements if needed
+if [ -f "requirements.txt" ]; then
+    echo "📦 Installing requirements..."
+    pip3 install -r requirements.txt
+fi
+
+# Set environment variables
+export PORT=${PORT:-8000}
+export NODE_ENV=${NODE_ENV:-production}
+
+echo "🌐 Port: $PORT"
+echo "🔧 Environment: $NODE_ENV"
 
 # Start the server
-echo "🌐 Starting Gunicorn server..."
-exec gunicorn backend.server:app --config gunicorn.conf.py
+echo "🎯 Starting server..."
+python3 server.py

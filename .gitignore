@@ -24,7 +24,6 @@ out/
 *.sqlite
 *.db
 data/
-backups/
 
 # ملفات النظام
 .DS_Store
@@ -37,12 +36,6 @@ desktop.ini
 *.swp
 *.swo
 *~
-
-# ملفات Node.js
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
 # ملفات Python
 __pycache__/
@@ -76,11 +69,6 @@ temp_exports/
 test-results/
 coverage/
 .nyc_output/
-
-# ملفات البناء
-dist/
-build/
-out/
 
 # ملفات الخادم
 *.pid
@@ -130,3 +118,6 @@ reports/
 # ملفات الوسائط المؤقتة
 uploads/
 media/temp/
+
+# ملفات Render
+.render/

@@ -1,0 +1,10 @@
+# Python requirements for Render.com deployment
+# This is a minimal requirements file for static site hosting
+
+# No Python dependencies needed for static site
+# The application runs entirely in the browser
+
+# If you need Python for any server-side functionality, add them here:
+# flask==2.3.3
+# gunicorn==21.2.0
+# python-dotenv==1.0.0
