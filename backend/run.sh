@@ -11,7 +11,8 @@ pip install -r requirements.txt
 
 # Run database migrations/initializations
 echo "Running database initialization..."
-python -m flask --app backend.server:app init-db
+cd backend
+python -m flask --app server:app init-db
 
 # Start the Gunicorn production server
 echo "Starting Gunicorn server..."
