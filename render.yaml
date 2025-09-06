@@ -3,7 +3,7 @@ services:
     name: real-estate-manager-modern
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: python server.py
+    startCommand: gunicorn --bind 0.0.0.0:$PORT backend.flask_server:app
     envVars:
       - key: PORT
         value: 5000
@@ -11,6 +11,8 @@ services:
         value: 3.11.0
       - key: FLASK_ENV
         value: production
+      - key: DATABASE_URL
+        value: postgresql://postgres:password@localhost:5432/real_estate_db
     healthCheckPath: /health
     autoDeploy: true
     branch: main

@@ -86,8 +86,8 @@ async function initializeApp() {
     }
 
     try {
-        console.log("Loading initial state from LocalStorage...");
-        state = await loadStateFromLocalStorage();
+        console.log("Loading initial state from PostgreSQL API...");
+        state = await loadStateFromAPI();
 
         // Ensure state has default empty arrays if they are missing from the DB
         window.OBJECT_STORES.forEach(storeName => {
@@ -1153,12 +1153,12 @@ async function initializeApp() {
 
 // دالة persist للتوافق مع الكود الموجود
 function persist() {
-    // البيانات تحفظ تلقائياً في LocalStorage
-    console.log('persist() called - data saved to LocalStorage');
+    // البيانات تحفظ تلقائياً في PostgreSQL عبر API
+    console.log('persist() called - data saved to PostgreSQL');
 }
 
-async function loadStateFromLocalStorage() {
-    console.log("Loading all application data from LocalStorage...");
+async function loadStateFromAPI() {
+    console.log("Loading all application data from PostgreSQL API...");
     const newState = {};
 
     // We need the list of all stores to fetch from.
@@ -1185,7 +1185,7 @@ async function loadStateFromLocalStorage() {
         }
     });
 
-    console.log("State loaded successfully from LocalStorage.", newState);
+    console.log("State loaded successfully from PostgreSQL API.", newState);
     return newState;
 }
 

@@ -1,108 +1,93 @@
-// Simplified Database Layer using LocalStorage
-// This version works without a backend server
+// Database Layer for Real Estate Manager with PostgreSQL API
+// This file connects the frontend to the Flask backend API
 
 // OBJECT_STORES is defined in index.html
 const OBJECT_STORES = window.OBJECT_STORES;
 
-// Simple LocalStorage-based database functions
-class SimpleDB {
-    constructor() {
-        this.prefix = 'real_estate_';
-        this.initializeStores();
-    }
+// API Base URL
+const API_BASE = window.location.origin + '/api';
 
-    initializeStores() {
-        OBJECT_STORES.forEach(storeName => {
-            if (storeName !== 'keyval' && storeName !== 'settings') {
-                const key = this.prefix + storeName;
-                if (!localStorage.getItem(key)) {
-                    localStorage.setItem(key, JSON.stringify([]));
-                }
+// Helper function to make API calls
+async function apiCall(endpoint, method = 'GET', data = null) {
+    try {
+        const options = {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
             }
-        });
+        };
         
-        // Initialize settings
-        const settingsKey = this.prefix + 'settings';
-        if (!localStorage.getItem(settingsKey)) {
-            localStorage.setItem(settingsKey, JSON.stringify({ theme: 'dark', font: 16, pass: null, key: 'main' }));
+        if (data) {
+            options.body = JSON.stringify(data);
         }
-    }
-
-    async getAll(storeName) {
-        try {
-            const key = this.prefix + storeName;
-            const data = localStorage.getItem(key);
-            return data ? JSON.parse(data) : [];
-        } catch (error) {
-            console.error(`Error getting all from ${storeName}:`, error);
-            return [];
+        
+        const response = await fetch(`${API_BASE}${endpoint}`, options);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
-    }
-
-    async get(storeName, id) {
-        try {
-            const all = await this.getAll(storeName);
-            return all.find(item => item.id === id) || null;
-        } catch (error) {
-            console.error(`Error getting ${id} from ${storeName}:`, error);
-            return null;
-        }
-    }
-
-    async put(storeName, item) {
-        try {
-            const all = await this.getAll(storeName);
-            const index = all.findIndex(existing => existing.id === item.id);
-            
-            if (index >= 0) {
-                all[index] = item;
-            } else {
-                all.push(item);
-            }
-            
-            const key = this.prefix + storeName;
-            localStorage.setItem(key, JSON.stringify(all));
-            return item;
-        } catch (error) {
-            console.error(`Error putting item in ${storeName}:`, error);
-            throw error;
-        }
-    }
-
-    async delete(storeName, id) {
-        try {
-            const all = await this.getAll(storeName);
-            const filtered = all.filter(item => item.id !== id);
-            const key = this.prefix + storeName;
-            localStorage.setItem(key, JSON.stringify(filtered));
-            return true;
-        } catch (error) {
-            console.error(`Error deleting ${id} from ${storeName}:`, error);
-            throw error;
-        }
-    }
-
-    async clear(storeName) {
-        try {
-            const key = this.prefix + storeName;
-            localStorage.setItem(key, JSON.stringify([]));
-            return true;
-        } catch (error) {
-            console.error(`Error clearing ${storeName}:`, error);
-            throw error;
-        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error(`API call failed for ${endpoint}:`, error);
+        throw error;
     }
 }
 
-// Create global instance
-const db = new SimpleDB();
+// Database functions that match the original IndexedDB interface
+async function getAll(storeName) {
+    try {
+        return await apiCall(`/${storeName}`);
+    } catch (error) {
+        console.error(`Failed to get all from ${storeName}:`, error);
+        return [];
+    }
+}
 
-// Export functions for compatibility
-window.getAll = (storeName) => db.getAll(storeName);
-window.get = (storeName, id) => db.get(storeName, id);
-window.put = (storeName, item) => db.put(storeName, item);
-window.delete = (storeName, id) => db.delete(storeName, id);
-window.clear = (storeName) => db.clear(storeName);
+async function get(storeName, id) {
+    try {
+        return await apiCall(`/${storeName}/${id}`);
+    } catch (error) {
+        console.error(`Failed to get ${id} from ${storeName}:`, error);
+        return null;
+    }
+}
 
-// Initialize database
-console.log('SimpleDB initialized with LocalStorage');
+async function put(storeName, item) {
+    try {
+        const method = item.id && await get(storeName, item.id) ? 'PUT' : 'POST';
+        return await apiCall(`/${storeName}`, method, item);
+    } catch (error) {
+        console.error(`Failed to put item in ${storeName}:`, error);
+        throw error;
+    }
+}
+
+async function delete(storeName, id) {
+    try {
+        await apiCall(`/${storeName}/${id}`, 'DELETE');
+        return true;
+    } catch (error) {
+        console.error(`Failed to delete ${id} from ${storeName}:`, error);
+        throw error;
+    }
+}
+
+async function clear(storeName) {
+    try {
+        await apiCall(`/${storeName}`, 'DELETE');
+        return true;
+    } catch (error) {
+        console.error(`Failed to clear ${storeName}:`, error);
+        throw error;
+    }
+}
+
+// Export functions globally for compatibility
+window.getAll = getAll;
+window.get = get;
+window.put = put;
+window.delete = delete;
+window.clear = clear;
+
+console.log('Database layer initialized with PostgreSQL API');
