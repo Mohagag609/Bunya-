@@ -1,0 +1,255 @@
+/* Optimized CSS for better performance */
+:root{
+  --bg: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+  --panel: rgba(255, 255, 255, 0.05);
+  --card: rgba(255, 255, 255, 0.08);
+  --line: rgba(255, 255, 255, 0.1);
+  --ink: #ffffff;
+  --muted: rgba(255, 255, 255, 0.7);
+  --brand: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --ok: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  --warn: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+  --gold: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  --accent: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  --shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.3);
+  --border-radius: 12px;
+  --border-radius-lg: 16px;
+}
+
+:root[data-theme="light"]{
+  --bg: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  --panel: rgba(255, 255, 255, 0.9);
+  --card: rgba(255, 255, 255, 0.95);
+  --line: rgba(0, 0, 0, 0.1);
+  --ink: #1a1a1a;
+  --muted: rgba(0, 0, 0, 0.6);
+  --brand: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --ok: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  --warn: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+  --gold: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  --accent: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  --shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap');
+
+/* Reset and base styles */
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'Cairo',system-ui,Segoe UI,Roboto;font-weight:400;line-height:1.6}
+
+/* Layout */
+.container{max-width:1400px;margin:0 auto;padding:16px;min-height:100vh}
+.header{display:flex;gap:16px;align-items:center;justify-content:space-between;padding:16px 0;background:var(--panel);border-radius:var(--border-radius);margin-bottom:16px;box-shadow:var(--shadow)}
+.brand{display:flex;gap:12px;align-items:center}
+.logo{width:40px;height:40px;border-radius:var(--border-radius);background:var(--brand);display:grid;place-items:center;font-size:20px;box-shadow:var(--shadow);transition:transform 0.1s ease}
+.logo:hover{transform:scale(1.02)}
+h1{font-size:20px;margin:0;font-weight:600;background:var(--brand);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+
+.main-layout {
+  display: flex;
+  gap: 16px;
+  margin-top: 0;
+  align-items: flex-start;
+  min-height: calc(100vh - 150px);
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 200px;
+  flex-shrink: 0;
+  background: var(--panel);
+  border-radius: var(--border-radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--line);
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+  background: var(--panel);
+  border-radius: var(--border-radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--line);
+}
+
+/* Tabs */
+.tab{
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: var(--border-radius);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.1s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.tab:hover {
+  background: var(--card);
+  color: var(--ink);
+  transform: translateX(-1px);
+  box-shadow: var(--shadow);
+}
+
+.tab.active {
+  background: var(--brand);
+  color: white;
+  box-shadow: var(--shadow);
+}
+
+/* Buttons */
+.btn{
+  padding: 8px 16px;
+  border-radius: var(--border-radius);
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.1s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  background: var(--brand);
+  color: white;
+  box-shadow: var(--shadow);
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lg);
+}
+
+.btn.secondary {
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.btn.secondary:hover {
+  background: var(--brand);
+  color: white;
+}
+
+/* Forms */
+.input, .select, .textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  font-size: 14px;
+  transition: all 0.1s ease;
+}
+
+.input:focus, .select:focus, .textarea:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+/* Tables */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: var(--card);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.table th, .table td {
+  padding: 10px 12px;
+  text-align: right;
+  border-bottom: 1px solid var(--line);
+}
+
+.table th {
+  background: var(--panel);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.table tr:hover {
+  background: var(--panel);
+}
+
+/* Cards */
+.card {
+  background: var(--card);
+  border-radius: var(--border-radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--line);
+  margin-bottom: 16px;
+}
+
+/* Tools */
+.tools {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .main-layout {
+    flex-direction: column;
+  }
+  
+  .sidebar {
+    width: 100%;
+  }
+  
+  .container {
+    padding: 8px;
+  }
+  
+  .header {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .tools {
+    justify-content: center;
+  }
+}
+
+/* Performance optimizations */
+* {
+  will-change: auto;
+}
+
+.tab, .btn, .input, .select, .textarea {
+  will-change: transform, background-color, box-shadow;
+}
+
+/* Reduce animations on low-end devices */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Hardware acceleration for smooth animations */
+.tab, .btn, .logo {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}

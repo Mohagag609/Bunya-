@@ -1,46 +1,68 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
-  db:
+  # قاعدة البيانات PostgreSQL
+  database:
     image: postgres:13
+    container_name: real_estate_db
     environment:
-      POSTGRES_DB: estate_db
-      POSTGRES_USER: estate_user
-      POSTGRES_PASSWORD: estate_password
+      POSTGRES_DB: real_estate_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./config/database/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U estate_user -d estate_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    networks:
+      - real_estate_network
 
-  # Estate Manager Application
-  web:
-    build: .
-    ports:
-      - "8000:8000"
+  # الخادم الخلفي Flask
+  backend:
+    build:
+      context: .
+      dockerfile: config/deployment/Dockerfile
+    container_name: real_estate_backend
     environment:
-      - DATABASE_URL=postgresql://estate_user:estate_password@db:5432/estate_db
       - FLASK_ENV=production
-      - SECRET_KEY=your-secret-key-change-in-production
+      - DATABASE_URL=postgresql://postgres:password@database:5432/real_estate_db
+    ports:
+      - "5000:5000"
     depends_on:
-      db:
-        condition: service_healthy
+      - database
     volumes:
-      - ./logs:/app/logs
-    restart: unless-stopped
+      - ./backend:/app/backend
+      - ./config:/app/config
+    networks:
+      - real_estate_network
 
-  # Redis for caching (optional)
+  # خادم الويب Nginx
+  nginx:
+    image: nginx:alpine
+    container_name: real_estate_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/deployment/nginx.conf:/etc/nginx/nginx.conf
+      - ./frontend:/usr/share/nginx/html
+    depends_on:
+      - backend
+    networks:
+      - real_estate_network
+
+  # Redis للتخزين المؤقت
   redis:
-    image: redis:6-alpine
+    image: redis:alpine
+    container_name: real_estate_redis
     ports:
       - "6379:6379"
-    restart: unless-stopped
+    networks:
+      - real_estate_network
 
 volumes:
   postgres_data:
+
+networks:
+  real_estate_network:
+    driver: bridge

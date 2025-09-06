@@ -2,13 +2,17 @@ services:
   - type: web
     name: real-estate-manager-modern
     env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: python -m http.server 8000
+    buildCommand: pip install -r requirements-simple.txt
+    startCommand: python -m gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 app:app
     envVars:
       - key: PORT
-        value: 8000
+        value: 5000
       - key: PYTHON_VERSION
         value: 3.11.0
+      - key: FLASK_ENV
+        value: production
+      - key: DATABASE_URL
+        value: postgresql://neondb_owner:npg_y2HEKXndz1Sc@ep-orange-salad-ad5gd6zq-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
     healthCheckPath: /health
     autoDeploy: true
     branch: main

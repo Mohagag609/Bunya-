@@ -1,0 +1,43 @@
+{
+  "name": "real-estate-manager-modern",
+  "version": "2.0.0",
+  "description": "مدير الاستثمار العقاري - النسخة الحديثة",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "dev": "python -m http.server 8000",
+    "build": "npm run minify-css && npm run minify-js",
+    "minify-css": "cleancss -o dist/styles.min.css src/styles/*.css",
+    "minify-js": "terser src/components/*.js src/ui/*.js src/utils/*.js -o dist/scripts.min.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "docker:build": "docker build -f Dockerfile.modern -t real-estate-manager-modern .",
+    "docker:run": "docker run -p 8000:8000 real-estate-manager-modern",
+    "docker:compose": "docker-compose -f docker-compose.modern.yml up -d"
+  },
+  "keywords": [
+    "real-estate",
+    "property-management",
+    "saas",
+    "modern-ui",
+    "rtl",
+    "arabic"
+  ],
+  "author": "Real Estate Manager Team",
+  "license": "MIT",
+  "devDependencies": {
+    "clean-css-cli": "^5.6.2",
+    "terser": "^5.19.4"
+  },
+  "engines": {
+    "node": ">=14.0.0",
+    "python": ">=3.8.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/real-estate-manager.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/real-estate-manager/issues"
+  },
+  "homepage": "https://github.com/your-org/real-estate-manager#readme"
+}

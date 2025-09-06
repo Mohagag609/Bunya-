@@ -1,0 +1,17 @@
+# Python requirements for Real Estate Manager
+# Compatible with Render.com deployment
+
+# No external dependencies needed for static site hosting
+# The application runs entirely in the browser using vanilla JavaScript
+
+# If you need server-side functionality in the future, add dependencies here:
+# flask==2.3.3
+# gunicorn==21.2.0
+# python-dotenv==1.0.0
+# requests==2.31.0
+# sqlite3 (built-in with Python)
+
+# For development and testing (optional):
+# pytest==7.4.3
+# black==23.9.1
+# flake8==6.1.0

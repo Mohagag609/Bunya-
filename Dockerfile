@@ -1,37 +1,40 @@
-# Estate Manager - Production Dockerfile
-FROM python:3.11-slim
+# استخدام Python 3.9 كصورة أساسية
+FROM python:3.9-slim
 
-# Set working directory
+# تعيين متغيرات البيئة
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV FLASK_APP=backend/server.py
+ENV FLASK_ENV=production
+
+# تعيين مجلد العمل
 WORKDIR /app
 
-# Install system dependencies
+# تثبيت متطلبات النظام
 RUN apt-get update && apt-get install -y \
     gcc \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
-COPY backend/requirements.txt .
+# نسخ ملفات المتطلبات
+COPY config/database/requirements.txt .
 
-# Install Python dependencies
+# تثبيت متطلبات Python
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY . .
+# نسخ ملفات التطبيق
+COPY backend/ ./backend/
+COPY frontend/ ./frontend/
+COPY config/ ./config/
 
-# Create logs directory
-RUN mkdir -p logs
+# إنشاء مجلدات مطلوبة
+RUN mkdir -p logs uploads
 
-# Set environment variables
-ENV FLASK_APP=backend.server:app
-ENV PYTHONPATH=/app
+# تعيين الصلاحيات
+RUN chmod +x scripts/*.sh
 
-# Expose port
-EXPOSE 8000
+# فتح المنفذ
+EXPOSE 5000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
-# Run the application
-CMD ["gunicorn", "backend.server:app", "--config", "gunicorn.conf.py"]
+# تشغيل التطبيق
+CMD ["python", "backend/server.py"]
