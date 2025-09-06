@@ -86,8 +86,8 @@ async function initializeApp() {
     }
 
     try {
-        console.log("Loading initial state from backend API...");
-        state = await loadStateFromAPI();
+        console.log("Loading initial state from LocalStorage...");
+        state = await loadStateFromLocalStorage();
 
         // Ensure state has default empty arrays if they are missing from the DB
         window.OBJECT_STORES.forEach(storeName => {
@@ -1153,12 +1153,12 @@ async function initializeApp() {
 
 // دالة persist للتوافق مع الكود الموجود
 function persist() {
-    // لا نحتاج إلى فعل شيء هنا لأن البيانات تحفظ مباشرة عبر API
-    console.log('persist() called - data already saved via API');
+    // البيانات تحفظ تلقائياً في LocalStorage
+    console.log('persist() called - data saved to LocalStorage');
 }
 
-async function loadStateFromAPI() {
-    console.log("Loading all application data from the backend...");
+async function loadStateFromLocalStorage() {
+    console.log("Loading all application data from LocalStorage...");
     const newState = {};
 
     // We need the list of all stores to fetch from.
@@ -1185,7 +1185,7 @@ async function loadStateFromAPI() {
         }
     });
 
-    console.log("State loaded successfully from API.", newState);
+    console.log("State loaded successfully from LocalStorage.", newState);
     return newState;
 }
 
