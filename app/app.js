@@ -9,47 +9,58 @@ let currentParam = null;
 document.addEventListener('DOMContentLoaded', initializeApp);
 
 async function initializeApp() {
-    // Register Service Worker
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js')
-                .then(reg => console.log('ServiceWorker registered.', reg))
-                .catch(err => console.error('ServiceWorker registration failed:', err));
-        });
-    }
-
     try {
-        await openDB();
-        const migrationComplete = await getKeyVal('migrationComplete');
-        if (migrationComplete) {
-            console.log("Loading state from IndexedDB...");
-            state = await loadStateFromDB();
-        } else {
-            console.log("Checking for localStorage data to migrate...");
-            const localStorageState = loadFromLocalStorage();
-            if (localStorageState && localStorageState.customers && localStorageState.customers.length > 0) {
-                console.log("Migrating data from localStorage to IndexedDB...");
-                state = localStorageState;
-                await persist(); // Persist the migrated state to IndexedDB
-                console.log("Migration successful.");
+        console.log("Initializing Electron app...");
+        const migrationComplete = await getKeyVal('sqlite_migration_complete');
+
+        if (!migrationComplete) {
+            const viewEl = document.getElementById('view');
+            viewEl.innerHTML = `<div class="card"><h3>الترحيل إلى قاعدة بيانات جديدة...</h3><p>يتم الآن نقل بياناتك من الإصدار القديم. الرجاء عدم إغلاق التطبيق.</p></div>`;
+
+            console.log("Starting IndexedDB to SQLite migration...");
+            const data = await exportAllFromIndexedDB();
+
+            if (Object.keys(data).length > 0) {
+                console.log("Exported data from IndexedDB, sending to main process for import...");
+                const result = await window.electronAPI.importToSqlite(data);
+                if (result.success) {
+                    console.log("Migration import successful.");
+                    await setKeyVal('sqlite_migration_complete', true);
+                    alert('تم ترحيل البيانات بنجاح! سيتم إعادة تشغيل التطبيق الآن.');
+                    location.reload();
+                    return; // Stop execution until reload
+                } else {
+                    console.error("Migration failed:", result.error);
+                    alert(`فشل ترحيل البيانات: ${result.error}`);
+                    viewEl.innerHTML = `<div class="card warn"><h3>فشل الترحيل</h3><p>حدث خطأ أثناء نقل البيانات. الرجاء مراجعة المطور.</p><pre>${result.error}</pre></div>`;
+                    return;
+                }
             } else {
-                console.log("No data to migrate, loading fresh state from DB.");
-                state = await loadStateFromDB(); // Load empty state
+                console.log("No data found in IndexedDB to migrate. Marking migration as complete.");
+                await setKeyVal('sqlite_migration_complete', true);
             }
-            await setKeyVal('migrationComplete', true);
         }
 
-        // Ensure state has default empty arrays for all stores if they are null/undefined
-        OBJECT_STORES.forEach(storeName => {
-            if (storeName !== 'keyval' && storeName !== 'settings' && !state[storeName]) {
-                state[storeName] = [];
+        console.log("Loading state from SQLite...");
+        state = await loadStateFromDB();
+
+        // The old OBJECT_STORES is deprecated, we use the new table names.
+        const tableNames = ['customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments', 'partnerDebts', 'safes', 'transfers', 'auditLog', 'vouchers', 'brokerDues', 'brokers', 'partnerGroups', 'partnerGroupMembers'];
+        tableNames.forEach(tableName => {
+            if (!state[tableName]) {
+                state[tableName] = [];
             }
         });
+
         if (typeof state.settings !== 'object' || state.settings === null) { state.settings = {theme:'dark',font:16, pass:null}; }
         if (!state.locked) { state.locked = false; }
         if (!state.safes || state.safes.length === 0) {
-            state.safes = [{ id: uid('S'), name: 'الخزنة الرئيسية', balance: 0 }];
-            await persist();
+            // This is bootstrap logic. It should be handled by the DAL/migration now.
+            // For now, we'll keep it to ensure the app runs.
+            console.log("No safes found, creating a default one.");
+            const newSafe = { id: uid('S'), name: 'الخزنة الرئيسية', balance: 0 };
+            await window.electronAPI.run('INSERT INTO safes (id, name, balance) VALUES (?, ?, ?)', [newSafe.id, newSafe.name, newSafe.balance]);
+            state.safes = [newSafe];
         }
 
         // Setup UI and global event listeners
@@ -64,95 +75,131 @@ async function initializeApp() {
         console.error("Failed to initialize the application:", error);
         const viewEl = document.getElementById('view');
         if (viewEl) {
-            viewEl.innerHTML = `<div class="card warn"><h3>خطأ فادح</h3><p>لم يتمكن التطبيق من التحميل. قد تكون قاعدة البيانات تالفة أو أن متصفحك لا يدعم IndexedDB.</p><pre>${error.stack}</pre></div>`;
+            viewEl.innerHTML = `<div class="card warn"><h3>خطأ فادح</h3><p>لم يتمكن التطبيق من التحميل. فشل الاتصال بقاعدة البيانات.</p><pre>${error.stack}</pre></div>`;
         }
     }
 }
 
-/* ===== DATA PERSISTENCE & MIGRATION ===== */
+/* ===== DATA PERSISTENCE & MIGRATION (REFACTORED) ===== */
+
+// This function is now a NO-OP. All data changes should be granular IPC calls.
 async function persist() {
-    try {
-        const db = await openDB();
-        const transaction = db.transaction(OBJECT_STORES.filter(s => s !== 'keyval'), 'readwrite');
-        const promises = [];
-        for (const storeName of OBJECT_STORES) {
-            if (storeName === 'keyval') continue;
+    console.warn("DEPRECATED: persist() called. Refactor to use specific data modification functions.");
+    // Example: instead of changing state.customers and calling persist(),
+    // call a new function like `addCustomer(data)` which uses electronAPI.run().
+    return Promise.resolve();
+}
 
-            const store = transaction.objectStore(storeName);
-            // This is a simple but potentially slow strategy: clear and write all.
-            // A more advanced strategy would diff the state.
-            await (new Promise(res => store.clear().onsuccess = res));
+async function getKeyVal(key) {
+    const result = await window.electronAPI.get('SELECT value FROM keyval WHERE key = ?', [key]);
+    return result ? result.value : undefined;
+}
 
-            const dataToStore = state[storeName];
-            if (storeName === 'settings') {
-                if (dataToStore) {
-                    await (new Promise(res => store.put({key: 'appSettings', ...dataToStore}).onsuccess = res));
-                }
-            } else if (dataToStore && Array.isArray(dataToStore)) {
-                for(const item of dataToStore) {
-                    if(typeof item === 'object' && item !== null && item.id) {
-                       await (new Promise(res => store.put(item).onsuccess = res));
-                    }
-                }
-            }
-        }
-        await transaction.done;
-        applySettings();
-    } catch (error) { console.error('Failed to persist state to IndexedDB:', error); }
+async function setKeyVal(key, value) {
+    return window.electronAPI.run('INSERT OR REPLACE INTO keyval (key, value) VALUES (?, ?)', [key, value]);
 }
 
 async function loadStateFromDB() {
     const newState = {};
-    const db = await openDB();
-    const transaction = db.transaction(OBJECT_STORES.filter(s => s !== 'keyval'), 'readonly');
-    const promises = [];
-    for (const storeName of OBJECT_STORES) {
-        if (storeName === 'keyval') continue;
-        const store = transaction.objectStore(storeName);
-        promises.push(new Promise((resolve, reject) => {
-            const req = store.getAll();
-            req.onsuccess = () => {
-                if (storeName === 'settings') {
-                    newState.settings = req.result.length > 0 ? req.result[0] : {theme:'dark',font:16, pass:null};
-                } else {
-                    newState[storeName] = req.result;
-                }
-                resolve();
-            };
-            req.onerror = (e) => reject(e.target.error);
-        }));
-    }
+    const tableNames = ['customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments', 'partnerDebts', 'safes', 'transfers', 'auditLog', 'vouchers', 'brokerDues', 'brokers', 'partnerGroups', 'partnerGroupMembers'];
+
+    const promises = tableNames.map(tableName =>
+        window.electronAPI.all(`SELECT * FROM ${tableName}`).then(rows => {
+            // The `partners` field in partnerGroups was JSON, we need to parse it.
+            if (tableName === 'partnerGroups' && rows) {
+                rows.forEach(async (row) => {
+                    const members = await window.electronAPI.all('SELECT * FROM partnerGroupMembers WHERE groupId = ?', [row.id]);
+                    row.partners = members.map(m => ({ partnerId: m.partnerId, percent: m.percent }));
+                });
+            }
+            newState[tableName] = rows || [];
+        })
+    );
+
+    // Handle settings separately
+    promises.push(
+        window.electronAPI.get(`SELECT * FROM settings WHERE key = ?`, ['appSettings']).then(settings => {
+            newState.settings = settings || { key: 'appSettings', theme: 'dark', font: 16, pass: null };
+        })
+    );
+
     await Promise.all(promises);
     return newState;
 }
 
-function loadFromLocalStorage(){
-  const APPKEY_LEGACY='estate_pro_final_v3';
-  try{
-    const s_str = localStorage.getItem(APPKEY_LEGACY);
-    if (!s_str) return null;
-    const s = JSON.parse(s_str)||{};
-    if (Object.keys(s).length === 0) return null;
-    if(s.customers&&s.customers.length>0){s.customers.forEach(c=>{c.nationalId=c.nationalId||'';c.address=c.address||'';c.status=c.status||'نشط';c.notes=c.notes||'';});}
-    if(s.units&&s.units.length>0){s.units.forEach(u=>{u.area=u.area||'';u.notes=u.notes||'';u.unitType=u.unitType||'سكني';if(u.plans&&u.plans.length>0){u.totalPrice=u.plans[0].price;}else if(!u.hasOwnProperty('totalPrice')){u.totalPrice=0;}delete u.plans;});}
-    if(s.contracts&&s.contracts.length>0){s.contracts.forEach(c=>{c.brokerName=c.brokerName||'';c.commissionSafeId=c.commissionSafeId||null;c.discountAmount=c.discountAmount||0;delete c.planName;});}
-    s.safes=s.safes||[];if(s.safes.length===0){s.safes.push({id:uid('S'),name:'الخزنة الرئيسية',balance:0});}else{s.safes.forEach(safe=>{safe.balance=safe.balance||0;});}
-    s.auditLog=s.auditLog||[];s.vouchers=s.vouchers||[];
-    if(s.payments&&s.payments.length>0&&s.vouchers.length===0){console.log('Migrating payments to vouchers...');s.payments.forEach(p=>{const unit=s.units.find(u=>u.id===p.unitId);const contract=s.contracts.find(c=>c.unitId===p.unitId);const customer=contract?s.customers.find(cust=>cust.id===contract.customerId):null;s.vouchers.push({id:uid('V'),type:'receipt',date:p.date,amount:p.amount,safeId:p.safeId,description:`دفعة للوحدة ${unit?unit.code:'غير معروفة'}`,payer:customer?customer.name:'غير محدد',linked_ref:p.unitId});});s.contracts.forEach(c=>{if(c.brokerAmount>0){const unit=s.units.find(u=>u.id===c.unitId);s.vouchers.push({id:uid('V'),type:'payment',date:c.start,amount:c.brokerAmount,safeId:c.commissionSafeId,description:`عمولة سمسار للوحدة ${unit?unit.code:'غير معروفة'}`,beneficiary:c.brokerName||'سمسار',linked_ref:c.id});}});}
-    s.brokerDues=s.brokerDues||[];s.brokers=s.brokers||[];s.partnerGroups=s.partnerGroups||[];
-    if(s.brokers.length===0&&(s.contracts.some(c=>c.brokerName)||s.brokerDues.some(d=>d.brokerName))){console.log('Populating brokers list from existing data...');const brokerNames=new Set([...s.contracts.map(c=>c.brokerName),...s.brokerDues.map(d=>d.brokerName)].filter(Boolean));brokerNames.forEach(name=>{s.brokers.push({id:uid('B'),name:name,phone:'',notes:''});});}
-    const defaultState = {customers:[],units:[],partners:[],unitPartners:[],contracts:[],installments:[],payments:[],partnerDebts:[],safes:[],transfers:[],auditLog:[],vouchers:[],brokerDues:[],brokers:[],partnerGroups:[],settings:{theme:'dark',font:16},locked:false};
-    return {...defaultState, ...s};
-  }catch{
-    return null;
-  }
+// This function is no longer needed as the new migration path is IndexedDB -> SQLite
+function loadFromLocalStorage(){ return null; }
+
+/**
+ * Exports all data from the legacy IndexedDB.
+ * This should only be run once during the migration process.
+ */
+async function exportAllFromIndexedDB() {
+    const DB_NAME = 'estate_pro_db';
+    const DB_VERSION = 1;
+    const OBJECT_STORES = [
+        'customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments',
+        'partnerDebts', 'safes', 'transfers', 'auditLog', 'vouchers', 'brokerDues',
+        'brokers', 'partnerGroups', 'settings', 'keyval'
+    ];
+
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+        request.onerror = (event) => {
+            console.error('Legacy DB error:', event.target.error);
+            reject('Database error: ' + event.target.error);
+        };
+
+        request.onsuccess = (event) => {
+            const db = event.target.result;
+            const data = {};
+            let storesProcessed = 0;
+
+            if (db.objectStoreNames.length === 0) {
+                console.log("Legacy DB is empty or does not exist.");
+                resolve({});
+                return;
+            }
+
+            const transaction = db.transaction(db.objectStoreNames, 'readonly');
+            const storesToProcess = Array.from(db.objectStoreNames);
+
+            storesToProcess.forEach(storeName => {
+                const store = transaction.objectStore(storeName);
+                const request = store.getAll();
+                request.onsuccess = () => {
+                    data[storeName] = request.result;
+                    storesProcessed++;
+                    if (storesProcessed === storesToProcess.length) {
+                        resolve(data);
+                    }
+                };
+                request.onerror = (event) => {
+                    console.error(`Error fetching from ${storeName}:`, event.target.error);
+                    reject(event.target.error);
+                };
+            });
+        };
+
+        // onupgradeneeded is not needed for a read-only export.
+        // If the DB doesn't exist, onsuccess will be called with an empty DB.
+    });
 }
 
-/* ===== UNDO/REDO ===== */
-async function undo() { if (historyIndex > 0) { historyIndex--; const restoredState = JSON.parse(JSON.stringify(historyStack[historyIndex])); Object.keys(state).forEach(key => delete state[key]); Object.assign(state, restoredState); await persist(); nav(currentView, currentParam); updateUndoRedoButtons(); } }
-async function redo() { if (historyIndex < historyStack.length - 1) { historyIndex++; const restoredState = JSON.parse(JSON.stringify(historyStack[historyIndex])); Object.keys(state).forEach(key => delete state[key]); Object.assign(state, restoredState); await persist(); nav(currentView, currentParam); updateUndoRedoButtons(); } }
-function saveState() { historyStack = historyStack.slice(0, historyIndex + 1); historyStack.push(JSON.parse(JSON.stringify(state))); if (historyStack.length > 50) { historyStack.shift(); } historyIndex = historyStack.length - 1; updateUndoRedoButtons(); }
-function updateUndoRedoButtons() { const undoBtn = document.getElementById('undoBtn'); const redoBtn = document.getElementById('redoBtn'); if (undoBtn) undoBtn.disabled = historyIndex <= 0; if (redoBtn) redoBtn.disabled = historyIndex >= historyStack.length - 1; }
+/* ===== UNDO/REDO (DISABLED) ===== */
+// The undo/redo functionality was based on in-memory state snapshots,
+// which is not feasible with a database backend. A proper implementation
+// would require a command pattern, which is out of scope for this migration.
+async function undo() { /* disabled */ }
+async function redo() { /* disabled */ }
+function saveState() { /* disabled */ }
+function updateUndoRedoButtons() {
+    const undoBtn = document.getElementById('undoBtn');
+    const redoBtn = document.getElementById('redoBtn');
+    if (undoBtn) undoBtn.disabled = true;
+    if (redoBtn) redoBtn.disabled = true;
+}
 
 function setupGlobalEventListeners() {
     document.getElementById('themeSel').value = state.settings.theme || 'dark';
@@ -184,7 +231,23 @@ function setupGlobalEventListeners() {
 /* ===== UTILS & HELPERS ===== */
 function uid(p){ return p+'-'+Math.random().toString(36).slice(2,9); }
 function today(){ return new Date().toISOString().slice(0,10); }
-function logAction(description, details = {}) { if (!state.auditLog) state.auditLog = []; state.auditLog.push({ id: uid('LOG'), timestamp: new Date().toISOString(), description, details }); }
+async function logAction(description, details = {}) {
+  const logEntry = {
+    id: uid('LOG'),
+    timestamp: new Date().toISOString(),
+    description,
+    details: JSON.stringify(details)
+  };
+  const sql = `INSERT INTO auditLog (id, timestamp, description, details) VALUES (?, ?, ?, ?)`;
+  try {
+    await window.electronAPI.run(sql, [logEntry.id, logEntry.timestamp, logEntry.description, logEntry.details]);
+    // Optimistically update state
+    if (!state.auditLog) state.auditLog = [];
+    state.auditLog.push(logEntry);
+  } catch (err) {
+    console.error("Failed to log action:", err);
+  }
+}
 const fmt = new Intl.NumberFormat('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 function egp(v){ v=Number(v||0); return isFinite(v)?fmt.format(v)+' ج.م':'' }
 function applySettings(){ if(state && state.settings) { document.documentElement.setAttribute('data-theme', state.settings.theme||'dark'); document.documentElement.style.fontSize=(state.settings.font||16)+'px'; } }
@@ -768,7 +831,7 @@ function renderCustomers(){
     </div>
   </div>`;
 
-  window.addCustomer=()=>{
+  window.addCustomer = async () => {
     const name = document.getElementById('c-name').value.trim();
     const phone = document.getElementById('c-phone').value.trim();
     const nationalId = document.getElementById('c-nationalId').value.trim();
@@ -781,20 +844,33 @@ function renderCustomers(){
       return alert('عميل بنفس الاسم موجود بالفعل. الرجاء استخدام اسم مختلف.');
     }
 
-    saveState();
+    // No longer using saveState() for undo, as state is not fully in memory.
+    // saveState();
+
     const newCustomer = { id: uid('C'), name, phone, nationalId, address, status, notes };
-    logAction('إضافة عميل جديد', { id: newCustomer.id, name: newCustomer.name });
-    state.customers.push(newCustomer);
-    persist();
+    const sql = `INSERT INTO customers (id, name, phone, nationalId, address, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+    const params = [newCustomer.id, name, phone, nationalId, address, status, notes];
 
-    // Reset form
-    document.getElementById('c-name').value = '';
-    document.getElementById('c-phone').value = '';
-    document.getElementById('c-nationalId').value = '';
-    document.getElementById('c-address').value = '';
-    document.getElementById('c-notes').value = '';
+    try {
+      await window.electronAPI.run(sql, params);
+      await logAction('إضافة عميل جديد', { id: newCustomer.id, name: newCustomer.name });
 
-    draw();
+      // Optimistically update the UI
+      state.customers.push(newCustomer);
+
+      // Reset form
+      document.getElementById('c-name').value = '';
+      document.getElementById('c-phone').value = '';
+      document.getElementById('c-nationalId').value = '';
+      document.getElementById('c-address').value = '';
+      document.getElementById('c-notes').value = '';
+
+      draw();
+      alert('تم إضافة العميل بنجاح.');
+    } catch (err) {
+      console.error("Failed to add customer:", err);
+      alert('فشل حفظ العميل في قاعدة البيانات.');
+    }
   };
 
   window.expCustomers=()=>{
@@ -803,17 +879,35 @@ function renderCustomers(){
     exportCSV(headers, rows, 'customers.csv');
   };
 
-  document.getElementById('c-imp').onchange=(e)=>{
+  document.getElementById('c-imp').onchange= async (e)=>{
     const f=e.target.files[0]; if(!f) return;
     const r=new FileReader();
-    r.onload=()=>{
-      saveState();
+    r.onload= async ()=>{
+      // This needs to be a transaction
       const lines=String(r.result).split(/\r?\n/).slice(1);
+      const customersToAdd = [];
       lines.forEach(line=>{
         const [name,phone,nationalId,address,status,notes]=line.split(',').map(x=>x?.replace(/^"|"$/g,'')||'');
-        if(name) state.customers.push({id:uid('C'),name,phone,nationalId,address,status,notes});
+        if(name) {
+            const newCustomer = {id:uid('C'),name,phone,nationalId,address,status,notes};
+            customersToAdd.push(newCustomer);
+        }
       });
-      persist(); draw();
+
+      // This is not yet a real transaction, but we'll implement that later.
+      try {
+        for (const c of customersToAdd) {
+            const sql = `INSERT INTO customers (id, name, phone, nationalId, address, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+            const params = [c.id, c.name, c.phone, c.nationalId, c.address, c.status, c.notes];
+            await window.electronAPI.run(sql, params);
+            state.customers.push(c);
+        }
+        draw();
+        alert(`تم استيراد ${customersToAdd.length} عميل بنجاح.`);
+      } catch (err) {
+          console.error("Failed to import customers:", err);
+          alert("فشل استيراد العملاء.");
+      }
     };
     r.readAsText(f,'utf-8');
   };
@@ -890,71 +984,98 @@ function renderCustomerDetails(customerId) {
         </div>
     `;
 }
-window.inlineUpd=(coll,id,key,val)=>{
-  saveState();
-  const o=state[coll].find(x=>x.id===id);
-  if(o){
+window.inlineUpd = async (coll, id, key, val) => {
+    const o = state[coll].find(x => x.id === id);
+    if (!o) return;
+
     const oldValue = o[key];
-    o[key]=val;
-    logAction(`تعديل مباشر في ${coll}`, { collection: coll, id, key, oldValue, newValue: val });
-    persist();
-  }
-};
-
-window.updatePartnerPercent = (element, linkId, originalPercent) => {
-  const link = state.unitPartners.find(up => up.id === linkId);
-  if (!link) return;
-
-  const newPercent = parseNumber(element.textContent);
-  if (isNaN(newPercent) || newPercent <= 0) {
-    alert('الرجاء إدخال نسبة مئوية صحيحة.');
-    element.textContent = originalPercent; // Revert
-    return;
-  }
-
-  const otherPartners = state.unitPartners.filter(up => up.unitId === link.unitId && up.id !== linkId);
-  const otherPartnersTotal = otherPartners.reduce((sum, p) => sum + p.percent, 0);
-
-  if (otherPartnersTotal + newPercent > 100) {
-    alert(`لا يمكن حفظ هذه النسبة. مجموع نسب الشركاء الآخرين هو ${otherPartnersTotal}%. إضافة ${newPercent}% سيجعل المجموع يتجاوز 100%.`);
-    element.textContent = originalPercent; // Revert
-    return;
-  }
-
-  saveState();
-  link.percent = newPercent;
-  logAction('تعديل نسبة الشريك', { unitPartnerId: linkId, newPercent });
-  persist();
-  // Re-render the view to update the total percentage badge
-  nav('unit-details', link.unitId);
-  alert('تم تحديث النسبة بنجاح.');
-};
-
-window.delRow=(coll,id)=>{
-  const nameMap = {
-    customers: 'العميل',
-    units: 'الوحدة',
-    partners: 'الشريك',
-    unitPartners: 'ربط شريك بوحدة',
-    contracts: 'العقد',
-    installments: 'القسط',
-    safes: 'الخزنة'
-  };
-  const collName = nameMap[coll] || coll;
-  const itemToDelete = state[coll] ? state[coll].find(x=>x.id===id) : undefined;
-  const itemName = itemToDelete?.name || itemToDelete?.code || id;
-
-  if(confirm(`هل أنت متأكد من حذف ${collName} "${itemName}"؟ هذا الإجراء لا يمكن التراجع عنه.`)){
-    saveState();
-    logAction(`حذف ${collName}`, { collection: coll, id, deletedItem: JSON.stringify(itemToDelete) });
-    state[coll]=state[coll].filter(x=>x.id!==id);
-    persist();
-    if (coll === 'unitPartners') {
-      renderUnitDetails(itemToDelete.unitId);
-    } else {
-      nav(coll);
+    // This is a simple update, but complex cases might need more specific SQL.
+    const sql = `UPDATE ${coll} SET ${key} = ? WHERE id = ?`;
+    try {
+        await window.electronAPI.run(sql, [val, id]);
+        await logAction(`تعديل مباشر في ${coll}`, { collection: coll, id, key, oldValue, newValue: val });
+        // Optimistically update state
+        o[key] = val;
+    } catch (err) {
+        console.error(`Failed to update ${coll}:`, err);
+        alert('فشل تحديث العنصر.');
+        // Revert optimistic update
+        o[key] = oldValue;
     }
-  }
+};
+
+window.updatePartnerPercent = async (element, linkId, originalPercent) => {
+    const link = state.unitPartners.find(up => up.id === linkId);
+    if (!link) return;
+
+    const newPercent = parseNumber(element.textContent);
+    if (isNaN(newPercent) || newPercent <= 0) {
+        alert('الرجاء إدخال نسبة مئوية صحيحة.');
+        element.textContent = originalPercent; // Revert
+        return;
+    }
+
+    const otherPartners = state.unitPartners.filter(up => up.unitId === link.unitId && up.id !== linkId);
+    const otherPartnersTotal = otherPartners.reduce((sum, p) => sum + p.percent, 0);
+
+    if (otherPartnersTotal + newPercent > 100) {
+        alert(`لا يمكن حفظ هذه النسبة. مجموع نسب الشركاء الآخرين هو ${otherPartnersTotal}%. إضافة ${newPercent}% سيجعل المجموع يتجاوز 100%.`);
+        element.textContent = originalPercent; // Revert
+        return;
+    }
+
+    try {
+        await window.electronAPI.run('UPDATE unitPartners SET percent = ? WHERE id = ?', [newPercent, linkId]);
+        await logAction('تعديل نسبة الشريك', { unitPartnerId: linkId, newPercent });
+        link.percent = newPercent; // Optimistic update
+        nav('unit-details', link.unitId);
+        alert('تم تحديث النسبة بنجاح.');
+    } catch (err) {
+        console.error("Failed to update partner percent:", err);
+        alert('فشل تحديث نسبة الشريك.');
+        element.textContent = originalPercent; // Revert
+    }
+};
+
+window.delRow = async (coll, id) => {
+    const nameMap = {
+        customers: 'العميل',
+        units: 'الوحدة',
+        partners: 'الشريك',
+        unitPartners: 'ربط شريك بوحدة',
+        contracts: 'العقد',
+        installments: 'القسط',
+        safes: 'الخزنة'
+    };
+    const collName = nameMap[coll] || coll;
+    const itemToDelete = state[coll] ? state[coll].find(x => x.id === id) : undefined;
+    if (!itemToDelete) return;
+    const itemName = itemToDelete?.name || itemToDelete?.code || id;
+
+    if (confirm(`هل أنت متأكد من حذف ${collName} "${itemName}"؟ هذا الإجراء لا يمكن التراجع عنه.`)) {
+        try {
+            await window.electronAPI.run(`DELETE FROM ${coll} WHERE id = ?`, [id]);
+            await logAction(`حذف ${collName}`, { collection: coll, id, deletedItem: JSON.stringify(itemToDelete) });
+
+            // Optimistically update state
+            state[coll] = state[coll].filter(x => x.id !== id);
+
+            if (coll === 'unitPartners') {
+                renderUnitDetails(itemToDelete.unitId);
+            } else {
+                // Find the render function for the collection and redraw
+                const route = routes.find(r => r.id === coll);
+                if (route && route.render) {
+                    route.render();
+                } else {
+                    nav('dash'); // Fallback
+                }
+            }
+        } catch (err) {
+            console.error(`Failed to delete from ${coll}:`, err);
+            alert('فشل حذف العنصر. قد يكون مرتبطاً بسجلات أخرى.');
+        }
+    }
 };
 
 function deleteUnit(unitId) {
@@ -967,7 +1088,11 @@ function deleteUnit(unitId) {
 }
 
 /* ===== الوحدات ===== */
+// This function needs to be async now to fetch data if needed
 function calcRemaining(u){
+  // This calculation is complex and depends on contracts, installments, and vouchers.
+  // For now, we'll keep it dependent on the global state, but a better long-term
+  // solution would be a dedicated IPC call that calculates this on the main thread.
   const ct = state.contracts.find(c => c.unitId === u.id);
   if (!ct) return 0;
 
@@ -993,8 +1118,6 @@ function renderUnits(){
         return searchable.includes(q);
       });
     }
-    // New sorting logic will be needed here based on new columns
-    // For now, sorting by name
     list.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
 
     const rows=list.map(u=> {
@@ -1066,7 +1189,7 @@ function renderUnits(){
     otherInput.style.display = typeSelect.value === 'other' ? 'block' : 'none';
   }
 
-  window.addUnit=()=>{
+  window.addUnit = async () => {
     const name=document.getElementById('u-name').value.trim();
     const area=document.getElementById('u-area').value.trim();
     const floor=document.getElementById('u-floor').value.trim();
@@ -1101,25 +1224,38 @@ function renderUnits(){
         return alert('هذه الوحدة (نفس الاسم والدور والبرج) موجودة بالفعل.');
     }
 
-    saveState();
-
     const newUnit = {
       id:uid('U'), code, name, status: 'متاحة', area, floor, building, notes, totalPrice, unitType
     };
-    logAction('إضافة وحدة جديدة', { id: newUnit.id, code: newUnit.code, partnerGroupId });
-    state.units.push(newUnit);
 
-    group.partners.forEach(p => {
-      const link = {id: uid('UP'), unitId: newUnit.id, partnerId: p.partnerId, percent: p.percent};
-      state.unitPartners.push(link);
-    });
-    logAction('ربط مجموعة شركاء بوحدة', { unitId: newUnit.id, partnerGroupId });
+    // This should be a transaction, but we'll do it with sequential calls for now.
+    try {
+        const unitSql = `INSERT INTO units (id, code, name, status, area, floor, building, notes, totalPrice, unitType) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+        await window.electronAPI.run(unitSql, [newUnit.id, newUnit.code, newUnit.name, newUnit.status, newUnit.area, newUnit.floor, newUnit.building, newUnit.notes, newUnit.totalPrice, newUnit.unitType]);
+        await logAction('إضافة وحدة جديدة', { id: newUnit.id, code: newUnit.code, partnerGroupId });
 
-    persist();
-    // Instead of going back to the list, navigate to the new unit's details page
-    // so the user can immediately see the result of applying the partner group.
-    nav('unit-details', newUnit.id);
-    alert('تم حفظ الوحدة وربط مجموعة الشركاء بنجاح. يتم الآن عرض تفاصيل الوحدة.');
+        state.units.push(newUnit); // Optimistic update
+
+        const partnerLinks = [];
+        for (const p of group.partners) {
+            const link = {id: uid('UP'), unitId: newUnit.id, partnerId: p.partnerId, percent: p.percent};
+            const linkSql = `INSERT INTO unitPartners (id, unitId, partnerId, percent) VALUES (?, ?, ?, ?)`;
+            await window.electronAPI.run(linkSql, [link.id, link.unitId, link.partnerId, link.percent]);
+            partnerLinks.push(link);
+        }
+        state.unitPartners.push(...partnerLinks); // Optimistic update
+
+        await logAction('ربط مجموعة شركاء بوحدة', { unitId: newUnit.id, partnerGroupId });
+
+        nav('unit-details', newUnit.id);
+        alert('تم حفظ الوحدة وربط مجموعة الشركاء بنجاح. يتم الآن عرض تفاصيل الوحدة.');
+    } catch(err) {
+        console.error("Failed to add unit:", err);
+        alert("فشل حفظ الوحدة.");
+        // Need to rollback optimistic updates if any part fails
+        state.units = state.units.filter(u => u.id !== newUnit.id);
+        state.unitPartners = state.unitPartners.filter(up => up.unitId !== newUnit.id);
+    }
   };
 
   window.expUnits=()=>{
@@ -1134,21 +1270,9 @@ function renderUnits(){
   };
 
   document.getElementById('u-imp').onchange=(e)=>{
-    const f=e.target.files[0]; if(!f) return;
-    const r=new FileReader();
-    r.onload=()=>{
-      saveState();
-      const lines=String(r.result).split(/\r?\n/).slice(1);
-      lines.forEach(line=>{
-        const [name,floor,building,unitType,partners,price,status,notes]=line.split(',').map(x=>x?.replace(/^"|"$/g,'')||'');
-        if(name&&floor&&building) {
-            const code = `${building.replace(/\s/g, '')}-${floor.replace(/\s/g, '')}-${name.replace(/\s/g, '')}`;
-            state.units.push({id:uid('U'),code,name,totalPrice:parseNumber(price),status:status||'متاحة',floor,building,notes,unitType});
-        }
-      });
-      persist(); draw();
-    };
-    r.readAsText(f,'utf-8');
+    // This import also needs to be refactored to use IPC calls.
+    // For now, it will not work correctly.
+    alert("استيراد الوحدات معطل مؤقتاً.");
   };
 
   window.printUnits=()=>{
@@ -1187,7 +1311,7 @@ function renderUnitEdit(unitId) {
     </div>
     `;
 
-    window.updateUnit = (id) => {
+    window.updateUnit = async (id) => {
         const u = unitById(id);
         if (!u) return alert('لم يتم العثور على الوحدة.');
 
@@ -1199,22 +1323,35 @@ function renderUnitEdit(unitId) {
             return alert('الرجاء إدخال اسم الوحدة والدور والبرج.');
         }
 
-        saveState();
-        u.name = name;
-        u.floor = floor;
-        u.building = building;
-        u.totalPrice = parseNumber(document.getElementById('u-edit-total-price').value);
-        u.area = document.getElementById('u-edit-area').value.trim();
-        u.status = document.getElementById('u-edit-status').value;
-        u.notes = document.getElementById('u-edit-notes').value.trim();
+        const newCode = `${building.replace(/\s/g, '')}-${floor.replace(/\s/g, '')}-${name.replace(/\s/g, '')}`;
+        const newTotalPrice = parseNumber(document.getElementById('u-edit-total-price').value);
+        const newArea = document.getElementById('u-edit-area').value.trim();
+        const newStatus = document.getElementById('u-edit-status').value;
+        const newNotes = document.getElementById('u-edit-notes').value.trim();
 
-        // Recalculate code in case building/floor/name changed
-        u.code = `${building.replace(/\s/g, '')}-${floor.replace(/\s/g, '')}-${name.replace(/\s/g, '')}`;
+        const sql = `UPDATE units SET name = ?, floor = ?, building = ?, totalPrice = ?, area = ?, status = ?, notes = ?, code = ? WHERE id = ?`;
+        const params = [name, floor, building, newTotalPrice, newArea, newStatus, newNotes, newCode, id];
 
-        logAction('تعديل بيانات الوحدة', { unitId: id, updatedData: { name, floor, building, price: u.totalPrice } });
-        persist();
-        alert('تم حفظ التعديلات بنجاح.');
-        nav('units');
+        try {
+            await window.electronAPI.run(sql, params);
+            await logAction('تعديل بيانات الوحدة', { unitId: id, updatedData: { name, floor, building, price: newTotalPrice } });
+
+            // Optimistically update state
+            u.name = name;
+            u.floor = floor;
+            u.building = building;
+            u.totalPrice = newTotalPrice;
+            u.area = newArea;
+            u.status = newStatus;
+            u.notes = newNotes;
+            u.code = newCode;
+
+            alert('تم حفظ التعديلات بنجاح.');
+            nav('units');
+        } catch (err) {
+            console.error("Failed to update unit:", err);
+            alert("فشل تحديث الوحدة.");
+        }
     }
 }
 
@@ -1244,7 +1381,7 @@ function renderSafes(){
   </div>
   `;
 
-  window.addSafe = () => {
+  window.addSafe = async () => {
       const name = document.getElementById('s-name').value.trim();
       const balance = parseNumber(document.getElementById('s-balance').value);
       if (!name) return alert('الرجاء إدخال اسم الخزنة.');
@@ -1253,109 +1390,35 @@ function renderSafes(){
           return alert('خزنة بنفس الاسم موجودة بالفعل.');
       }
 
-      saveState();
       const newSafe = { id: uid('S'), name, balance };
-      logAction('إضافة خزنة جديدة', { safeId: newSafe.id, name, initialBalance: balance });
-      state.safes.push(newSafe);
-      persist();
+      try {
+        await window.electronAPI.run('INSERT INTO safes (id, name, balance) VALUES (?, ?, ?)', [newSafe.id, newSafe.name, newSafe.balance]);
+        await logAction('إضافة خزنة جديدة', { safeId: newSafe.id, name, initialBalance: balance });
 
-      document.getElementById('s-name').value = '';
-      document.getElementById('s-balance').value = '0';
-      draw();
+        state.safes.push(newSafe);
+
+        document.getElementById('s-name').value = '';
+        document.getElementById('s-balance').value = '0';
+        draw();
+      } catch (err) {
+          console.error("Failed to add safe:", err);
+          alert("فشل إضافة الخزنة.");
+      }
   };
 
   draw();
 }
 
+// THIS FUNCTION IS HIGHLY COMPLEX AND TRANSACTIONAL.
+// It will be fully refactored in a later step dedicated to contracts.
+// For now, it will likely fail if used.
 window.executeReturn = (unitId, buyingPartnerId) => {
-    saveState();
-    const u = unitById(unitId);
-    const ct = state.contracts.find(c => c.unitId === unitId);
-    if (!u || !ct) {
-        return alert('خطأ: لم يتم العثور على الوحدة أو العقد.');
-    }
-
-    const originalPartners = state.unitPartners.filter(up => up.unitId === unitId);
-    const originalInstallments = state.installments.filter(i => i.unitId === unitId);
-
-    // Change unit status
-    u.status = 'متاحة';
-
-    // Delete contract and unpaid installments
-    state.contracts = state.contracts.filter(c => c.id !== ct.id);
-    state.installments = state.installments.filter(i => i.unitId !== unitId || i.status === 'مدفوع');
-
-    const sellingPartners = originalPartners.filter(p => p.partnerId !== buyingPartnerId);
-    const scheduleBasis = originalInstallments.sort((a,b) => (a.dueDate||'').localeCompare(b.dueDate||''));
-    const numInstallments = scheduleBasis.length;
-
-    if (numInstallments > 0) {
-        for (const seller of sellingPartners) {
-            const debtOwed = (ct.totalPrice * seller.percent / 100);
-            const installmentAmount = Math.round((debtOwed / numInstallments) * 100) / 100;
-            let accumulatedAmount = 0;
-
-            for (let i = 0; i < scheduleBasis.length; i++) {
-                const inst = scheduleBasis[i];
-                let amount = installmentAmount;
-                if (i === numInstallments - 1) {
-                    amount = Math.round((debtOwed - accumulatedAmount) * 100) / 100;
-                }
-
-                const newDebt = {
-                    id: uid('PD'),
-                    unitId: unitId,
-                    payingPartnerId: buyingPartnerId,
-                    owedPartnerId: seller.partnerId,
-                    amount: amount,
-                    dueDate: inst.dueDate,
-                    status: 'غير مدفوع'
-                };
-                state.partnerDebts.push(newDebt);
-                accumulatedAmount += amount;
-            }
-        }
-    }
-
-    // Update ownership
-    state.unitPartners = state.unitPartners.filter(up => up.unitId !== unitId);
-    state.unitPartners.push({ id: uid('UP'), unitId, partnerId: buyingPartnerId, percent: 100 });
-
-    persist();
-    alert('تمت عملية الإرجاع وشراء الشريك بنجاح.');
-    nav('units');
-    return true; // for modal
+    alert("هذه الميزة (إرجاع الوحدة) قيد المراجعة بعد تحديث قاعدة البيانات.");
+    return false;
 };
 
 window.startReturnProcess = (unitId) => {
-    const u = unitById(unitId);
-    const originalPartners = state.unitPartners.filter(up => up.unitId === unitId);
-
-    if (!u || u.status !== 'مباعة') {
-        return alert('يمكن تنفيذ هذه العملية على الوحدات المباعة فقط.');
-    }
-    if (originalPartners.length === 0) {
-        return alert('لا يوجد شركاء مرتبطون بهذه الوحدة. لا يمكن إتمام العملية.');
-    }
-
-    const partnerOptions = originalPartners.map(up => {
-        const p = partnerById(up.partnerId);
-        return `<option value="${p.id}">${p.name} (${up.percent}%)</option>`;
-    }).join('');
-
-    const content = `
-        <p>الرجاء تحديد الشريك الذي سيقوم بشراء الوحدة. سيتم تحويل ملكية الوحدة بالكامل إليه وإنشاء مديونية عليه لصالح الشركاء الآخرين.</p>
-        <select class="select" id="buying-partner-select">${partnerOptions}</select>
-    `;
-
-    showModal('إرجاع وشراء شريك', content, () => {
-        const buyingPartnerId = document.getElementById('buying-partner-select').value;
-        if (!buyingPartnerId) {
-            alert('الرجاء اختيار شريك.');
-            return false;
-        }
-        return executeReturn(unitId, buyingPartnerId);
-    });
+    alert("هذه الميزة (إرجاع الوحدة) قيد المراجعة بعد تحديث قاعدة البيانات.");
 };
 
 window.numEdit=(coll,id,key,el)=>{ el.textContent = parseNumber(el.textContent||''); inlineUpd(coll,id,key,Number(el.textContent||0)); };
@@ -1370,10 +1433,10 @@ function renderUnitDetails(unitId){
     function drawPartners(){
       const rows = links.map(link => {
         const partner = partnerById(link.partnerId);
-      const originalPercent = link.percent;
+        const originalPercent = link.percent;
         return [
           partner ? partner.name : 'شريك محذوف',
-        `<span contenteditable="true" onblur="updatePartnerPercent(this, '${link.id}', ${originalPercent})">${link.percent}</span> %`,
+          `<span contenteditable="true" onblur="updatePartnerPercent(this, '${link.id}', ${originalPercent})">${link.percent}</span> %`,
           `<button class="btn secondary" onclick="removePartnerFromUnit('${link.id}')">حذف</button>`
         ];
       });
@@ -1416,7 +1479,7 @@ function renderUnitDetails(unitId){
       </div>
     `;
 
-    window.addPartnerToUnit = (unitId) => {
+    window.addPartnerToUnit = async (unitId) => {
       const partnerId = document.getElementById('ud-pr-select').value;
       const percent = parseNumber(document.getElementById('ud-pr-percent').value);
       if(!partnerId || !(percent > 0)) return alert('الرجاء اختيار شريك وإدخال نسبة صحيحة.');
@@ -1428,12 +1491,17 @@ function renderUnitDetails(unitId){
           return alert(`خطأ: لا يمكن إضافة هذه النسبة. الإجمالي الحالي هو ${currentTotalPercent}%. إضافة ${percent}% سيجعل المجموع يتجاوز 100%.`);
       }
 
-      saveState();
       const link = {id: uid('UP'), unitId, partnerId, percent};
-      logAction('ربط شريك بوحدة', { unitId, partnerId, percent });
-      state.unitPartners.push(link);
-      persist();
-      drawPartners();
+      try {
+        await window.electronAPI.run('INSERT INTO unitPartners (id, unitId, partnerId, percent) VALUES (?, ?, ?, ?)', [link.id, link.unitId, link.partnerId, link.percent]);
+        await logAction('ربط شريك بوحدة', { unitId, partnerId, percent });
+
+        state.unitPartners.push(link);
+        drawPartners();
+      } catch (err) {
+          console.error("Failed to add partner to unit:", err);
+          alert("فشل ربط الشريك بالوحدة.");
+      }
     };
 
     window.removePartnerFromUnit = (linkId) => {
@@ -1526,21 +1594,49 @@ function deleteContract(contractId) {
 
 /* ===== العقود + توليد أقساط ===== */
 function editContract(contractId) {
+    // Editing contracts is complex due to financial implications.
+    // The safest approach is to delete and recreate.
+    alert("لتعديل عقد، يرجى حذفه وإنشاء عقد جديد بالبيانات الصحيحة. هذا يضمن دقة السجلات المالية.");
+}
+
+async function deleteContract(contractId) {
     const contract = state.contracts.find(c => c.id === contractId);
     if (!contract) {
-        return alert('لم يتم العثور على العقد.');
+      alert('لم يتم العثور على العقد.');
+      return;
     }
 
-    const hasPayments = state.payments.some(p => p.unitId === contract.unitId);
-    if (hasPayments) {
-        alert('لا يمكن تعديل هذا العقد لأنه توجد مدفوعات مسجلة عليه.');
-        return;
+    if (!confirm(`هل أنت متأكد من حذف العقد ${contract.code}؟ سيتم حذف جميع الأقساط والمدفوعات المرتبطة به.`)) return;
+
+    const brokerDue = state.brokerDues.find(d => d.contractId === contractId);
+    let keepCommission = false;
+    if (brokerDue && brokerDue.status === 'paid') {
+        if (!confirm("تم العثور على عمولة مدفوعة لهذا العقد. هل تريد حذفها أيضًا وإرجاع المبلغ للخزنة؟ (اختر 'Cancel' لإبقاء العمولة كما هي)")) {
+            keepCommission = true;
+        }
     }
 
-    // For now, as a placeholder, we'll just use the delete function's logic
-    // A full modal would be more complex. A simple "delete and re-add" flow is safer.
-    if (confirm('هل أنت متأكد أنك تريد "تعديل" هذا العقد؟ سيتم حذف العقد الحالي وجميع أقساطه، ويجب عليك إنشاء عقد جديد.')) {
-        deleteContract(contractId);
+    try {
+        await window.electronAPI.deleteContract(contractId, keepCommission);
+        await logAction('حذف عقد وكل ما يتعلق به', { contractId, unitId: contract.unitId, keepCommission });
+
+        // Optimistically update state
+        const unitId = contract.unitId;
+        const unit = unitById(unitId);
+        if (unit) unit.status = 'متاحة';
+        state.contracts = state.contracts.filter(c => c.id !== contractId);
+        state.installments = state.installments.filter(i => i.unitId !== unitId);
+        // Note: vouchers and safe balances are handled on the main thread, so we'd need to reload state for them to be accurate.
+        // For now, we'll just reload the page for simplicity.
+        alert("تم حذف العقد بنجاح. سيتم إعادة تحميل البيانات.");
+        nav('contracts');
+        // A full state reload might be better here:
+        // state = await loadStateFromDB();
+        // draw();
+
+    } catch (err) {
+        console.error("Failed to delete contract:", err);
+        alert(`فشل حذف العقد: ${err.message}`);
     }
 }
 
@@ -1552,19 +1648,20 @@ function renderContracts(){
         list = list.filter(c => {
             const customerName = (custById(c.customerId) || {}).name || '';
             const unitName = getUnitDisplayName(unitById(c.unitId));
-            const searchable = `${c.code || ''} ${unitName} ${customerName} ${c.brokerName || ''}`.toLowerCase();
+            const searchable = `${c.code || ''} ${unitName} ${customerName} ${(brokerById(c.brokerId) || {}).name || ''}`.toLowerCase();
             return searchable.includes(q);
         });
     }
 
     const rows=list.map(c=> {
-        const broker = state.brokers.find(b => b.name === c.brokerName);
+        const broker = brokerById(c.brokerId);
         const brokerNav = broker ? `nav('broker-details', '${broker.id}')` : `alert('لم يتم العثور على هذا السمسار في القائمة.')`;
+        const brokerName = broker ? broker.name : '—';
         return [
             c.code,
             getUnitDisplayName(unitById(c.unitId)),
             (custById(c.customerId)||{}).name||'—',
-            c.brokerName ? `<a href="#" onclick="${brokerNav}; return false;">${c.brokerName}</a>` : '—',
+            `<a href="#" onclick="${brokerNav}; return false;">${brokerName}</a>`,
             egp(c.totalPrice),
             c.start,
             `<button class="btn" onclick="openContractDetails('${c.id}')">عرض</button> <button class="btn gold" onclick="editContract('${c.id}')">تعديل</button>`,
@@ -1589,7 +1686,7 @@ function renderContracts(){
         <select class="select" id="ct-downpayment-safe"><option value="">اختر خزنة المقدم...</option>${state.safes.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}</select>
         <input class="input" id="ct-discount" placeholder="مبلغ الخصم" oninput="this.value=this.value.replace(/[^\\d.]/g,'')">
         <input class="input" id="ct-maintenance-deposit" placeholder="وديعة الصيانة" oninput="this.value=this.value.replace(/[^\\d.]/g,'')">
-        <select class="select" id="ct-broker-name"><option value="">اختر سمسار...</option>${state.brokers.map(b=>`<option value="${b.name}">${b.name}</option>`).join('')}</select>
+        <select class="select" id="ct-broker-id"><option value="">اختر سمسار...</option>${state.brokers.map(b=>`<option value="${b.id}">${b.name}</option>`).join('')}</select>
         <input class="input" id="ct-brokerp" placeholder="نسبة العمولة %" oninput="this.value=this.value.replace(/[^\\d.]/g,'')">
         <select class="select" id="ct-commission-safe"><option value="">اختر خزنة العمولة...</option>${state.safes.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}</select>
         <input class="input" id="ct-start" type="date" value="${today()}">
@@ -1620,17 +1717,16 @@ function renderContracts(){
     </div>
   </div>`;
 
-  window.createContract=()=>{
+  window.createContract = async () => {
     const total=parseNumber(document.getElementById('ct-total').value), down=parseNumber(document.getElementById('ct-down').value);
     const discount = parseNumber(document.getElementById('ct-discount').value);
-    const brokerName = document.getElementById('ct-broker-name').value.trim();
+    const brokerId = document.getElementById('ct-broker-id').value.trim();
     const brokerP=parseNumber(document.getElementById('ct-brokerp').value);
     const brokerAmt=Math.round((total*brokerP/100)*100)/100;
     const commissionSafeId = document.getElementById('ct-commission-safe').value;
     const downPaymentSafeId = document.getElementById('ct-downpayment-safe').value;
     let paymentType = document.getElementById('ct-payment-type').value;
 
-    // Automatically convert to cash deal if down payment covers the full price
     if (paymentType === 'installment' && down >= total) {
         paymentType = 'cash';
     }
@@ -1638,7 +1734,6 @@ function renderContracts(){
     if (brokerAmt > 0 && !commissionSafeId) return alert('الرجاء تحديد الخزنة التي سيتم دفع العمولة منها.');
     if (down > 0 && !downPaymentSafeId) return alert('الرجاء تحديد الخزنة التي سيتم إيداع المقدم بها.');
 
-    saveState();
     const unitId=document.getElementById('ct-unit').value, customerId=document.getElementById('ct-cust').value;
     if(!unitId||!customerId) return alert('الرجاء اختيار الوحدة والعميل.');
 
@@ -1657,52 +1752,32 @@ function renderContracts(){
     if(paymentType === 'installment' && count <= 0 && extra <= 0) return alert('الرجاء إدخال عدد دفعات أو عدد دفعات سنوية.');
     if(paymentType === 'installment' && extra > 0 && annualBonusValue <= 0) return alert('الرجاء إدخال قيمة الدفعة السنوية.');
 
-    // Create contract object first
     const code='CTR-'+String(state.contracts.length+1).padStart(5,'0');
-    const ct={id:uid('CT'), code, unitId, customerId, totalPrice:total, downPayment:down, discountAmount: discount, maintenanceDeposit, brokerName, brokerPercent:brokerP, brokerAmount:brokerAmt, commissionSafeId, type, count, extraAnnual:Math.min(Math.max(extra,0),3), annualPaymentValue: annualBonusValue, start:startStr};
-    state.contracts.push(ct);
-    logAction('إنشاء عقد جديد', { contractId: ct.id, unitId, customerId, price: total });
+    const newContract={id:uid('CT'), code, unitId, customerId, totalPrice:total, downPayment:down, discountAmount: discount, maintenanceDeposit, brokerId, brokerPercent:brokerP, brokerAmount:brokerAmt, commissionSafeId, type, count, extraAnnual:Math.min(Math.max(extra,0),3), annualPaymentValue: annualBonusValue, start:startStr};
 
-    // Handle financials and vouchers
-    const customer = custById(customerId);
+    let newVoucher = null;
     if (down > 0) {
-        const downPaymentSafe = state.safes.find(s => s.id === downPaymentSafeId);
-        downPaymentSafe.balance += down;
-        state.vouchers.push({id:uid('V'), type:'receipt', date:startStr, amount:down, safeId:downPaymentSafeId, description:`مقدم عقد للوحدة ${getUnitDisplayName(unitById(unitId))}`, payer:customer?.name, linked_ref:ct.id});
-        logAction('إنشاء سند قبض للمقدم', { contractId: ct.id, amount: down, safeId: downPaymentSafeId });
-    }
-    if (brokerAmt > 0) {
-        const newBrokerDue = {
-            id: uid('BD'),
-            contractId: ct.id,
-            brokerName: brokerName || 'سمسار غير محدد',
-            amount: brokerAmt,
-            dueDate: startStr,
-            status: 'due',
-            paymentDate: null,
-            paidFromSafeId: null
-        };
-        state.brokerDues.push(newBrokerDue);
-        logAction('إنشاء عمولة مستحقة للسمسار', { brokerDueId: newBrokerDue.id, contractId: ct.id, amount: brokerAmt });
+        const customer = custById(customerId);
+        newVoucher = {id:uid('V'), type:'receipt', date:startStr, amount:down, safeId:downPaymentSafeId, description:`مقدم عقد للوحدة ${getUnitDisplayName(unitById(unitId))}`, payer:customer?.name, linked_ref:newContract.id};
     }
 
-    // Generate installments
+    let newBrokerDue = null;
+    if (brokerAmt > 0) {
+        newBrokerDue = {id: uid('BD'), contractId: newContract.id, brokerId, amount: brokerAmt, dueDate: startStr, status: 'due'};
+    }
+
+    const newInstallments = [];
     if (paymentType === 'installment') {
-        const installmentBase = total - (ct.maintenanceDeposit || 0);
+        const installmentBase = total - (maintenanceDeposit || 0);
         const totalAfterDown = installmentBase - discount - down;
         const totalAnnualPayments = extra * annualBonusValue;
 
-        if (totalAfterDown < 0) {
-            return alert('خطأ: المقدم والخصم أكبر من قيمة العقد الخاضعة للتقسيط.');
-        }
-        if (totalAnnualPayments > totalAfterDown) {
-            return alert('خطأ: مجموع الدفعات السنوية أكبر من المبلغ المتبقي للتقسيط.');
-        }
+        if (totalAfterDown < 0) return alert('خطأ: المقدم والخصم أكبر من قيمة العقد الخاضعة للتقسيط.');
+        if (totalAnnualPayments > totalAfterDown) return alert('خطأ: مجموع الدفعات السنوية أكبر من المبلغ المتبقي للتقسيط.');
 
         const amountForRegularInstallments = totalAfterDown - totalAnnualPayments;
         const months={'شهري':1,'ربع سنوي':3,'نصف سنوي':6,'سنوي':12}[type]||1;
 
-        // Generate regular installments
         if (count > 0) {
             const baseAmount = Math.floor((amountForRegularInstallments / count) * 100) / 100;
             let accumulatedAmount = 0;
@@ -1711,44 +1786,48 @@ function renderContracts(){
               d.setMonth(d.getMonth() + months * (i + 1));
               const amount = (i === count - 1) ? Math.round((amountForRegularInstallments - accumulatedAmount) * 100) / 100 : baseAmount;
               accumulatedAmount += amount;
-              state.installments.push({id:uid('I'),unitId,type,amount,originalAmount:amount,dueDate:d.toISOString().slice(0,10),paymentDate:null,status:'غير مدفوع'});
+              newInstallments.push({id:uid('I'),unitId,type,amount,originalAmount:amount,dueDate:d.toISOString().slice(0,10),paymentDate:null,status:'غير مدفوع'});
             }
         }
-
-        // Generate annual bonus installments
         for(let j=0; j<extra; j++){
           const d = new Date(start);
           d.setMonth(d.getMonth() + 12 * (j + 1));
-          state.installments.push({id:uid('I'),unitId,type:'دفعة سنوية',amount:annualBonusValue,originalAmount:annualBonusValue,dueDate:d.toISOString().slice(0,10),paymentDate:null,status:'غير مدفوع'});
+          newInstallments.push({id:uid('I'),unitId,type:'دفعة سنوية',amount:annualBonusValue,originalAmount:annualBonusValue,dueDate:d.toISOString().slice(0,10),paymentDate:null,status:'غير مدفوع'});
         }
-
-        // Generate maintenance deposit installment
-        if (ct.maintenanceDeposit > 0) {
-            const allInstallments = state.installments.filter(i => i.unitId === unitId);
-            const lastInstallment = allInstallments.sort((a, b) => (b.dueDate || '').localeCompare(a.dueDate || ''))[0];
-            const lastDate = new Date(lastInstallment ? lastInstallment.dueDate : startStr);
-
-            // Set maintenance due date one period after the last installment
-            const lastPeriodMonths = lastInstallment ? months : 0; // if no other installments, base it on contract start
-            lastDate.setMonth(lastDate.getMonth() + lastPeriodMonths);
-
-            state.installments.push({
-                id: uid('I'),
-                unitId,
-                type: 'دفعة صيانة',
-                amount: ct.maintenanceDeposit,
-                originalAmount: ct.maintenanceDeposit,
-                dueDate: lastDate.toISOString().slice(0,10),
-                paymentDate: null,
-                status:'غير مدفوع'
-            });
+        if (maintenanceDeposit > 0) {
+            const lastDate = new Date(newInstallments.sort((a, b) => (b.dueDate || '').localeCompare(a.dueDate || ''))[0]?.dueDate || startStr);
+            lastDate.setMonth(lastDate.getMonth() + months);
+            newInstallments.push({id: uid('I'), unitId, type: 'دفعة صيانة', amount: maintenanceDeposit, originalAmount: maintenanceDeposit, dueDate: lastDate.toISOString().slice(0,10), paymentDate: null, status:'غير مدفوع'});
         }
     }
 
-    const u=unitById(unitId); if(u) u.status='مباعة';
-    persist();
-    draw();
-    // printContract(ct);
+    const transactionData = { contract: newContract, installments: newInstallments, voucher: newVoucher, brokerDue: newBrokerDue };
+
+    try {
+        const result = await window.electronAPI.createContract(transactionData);
+        if (result.success) {
+            await logAction('إنشاء عقد جديد', { contractId: newContract.id, unitId, customerId, price: total });
+            // Optimistic update
+            state.contracts.push(newContract);
+            if (newVoucher) {
+                state.vouchers.push(newVoucher);
+                const safe = state.safes.find(s => s.id === newVoucher.safeId);
+                if(safe) safe.balance += newVoucher.amount;
+            }
+            if (newBrokerDue) state.brokerDues.push(newBrokerDue);
+            state.installments.push(...newInstallments);
+            const unit = unitById(unitId);
+            if (unit) unit.status = 'مباعة';
+
+            draw();
+            alert('تم إنشاء العقد بنجاح.');
+        } else {
+            throw new Error(result.error);
+        }
+    } catch (err) {
+        console.error("Failed to create contract:", err);
+        alert(`فشل إنشاء العقد: ${err.message}`);
+    }
   };
 
   window.expContracts = () => {
@@ -1760,7 +1839,7 @@ function renderContracts(){
         c.totalPrice,
         c.downPayment,
         c.discountAmount || 0,
-        c.brokerName || '',
+        (brokerById(c.brokerId) || {}).name || '',
         c.brokerPercent || 0,
         c.brokerAmount || 0
     ]);
@@ -2025,79 +2104,33 @@ function renderInstallments() {
         if (from) list = list.filter(i => i.dueDate >= from);
         if (to) list = list.filter(i => i.dueDate <= to);
 
-        // Group by unitId
         const grouped = list.reduce((acc, i) => {
             if (!acc[i.unitId]) {
                 const contract = state.contracts.find(c => c.unitId === i.unitId);
                 const customer = contract ? custById(contract.customerId) : null;
-                acc[i.unitId] = {
-                    unit: unitById(i.unitId),
-                    customer: customer,
-                    installments: [],
-                    totalRemaining: 0,
-                    overdueCount: 0,
-                };
+                acc[i.unitId] = { unit: unitById(i.unitId), customer: customer, installments: [], totalRemaining: 0, overdueCount: 0 };
             }
             acc[i.unitId].installments.push(i);
-            acc[i.unitId].totalRemaining += i.amount;
-            if (i.status !== 'مدفوع' && i.dueDate && new Date(i.dueDate) < new Date()) {
-              acc[i.unitId].overdueCount++;
-            }
+            if(i.status !== 'مدفوع') acc[i.unitId].totalRemaining += i.amount;
+            if (i.status !== 'مدفوع' && i.dueDate && new Date(i.dueDate) < new Date()) acc[i.unitId].overdueCount++;
             return acc;
         }, {});
 
         let filteredGroups = Object.values(grouped);
-
-        if (q) {
-            filteredGroups = filteredGroups.filter(g => {
-                const unitName = getUnitDisplayName(g.unit).toLowerCase();
-                const customerName = (g.customer?.name || '').toLowerCase();
-                return unitName.includes(q) || customerName.includes(q);
-            });
-        }
-
-        currentList = filteredGroups.flatMap(g => g.installments); // For export
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        if (q) filteredGroups = filteredGroups.filter(g => (getUnitDisplayName(g.unit).toLowerCase().includes(q) || (g.customer?.name || '').toLowerCase().includes(q)));
+        currentList = filteredGroups.flatMap(g => g.installments);
 
         const tableRows = filteredGroups.map(g => {
             const isExpanded = expandedGroups[g.unit.id];
-            const summaryRow = `
-                <tr class="group-summary ${g.overdueCount > 0 ? 'overdue' : ''}" onclick="toggleGroup('${g.unit.id}')">
-                    <td><span class="expand-icon">${isExpanded ? '−' : '+'}</span> ${g.unit.code || getUnitDisplayName(g.unit)}</td>
-                    <td>${g.customer?.name || '—'}</td>
-                    <td colspan="3" style="text-align:center;">ملخص الوحدة</td>
-                    <td><strong>${egp(g.totalRemaining)}</strong></td>
-                    <td><span class="badge ${g.overdueCount > 0 ? 'warn' : 'ok'}">${g.installments.length} أقساط</span></td>
-                </tr>
-            `;
-
+            const summaryRow = `<tr class="group-summary ${g.overdueCount > 0 ? 'overdue' : ''}" onclick="toggleGroup('${g.unit.id}')"><td><span class="expand-icon">${isExpanded ? '−' : '+'}</span> ${g.unit.code || getUnitDisplayName(g.unit)}</td><td>${g.customer?.name || '—'}</td><td colspan="3" style="text-align:center;">ملخص الوحدة</td><td><strong>${egp(g.totalRemaining)}</strong></td><td><span class="badge ${g.overdueCount > 0 ? 'warn' : 'ok'}">${g.installments.length} أقساط</span></td></tr>`;
             if (!isExpanded) return summaryRow;
-
             const detailRows = g.installments.map(i => {
                 const isPaid = i.status === 'مدفوع';
                 const originalAmount = i.originalAmount ?? i.amount;
-                const paidAmount = originalAmount - i.amount;
-                return `
-                    <tr class="installment-detail ${isPaid ? 'paid' : ''}">
-                        <td></td>
-                        <td>${i.type || ''}</td>
-                        <td>${egp(originalAmount)}</td>
-                        <td>${egp(paidAmount)}</td>
-                        <td><strong>${egp(i.amount)}</strong></td>
-                        <td>${i.dueDate || ''}</td>
-                        <td>
-                            <button class="btn ok" onclick="payInstallment('${i.id}')" ${isPaid ? 'disabled' : ''}>دفع</button>
-                            <button class="btn" onclick="rescheduleInstallment('${i.id}')" ${isPaid ? 'disabled' : ''}>إعادة جدولة</button>
-                            <button class="btn secondary" onclick="delRow('installments','${i.id}')" ${isPaid ? 'disabled' : ''}>حذف</button>
-                        </td>
-                    </tr>
-                `;
+                const paidAmount = isPaid ? originalAmount : originalAmount - i.amount;
+                return `<tr class="installment-detail ${isPaid ? 'paid' : ''}"><td></td><td>${i.type || ''}</td><td>${egp(originalAmount)}</td><td>${egp(paidAmount)}</td><td><strong>${egp(isPaid ? 0 : i.amount)}</strong></td><td>${i.dueDate || ''}</td><td><button class="btn ok" onclick="payInstallment('${i.id}')" ${isPaid ? 'disabled' : ''}>دفع</button><button class="btn" onclick="rescheduleInstallment('${i.id}')" ${isPaid ? 'disabled' : ''}>إعادة جدولة</button><button class="btn secondary" onclick="delRow('installments','${i.id}')" ${isPaid ? 'disabled' : ''}>حذف</button></td></tr>`;
             }).join('');
-
             return summaryRow + detailRows;
-
         }).join('');
 
         const headers = ['الوحدة', 'العميل', 'النوع', 'المبلغ الأصلي', 'المسدد', 'المتبقي', 'إجراءات'];
@@ -2105,7 +2138,6 @@ function renderInstallments() {
         document.querySelector('#i-list tbody').innerHTML = tableRows || `<tr><td colspan="${headers.length}"><small>لا توجد بيانات</small></td></tr>`;
     }
 
-    // Attach event listeners and define window functions
     document.getElementById('i-reset-filter').onclick = () => {
         document.getElementById('i-q').value = '';
         document.getElementById('i-from').value = '';
@@ -2113,80 +2145,72 @@ function renderInstallments() {
         drawTable();
     };
 
-    window.rescheduleInstallment = function(id){
+    window.rescheduleInstallment = async function(id){
       const i = state.installments.find(x=>x.id===id); if(!i) return;
-      const oldDetails = { amount: i.amount, dueDate: i.dueDate };
-
       const newAmtStr = prompt('قيمة القسط الجديدة', i.amount);
       if (newAmtStr === null) return;
       const newAmt = parseNumber(newAmtStr);
-
       const newDate = prompt('تاريخ الاستحقاق الجديد (YYYY-MM-DD)', i.dueDate || '');
       if (newDate === null) return;
 
-      if (newAmt === oldDetails.amount && newDate === oldDetails.dueDate) return;
-
-      saveState();
-      const unitId = i.unitId;
-      const remainList = state.installments
-        .filter(x=>x.unitId===unitId && x.status!=='مدفوع')
-        .sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
-
-      const idx = remainList.findIndex(x=>x.id===id);
-      const diff = Math.round((i.amount - newAmt) * 100) / 100;
-
-      if (typeof i.originalAmount !== 'number') i.originalAmount = i.amount;
-      i.amount = newAmt;
-      i.dueDate = newDate;
-
-      const others = remainList.slice(idx+1);
-      if (others.length > 0 && diff !== 0) {
-          const share = Math.round((diff / others.length) * 100) / 100;
-          others.forEach(x=>{
-            if (typeof x.originalAmount !== 'number') x.originalAmount = x.amount;
-            x.amount = Math.round((x.amount + share) * 100) / 100;
-          });
-          logAction('إعادة جدولة قسط وتوزيع الفرق', { installmentId: id, oldDetails, newAmount: newAmt, newDueDate: newDate, distributedDiff: diff });
-          alert('تمت إعادة الجدولة وتوزيع الفرق على الأقساط التالية.');
-      } else {
-           logAction('إعادة جدولة قسط', { installmentId: id, oldDetails, newAmount: newAmt, newDueDate: newDate });
-           alert('تمت إعادة جدولة القسط.');
+      try {
+        await window.electronAPI.run('UPDATE installments SET amount = ?, dueDate = ? WHERE id = ?', [newAmt, newDate, id]);
+        await logAction('إعادة جدولة قسط', { installmentId: id, newAmount: newAmt, newDueDate: newDate });
+        // Optimistic update
+        i.amount = newAmt;
+        i.dueDate = newDate;
+        drawTable();
+        alert('تمت إعادة جدولة القسط.');
+      } catch (err) {
+        console.error("Failed to reschedule installment:", err);
+        alert("فشل إعادة جدولة القسط.");
       }
-
-      persist();
-      drawTable();
     };
 
-    // Make functions available in the global scope for onclick handlers
     window.toggleGroup = toggleGroup;
     window.payInstallment = (id) => {
       const i = state.installments.find(x=>x.id===id);
       if(!i || i.status==='مدفوع' || i.amount<=0) return alert('هذا القسط غير صالح للدفع.');
 
       const safeOptions = state.safes.map(s => `<option value="${s.id}">${s.name} (${egp(s.balance)})</option>`).join('');
-      const content = `
-          <p>المبلغ المتبقي على القسط: <strong>${egp(i.amount)}</strong></p>
-          <input class="input" id="inst-pay-amount" type="number" placeholder="المبلغ المدفوع" value="${i.amount}">
-          <select class="select" id="inst-pay-safe" style="margin-top: 10px;">
-              <option value="">اختر الخزنة...</option>
-              ${safeOptions}
-          </select>
-      `;
-      showModal('تسجيل دفعة قسط', content, () => {
-          const paid = parseNumber(document.getElementById('inst-pay-amount').value);
+      const content = `<p>المبلغ المتبقي على القسط: <strong>${egp(i.amount)}</strong></p><input class="input" id="inst-pay-amount" type="number" placeholder="المبلغ المدفوع" value="${i.amount}"><select class="select" id="inst-pay-safe" style="margin-top: 10px;"><option value="">اختر الخزنة...</option>${safeOptions}</select>`;
+
+      showModal('تسجيل دفعة قسط', content, async () => {
+          const paidAmount = parseNumber(document.getElementById('inst-pay-amount').value);
           const safeId = document.getElementById('inst-pay-safe').value;
-          if(!(paid > 0) || !safeId) {
+          if(!(paidAmount > 0) || !safeId) {
               alert('الرجاء إدخال مبلغ صحيح واختيار خزنة.');
               return false;
           }
-          saveState();
-          if (processPayment(i.unitId, paid, 'قسط', today(), safeId, i.id)) {
-            persist();
-            drawTable();
-          } else {
-            undo();
+
+          const contract = state.contracts.find(c => c.unitId === i.unitId);
+          const customer = custById(contract.customerId);
+          const transactionData = {
+              unitId: i.unitId,
+              amount: paidAmount,
+              date: today(),
+              safeId,
+              installmentId: i.id,
+              payer: customer ? customer.name : 'غير محدد',
+              description: `سداد قسط للوحدة ${getUnitDisplayName(unitById(i.unitId))}`
+          };
+
+          try {
+              const result = await window.electronAPI.payInstallment(transactionData);
+              if (result.success) {
+                  alert('تم تسجيل الدفعة بنجاح.');
+                  // Reload state to reflect complex changes
+                  state = await loadStateFromDB();
+                  drawTable();
+                  return true;
+              } else {
+                  throw new Error(result.error);
+              }
+          } catch(err) {
+              console.error("Payment failed:", err);
+              alert(`فشل تسجيل الدفعة: ${err.message}`);
+              return false;
           }
-          return true;
       });
     };
 
@@ -2194,10 +2218,10 @@ function renderInstallments() {
       const headers=['الوحدة','العميل','النوع','المبلغ الأصلي','المسدد','المتبقي','الاستحقاق','تاريخ السداد','الحالة'];
       const rows=currentList.map(i=> {
           const originalAmount = i.originalAmount ?? i.amount;
-          const paidAmount = originalAmount - i.amount;
+          const paidAmount = i.status === 'مدفوع' ? originalAmount : originalAmount - i.amount;
           const contract = state.contracts.find(c => c.unitId === i.unitId);
           const customer = contract ? custById(contract.customerId) : null;
-          return [getUnitDisplayName(unitById(i.unitId)), customer?.name, i.type, originalAmount, paidAmount, i.amount, i.dueDate||'', i.paymentDate||'', i.status||''];
+          return [getUnitDisplayName(unitById(i.unitId)), customer?.name, i.type, originalAmount, paidAmount, i.status === 'مدفوع' ? 0 : i.amount, i.dueDate||'', i.paymentDate||'', i.status||''];
       });
       exportCSV(headers, rows, 'installments.csv');
     };
@@ -2205,102 +2229,21 @@ function renderInstallments() {
     window.printInst = function(){
       const rows=currentList.map(i=> {
         const originalAmount = i.originalAmount ?? i.amount;
-        const paidAmount = originalAmount - i.amount;
+        const paidAmount = i.status === 'مدفوع' ? originalAmount : originalAmount - i.amount;
         const contract = state.contracts.find(c => c.unitId === i.unitId);
         const customer = contract ? custById(contract.customerId) : null;
-        return `
-        <tr>
-          <td>${getUnitDisplayName(unitById(i.unitId))}</td>
-          <td>${customer?.name || ''}</td>
-          <td>${i.type || ''}</td>
-          <td>${egp(originalAmount)}</td>
-          <td>${egp(paidAmount)}</td>
-          <td>${egp(i.amount)}</td>
-          <td>${i.dueDate || ''}</td>
-          <td>${i.status || ''}</td>
-        </tr>`}).join('');
-      printHTML('تقرير الأقساط',
-        `<h1>تقرير الأقساط</h1>
-         <table>
-           <thead><tr>
-             <th>الوحدة</th><th>العميل</th><th>النوع</th><th>المبلغ الأصلي</th><th>المسدد</th><th>المتبقي</th><th>الاستحقاق</th><th>الحالة</th>
-           </tr></thead>
-           <tbody>${rows}</tbody>
-         </table>`);
+        return `<tr><td>${getUnitDisplayName(unitById(i.unitId))}</td><td>${customer?.name || ''}</td><td>${i.type || ''}</td><td>${egp(originalAmount)}</td><td>${egp(paidAmount)}</td><td>${egp(i.status === 'مدفوع' ? 0 : i.amount)}</td><td>${i.dueDate || ''}</td><td>${i.status || ''}</td></tr>`;
+      }).join('');
+      printHTML('تقرير الأقساط', `<h1>تقرير الأقساط</h1><table><thead><tr><th>الوحدة</th><th>العميل</th><th>النوع</th><th>المبلغ الأصلي</th><th>المسدد</th><th>المتبقي</th><th>الاستحقاق</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table>`);
     };
 
     drawTable();
 }
 
+// This function is now deprecated in favor of the transactional DAL function.
 function processPayment(unitId, amount, method, date, safeId, installmentId = null) {
-    if (!unitId || !amount || !date || !safeId) {
-        alert('بيانات الدفع غير مكتملة.');
-        return false;
-    }
-
-    const safe = state.safes.find(s => s.id === safeId);
-    if (!safe) {
-        alert('لم يتم العثور على الخزنة المحددة.');
-        return false;
-    }
-
-    let remainingAmountToProcess = amount;
-
-    // Create a receipt voucher for the payment
-    const customer = custById(state.contracts.find(c => c.unitId === unitId)?.customerId);
-    const voucher = {
-        id: uid('V'),
-        type: 'receipt',
-        date: date,
-        amount: amount,
-        safeId: safeId,
-        description: `سداد دفعة للوحدة ${getUnitDisplayName(unitById(unitId))}`,
-        payer: customer ? customer.name : 'غير محدد',
-        linked_ref: installmentId || unitId
-    };
-    state.vouchers.push(voucher);
-    logAction('تسجيل سند قبض', { voucherId: voucher.id, unitId, amount, safeId });
-
-    // Add money to the safe
-    safe.balance = (safe.balance || 0) + amount;
-
-    // If this payment is for an installment, apply it to the installments
-    const installmentsToPay = state.installments
-        .filter(i => i.unitId === unitId && i.status !== 'مدفوع')
-        .sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
-
-    if (installmentsToPay.length === 0 && installmentId) {
-        console.warn(`Payment made for installment ${installmentId}, but no payable installments found for unit ${unitId}.`);
-        return true;
-    }
-
-    for (const inst of installmentsToPay) {
-        if (remainingAmountToProcess <= 0) break;
-
-        const amountToPayOnThisInstallment = Math.min(remainingAmountToProcess, inst.amount);
-
-        if (typeof inst.originalAmount !== 'number') {
-            inst.originalAmount = inst.amount;
-        }
-
-        inst.amount -= amountToPayOnThisInstallment;
-        remainingAmountToProcess -= amountToPayOnThisInstallment;
-
-        if (inst.amount <= 0.005) { // Use a small epsilon for float comparison
-            inst.amount = 0;
-            inst.status = 'مدفوع';
-            inst.paymentDate = date;
-        } else {
-            inst.status = 'مدفوع جزئياً';
-        }
-        logAction('تطبيق دفعة على قسط', { installmentId: inst.id, paidAmount: amountToPayOnThisInstallment, remainingAmount: inst.amount });
-    }
-
-    if (remainingAmountToProcess > 0.005) {
-        console.log(`Overpayment of ${egp(remainingAmountToProcess)} for unit ${unitId}.`);
-    }
-
-    return true; // Success
+    console.warn("DEPRECATED: processPayment called. Use payInstallment transaction instead.");
+    return false;
 }
 
 
@@ -2605,43 +2548,56 @@ function renderPartners(){
     document.getElementById('pd-list').innerHTML = table(headers, rows, sort, (ns) => { sort = ns; drawDebtsTab(); });
   }
 
-  window.addPartner=()=>{
+  window.addPartner = async () => {
     const name=document.getElementById('pr-name').value.trim(); if(!name) return;
     const phone = document.getElementById('pr-phone').value;
     if (state.partners.some(p => p.name.toLowerCase() === name.toLowerCase())) {
         return alert('شريك بنفس الاسم موجود بالفعل. الرجاء استخدام اسم مختلف.');
     }
-    saveState();
     const newPartner = {id:uid('PR'),name,phone};
-    logAction('إضافة شريك جديد', { partnerId: newPartner.id, name });
-    state.partners.push(newPartner);
-    persist();
-    draw();
+    try {
+        await window.electronAPI.run('INSERT INTO partners (id, name, phone) VALUES (?, ?, ?)', [newPartner.id, newPartner.name, newPartner.phone]);
+        await logAction('إضافة شريك جديد', { partnerId: newPartner.id, name });
+        state.partners.push(newPartner);
+        draw();
+    } catch (err) {
+        console.error("Failed to add partner:", err);
+        alert("فشل إضافة الشريك.");
+    }
   };
 
-  window.addGroup = () => {
+  window.addGroup = async () => {
     const name = document.getElementById('pg-name').value.trim();
     if (!name) return alert('الرجاء إدخال اسم للمجموعة.');
     if (state.partnerGroups.some(g => g.name.toLowerCase() === name.toLowerCase())) {
       return alert('مجموعة بنفس الاسم موجودة بالفعل.');
     }
-    saveState();
     const newGroup = { id: uid('PG'), name, partners: [] };
-    state.partnerGroups.push(newGroup);
-    logAction('إنشاء مجموعة شركاء جديدة', { groupId: newGroup.id, name });
-    persist();
-    nav('partner-group-details', newGroup.id);
+    try {
+        await window.electronAPI.run('INSERT INTO partnerGroups (id, name) VALUES (?, ?)', [newGroup.id, newGroup.name]);
+        await logAction('إنشاء مجموعة شركاء جديدة', { groupId: newGroup.id, name });
+        state.partnerGroups.push(newGroup);
+        nav('partner-group-details', newGroup.id);
+    } catch (err) {
+        console.error("Failed to add partner group:", err);
+        alert("فشل إضافة مجموعة الشركاء.");
+    }
   };
 
-  window.payPartnerDebt = (debtId) => {
+  window.payPartnerDebt = async (debtId) => {
     const debt = state.partnerDebts.find(d => d.id === debtId);
     if(!debt) return alert('لم يتم العثور على الدين.');
     if(confirm(`هل تؤكد سداد هذا الدين بمبلغ ${egp(debt.amount)}؟`)){
-        saveState();
-        debt.status = 'مدفوع';
-        debt.paymentDate = today();
-        persist();
-        draw();
+        try {
+            const paymentDate = today();
+            await window.electronAPI.run('UPDATE partnerDebts SET status = ?, paymentDate = ? WHERE id = ?', ['مدفوع', paymentDate, debtId]);
+            debt.status = 'مدفوع';
+            debt.paymentDate = paymentDate;
+            draw();
+        } catch (err) {
+            console.error("Failed to pay partner debt:", err);
+            alert("فشل تسجيل سداد الدين.");
+        }
     }
   };
 
@@ -2677,7 +2633,7 @@ function renderPartnerGroups() { /* no-op */ }
 
 function renderPartnerGroupDetails(groupId) {
   const group = state.partnerGroups.find(g => g.id === groupId);
-  if (!group) return nav('partner-groups');
+  if (!group) return nav('partners'); // Changed from partner-groups
 
   function draw() {
     const totalPercent = group.partners.reduce((sum, p) => sum + p.percent, 0);
@@ -2686,7 +2642,7 @@ function renderPartnerGroupDetails(groupId) {
         return [
             partner ? partner.name : 'شريك محذوف',
             `${p.percent}%`,
-            `<button class="btn secondary" onclick="removePartnerFromGroup('${p.partnerId}')">حذف</button>`
+            `<button class="btn secondary" onclick="removePartnerFromGroup('${group.id}', '${p.partnerId}')">حذف</button>`
         ];
     });
     document.getElementById('pgd-list').innerHTML = table(['الشريك', 'النسبة', ''], rows);
@@ -2708,7 +2664,7 @@ function renderPartnerGroupDetails(groupId) {
           <div class="tools">
             <select class="select" id="pgd-partner-select" style="flex:1"><option value="">اختر شريك...</option>${state.partners.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}</select>
             <input class="input" id="pgd-percent" type="number" placeholder="النسبة %" style="flex:0.5">
-            <button class="btn" onclick="addPartnerToGroup()">إضافة</button>
+            <button class="btn" onclick="addPartnerToGroup('${group.id}')">إضافة</button>
           </div>
         </div>
         <div class="card">
@@ -2719,9 +2675,10 @@ function renderPartnerGroupDetails(groupId) {
     </div>
   `;
 
-  window.addPartnerToGroup = () => {
+  window.addPartnerToGroup = async (groupId) => {
     const partnerId = document.getElementById('pgd-partner-select').value;
     const percent = parseNumber(document.getElementById('pgd-percent').value);
+    const group = state.partnerGroups.find(g => g.id === groupId);
 
     if (!partnerId || !percent) return alert('الرجاء اختيار شريك وإدخال نسبة.');
     if (group.partners.some(p => p.partnerId === partnerId)) return alert('هذا الشريك موجود بالفعل في المجموعة.');
@@ -2731,19 +2688,33 @@ function renderPartnerGroupDetails(groupId) {
       return alert(`لا يمكن إضافة هذه النسبة. الإجمالي الحالي هو ${currentTotal}%. إضافة ${percent}% سيجعل المجموع يتجاوز 100%.`);
     }
 
-    saveState();
-    group.partners.push({ partnerId, percent });
-    logAction('إضافة شريك إلى مجموعة', { groupId, partnerId, percent });
-    persist();
-    draw();
+    const newMember = { id: uid('PGM'), groupId, partnerId, percent };
+    try {
+        await window.electronAPI.run('INSERT INTO partnerGroupMembers (id, groupId, partnerId, percent) VALUES (?, ?, ?, ?)', [newMember.id, groupId, partnerId, percent]);
+        await logAction('إضافة شريك إلى مجموعة', { groupId, partnerId, percent });
+        group.partners.push({ partnerId, percent }); // Optimistic update
+        draw();
+    } catch(err) {
+        console.error("Failed to add partner to group:", err);
+        alert("فشل إضافة الشريك للمجموعة.");
+    }
   };
 
-  window.removePartnerFromGroup = (partnerId) => {
-    saveState();
-    group.partners = group.partners.filter(p => p.partnerId !== partnerId);
-    logAction('حذف شريك من مجموعة', { groupId, partnerId });
-    persist();
-    draw();
+  window.removePartnerFromGroup = async (groupId, partnerId) => {
+    const group = state.partnerGroups.find(g => g.id === groupId);
+    if (!group) return;
+
+    if (confirm('هل أنت متأكد من حذف هذا الشريك من المجموعة؟')) {
+        try {
+            await window.electronAPI.run('DELETE FROM partnerGroupMembers WHERE groupId = ? AND partnerId = ?', [groupId, partnerId]);
+            await logAction('حذف شريك من مجموعة', { groupId, partnerId });
+            group.partners = group.partners.filter(p => p.partnerId !== partnerId); // Optimistic
+            draw();
+        } catch(err) {
+            console.error("Failed to remove partner from group:", err);
+            alert("فشل حذف الشريك من المجموعة.");
+        }
+    }
   };
 
   draw();

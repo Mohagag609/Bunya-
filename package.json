@@ -1,0 +1,48 @@
+{
+  "name": "app",
+  "version": "1.0.0",
+  "description": "A desktop real estate investment management app built with Electron.",
+  "main": "main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "jest",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.example.estatepro",
+    "productName": "EstatePro",
+    "files": [
+      "main/**/*",
+      "app/**/*",
+      "db/**/*",
+      "node_modules/**/*"
+    ],
+    "directories": {
+      "buildResources": "assets",
+      "output": "dist"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mohagag609/Bunya-.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Mohagag609/Bunya-/issues"
+  },
+  "homepage": "https://github.com/Mohagag609/Bunya-#readme",
+  "dependencies": {
+    "better-sqlite3": "^12.2.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.12",
+    "jest": "^30.1.3",
+    "playwright": "^1.55.0"
+  }
+}
