@@ -33,7 +33,7 @@ if 'RENDER' in os.environ:
 
 CORS(app, origins=allowed_origins, methods=["GET", "PUT", "POST", "DELETE"], supports_credentials=True)
 
-# Initialize SocketIO with proper configuration
+# Initialize SocketIO with proper configuration for production
 socketio = SocketIO(
     app, 
     cors_allowed_origins=allowed_origins, 
@@ -48,78 +48,76 @@ socketio = SocketIO(
 
 def create_and_register_views(app, model_name, model_class):
     view_class_name = f"{model_name.capitalize()}API"
-    pk_name = db.inspect(model_class).primary_key[0].name
+    
+    class GenericAPI:
+        def __init__(self, model_class):
+            self.model_class = model_class
 
-    class CRUDView:
         def get_all(self):
-            items = model_class.query.all()
-            return jsonify([item.to_dict() for item in items])
+            try:
+                items = self.model_class.query.all()
+                return jsonify([{'id': item.id, 'data': item.data} for item in items])
+            except Exception as e:
+                return jsonify({'error': str(e)}), 500
 
         def get_one(self, item_id):
-            item = model_class.query.get(item_id)
-            if item is None:
-                return jsonify({"error": "Item not found"}), 404
-            return jsonify(item.to_dict())
+            try:
+                item = self.model_class.query.get(item_id)
+                if item:
+                    return jsonify({'id': item.id, 'data': item.data})
+                else:
+                    return jsonify({'error': 'Item not found'}), 404
+            except Exception as e:
+                return jsonify({'error': str(e)}), 500
 
         def upsert(self, item_id):
-            item = model_class.query.get(item_id)
-            data = request.get_json()
-            if not data:
-                return jsonify({"error": "Invalid data"}), 400
+            try:
+                data = request.get_json()
+                if not data:
+                    return jsonify({'error': 'No data provided'}), 400
 
-            item_data = {k: v for k, v in data.items() if k != pk_name}
-
-            if item is None:
-                pk_value = data.get(pk_name)
-                if str(item_id) != str(pk_value):
-                    return jsonify({"error": "ID in URL and body do not match"}), 400
-
-                new_item = model_class(**{pk_name: pk_value, 'data': item_data})
-                db.session.add(new_item)
+                # Try to get existing item
+                item = self.model_class.query.get(item_id)
+                if item:
+                    # Update existing item
+                    item.data = data
+                else:
+                    # Create new item
+                    item = self.model_class(id=item_id, data=data)
+                    db.session.add(item)
+                
                 db.session.commit()
-                return jsonify(new_item.to_dict()), 201
-            else:
-                item.data = item_data
-                db.session.commit()
-                return jsonify(item.to_dict()), 200
+                return jsonify({'id': item.id, 'data': item.data})
+            except Exception as e:
+                db.session.rollback()
+                return jsonify({'error': str(e)}), 500
 
         def delete(self, item_id):
-            item = model_class.query.get(item_id)
-            if item is None:
-                return jsonify({"error": "Item not found"}), 404
+            try:
+                item = self.model_class.query.get(item_id)
+                if item:
+                    db.session.delete(item)
+                    db.session.commit()
+                    return jsonify({'message': 'Item deleted successfully'})
+                else:
+                    return jsonify({'error': 'Item not found'}), 404
+            except Exception as e:
+                db.session.rollback()
+                return jsonify({'error': str(e)}), 500
 
-            db.session.delete(item)
-            db.session.commit()
-            return jsonify({"message": "Item deleted successfully"}), 200
-
-    view_instance = CRUDView()
+    # Create and register the view
+    view_instance = GenericAPI(model_class)
     endpoint_prefix = f"{model_name}_api"
-
+    
     app.add_url_rule(f'/api/{model_name}', view_func=view_instance.get_all, methods=['GET'], endpoint=f'{endpoint_prefix}_get_all')
     app.add_url_rule(f'/api/{model_name}/<item_id>', view_func=view_instance.get_one, methods=['GET'], endpoint=f'{endpoint_prefix}_get_one')
     app.add_url_rule(f'/api/{model_name}/<item_id>', view_func=view_instance.upsert, methods=['PUT'], endpoint=f'{endpoint_prefix}_upsert')
     app.add_url_rule(f'/api/{model_name}/<item_id>', view_func=view_instance.delete, methods=['DELETE'], endpoint=f'{endpoint_prefix}_delete')
 
-# --- Register all model routes ---
-with app.app_context():
-    # Create all tables first
-    db.create_all()
-    print("Database tables created successfully!")
-    
-    # Create main safe if it doesn't exist
-    from models import models
-    safes_model = models.get('safes')
-    if safes_model:
-        existing_safe = safes_model.query.filter_by(id='S-main').first()
-        if not existing_safe:
-            main_safe = safes_model(id='S-main', data={'name': 'الخزنة الرئيسية', 'balance': 0})
-            db.session.add(main_safe)
-            db.session.commit()
-            print("Main safe created successfully!")
-    
-    for name, model_cls in models.items():
-        create_and_register_views(app, name, model_cls)
-        print(f"Registered CRUD endpoints for: /api/{name}")
+# Create all models and register their endpoints
+for name, model_cls in models.items():
+    create_and_register_views(app, name, model_cls)
+    print(f"Registered CRUD endpoints for: /api/{name}")
 
 # --- Health Check ---
 @app.route('/health')
@@ -264,8 +262,9 @@ def handle_ping():
 def serve_static(path):
     safe_path = os.path.abspath(os.path.join(app.static_folder, path))
     if not safe_path.startswith(app.static_folder):
-        return "Not Found", 404
-    if os.path.exists(safe_path):
+        return "Forbidden", 403
+    
+    if os.path.exists(safe_path) and os.path.isfile(safe_path):
         return send_from_directory(app.static_folder, path)
     else:
         return send_from_directory(app.static_folder, 'index.html')
@@ -276,10 +275,12 @@ def init_db_command():
         db.create_all()
     click.echo("Initialized the database.")
 
+# Production entry point
 if __name__ == '__main__':
     with app.app_context():
         # Create all tables
         db.create_all()
+        print("Database tables created successfully!")
         
         # Create default safe if none exists
         try:
@@ -300,12 +301,6 @@ if __name__ == '__main__':
         except Exception as e:
             print(f"Error creating default safe: {e}")
     
-    # Run with SocketIO
-    # Check if running in production (Render)
-    if os.environ.get('RENDER'):
-        # Production mode - use Gunicorn
-        print("Running in production mode with Gunicorn")
-        # This will be handled by the Procfile
-    else:
-        # Development mode - use SocketIO
-        socketio.run(app, debug=True, host='0.0.0.0', port=8000, allow_unsafe_werkzeug=True)
+    # Production mode - use Gunicorn
+    print("Running in production mode with Gunicorn")
+    # This will be handled by the Procfile

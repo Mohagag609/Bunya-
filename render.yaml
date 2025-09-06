@@ -3,7 +3,7 @@ services:
     name: estate-manager
     env: python
     buildCommand: pip install -r requirements-py311.txt
-    startCommand: python backend/server_working.py
+    startCommand: gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT backend.server_production:app
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL

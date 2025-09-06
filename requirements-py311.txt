@@ -6,3 +6,5 @@ SQLAlchemy==2.0.21
 psycopg2-binary==2.9.9
 python-dotenv==1.0.0
 Werkzeug==2.3.7
+gunicorn==21.2.0
+eventlet==0.33.3
