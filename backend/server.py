@@ -41,16 +41,24 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         parsed_path = urlparse(self.path)
         path = parsed_path.path
         
+        # Health check endpoint
+        if path == '/health':
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(b'{"status": "healthy", "service": "real-estate-manager"}')
+            return
+        
         # Route to index.html for root and SPA routes
         if path == '/' or path == '':
-            self.path = '/index.html'
+            self.path = '/frontend/index.html'
         elif path.startswith('/api/'):
             # Handle API routes (if needed in the future)
             self.handle_api_request(parsed_path)
             return
         elif not os.path.exists('.' + path):
             # For SPA routing, serve index.html for unknown paths
-            self.path = '/index.html'
+            self.path = '/frontend/index.html'
         
         # Call parent method
         return super().do_GET()
@@ -86,8 +94,8 @@ def main():
     # Get port from environment variable (Render requirement)
     PORT = int(os.environ.get('PORT', 8000))
     
-    # Change to the directory containing the web files
-    web_dir = os.path.dirname(os.path.abspath(__file__))
+    # Change to the parent directory to serve frontend files
+    web_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     os.chdir(web_dir)
     
     # Create server
