@@ -1,43 +1,46 @@
 {
-  "name": "real-estate-manager-modern",
-  "version": "2.0.0",
-  "description": "مدير الاستثمار العقاري - النسخة الحديثة",
-  "main": "index.html",
+  "name": "real-estate-management-system",
+  "version": "1.0.0",
+  "description": "نظام شامل لإدارة العقارات والعقود والعملاء",
+  "main": "backend/server.py",
   "scripts": {
-    "start": "python -m http.server 8000",
-    "dev": "python -m http.server 8000",
-    "build": "npm run minify-css && npm run minify-js",
-    "minify-css": "cleancss -o dist/styles.min.css src/styles/*.css",
-    "minify-js": "terser src/components/*.js src/ui/*.js src/utils/*.js -o dist/scripts.min.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "docker:build": "docker build -f Dockerfile.modern -t real-estate-manager-modern .",
-    "docker:run": "docker run -p 8000:8000 real-estate-manager-modern",
-    "docker:compose": "docker-compose -f docker-compose.modern.yml up -d"
+    "start": "python backend/server.py",
+    "dev": "python backend/server.py --debug",
+    "test": "python -m pytest tests/",
+    "build": "echo 'Building frontend assets...'",
+    "deploy": "echo 'Deploying to production...'",
+    "lint": "echo 'Running linters...'",
+    "format": "echo 'Formatting code...'"
   },
   "keywords": [
     "real-estate",
-    "property-management",
-    "saas",
-    "modern-ui",
-    "rtl",
-    "arabic"
+    "management",
+    "property",
+    "contracts",
+    "customers",
+    "arabic",
+    "flask",
+    "python"
   ],
-  "author": "Real Estate Manager Team",
+  "author": "فريق التطوير",
   "license": "MIT",
-  "devDependencies": {
-    "clean-css-cli": "^5.6.2",
-    "terser": "^5.19.4"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/real-estate-management-system.git"
   },
+  "bugs": {
+    "url": "https://github.com/your-username/real-estate-management-system/issues"
+  },
+  "homepage": "https://github.com/your-username/real-estate-management-system#readme",
   "engines": {
     "node": ">=14.0.0",
     "python": ">=3.8.0"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/your-org/real-estate-manager.git"
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "prettier": "^2.0.0"
   },
-  "bugs": {
-    "url": "https://github.com/your-org/real-estate-manager/issues"
-  },
-  "homepage": "https://github.com/your-org/real-estate-manager#readme"
+  "dependencies": {
+    "chart.js": "^3.0.0"
+  }
 }
