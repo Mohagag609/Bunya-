@@ -33,8 +33,16 @@ if 'RENDER' in os.environ:
 
 CORS(app, origins=allowed_origins, methods=["GET", "PUT", "POST", "DELETE"], supports_credentials=True)
 
-# Initialize SocketIO
-socketio = SocketIO(app, cors_allowed_origins=allowed_origins, logger=True, engineio_logger=True)
+# Initialize SocketIO with proper configuration
+socketio = SocketIO(
+    app, 
+    cors_allowed_origins=allowed_origins, 
+    logger=True, 
+    engineio_logger=True,
+    async_mode='threading',
+    ping_timeout=60,
+    ping_interval=25
+)
 
 # --- Dynamic CRUD API Creation ---
 
@@ -122,6 +130,8 @@ def health_check():
         return jsonify({
             'status': 'healthy',
             'database': 'connected',
+            'websocket': 'available',
+            'api_sync': 'available',
             'version': '1.0.0'
         }), 200
     except Exception as e:
@@ -131,10 +141,19 @@ def health_check():
             'error': str(e)
         }), 503
 
-# API Sync endpoint
-@app.route('/api/sync', methods=['POST'])
+# API Sync endpoint - Support both GET and POST
+@app.route('/api/sync', methods=['GET', 'POST'])
 def api_sync():
     try:
+        if request.method == 'GET':
+            return jsonify({
+                'status': 'success',
+                'message': 'API Sync endpoint is working',
+                'methods': ['GET', 'POST'],
+                'timestamp': str(datetime.now())
+            }), 200
+        
+        # Handle POST request
         data = request.get_json()
         if not data:
             return jsonify({'error': 'No data provided'}), 400
@@ -168,11 +187,39 @@ def api_sync():
 def websocket_route():
     return "WebSocket endpoint available at /socket.io/"
 
+# WebSocket handshake test endpoint
+@app.route('/ws-test')
+def websocket_test():
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head><title>WebSocket Test</title></head>
+    <body>
+        <h1>WebSocket Test</h1>
+        <div id="status">Connecting...</div>
+        <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+        <script>
+            const socket = io();
+            socket.on('connect', () => {
+                document.getElementById('status').innerHTML = 'Connected: ' + socket.id;
+            });
+            socket.on('disconnect', () => {
+                document.getElementById('status').innerHTML = 'Disconnected';
+            });
+        </script>
+    </body>
+    </html>
+    """
+
 # --- WebSocket Handlers ---
 @socketio.on('connect')
 def handle_connect():
     print(f'Client connected: {request.sid}')
-    emit('status', {'msg': 'Connected to server'})
+    emit('status', {
+        'msg': 'Connected to server',
+        'client_id': request.sid,
+        'timestamp': str(datetime.now())
+    })
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -182,13 +229,21 @@ def handle_disconnect():
 def handle_join_room(data):
     room = data.get('room', 'default')
     join_room(room)
-    emit('status', {'msg': f'Joined room: {room}'})
+    emit('status', {
+        'msg': f'Joined room: {room}',
+        'room': room,
+        'timestamp': str(datetime.now())
+    })
 
 @socketio.on('leave_room')
 def handle_leave_room(data):
     room = data.get('room', 'default')
     leave_room(room)
-    emit('status', {'msg': f'Left room: {room}'})
+    emit('status', {
+        'msg': f'Left room: {room}',
+        'room': room,
+        'timestamp': str(datetime.now())
+    })
 
 @socketio.on('sync_request')
 def handle_sync_request(data):
@@ -198,6 +253,10 @@ def handle_sync_request(data):
         'data': data,
         'timestamp': str(datetime.now())
     })
+
+@socketio.on('ping')
+def handle_ping():
+    emit('pong', {'timestamp': str(datetime.now())})
 
 # --- Static File Serving ---
 @app.route('/', defaults={'path': 'index.html'})

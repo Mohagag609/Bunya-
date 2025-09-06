@@ -15,15 +15,27 @@ let socket = null;
 
 function initWebSocket() {
     try {
-        // Connect to WebSocket server
-        socket = io();
+        // Connect to WebSocket server with retry logic
+        socket = io({
+            transports: ['websocket', 'polling'],
+            timeout: 20000,
+            reconnection: true,
+            reconnectionDelay: 1000,
+            reconnectionAttempts: 5
+        });
         
         socket.on('connect', () => {
             console.log('WebSocket connected:', socket.id);
+            // Send ping to test connection
+            socket.emit('ping');
         });
         
-        socket.on('disconnect', () => {
-            console.log('WebSocket disconnected');
+        socket.on('disconnect', (reason) => {
+            console.log('WebSocket disconnected:', reason);
+        });
+        
+        socket.on('connect_error', (error) => {
+            console.error('WebSocket connection error:', error);
         });
         
         socket.on('sync_update', (data) => {
@@ -34,6 +46,10 @@ function initWebSocket() {
         
         socket.on('status', (data) => {
             console.log('WebSocket status:', data);
+        });
+        
+        socket.on('pong', (data) => {
+            console.log('WebSocket pong received:', data);
         });
         
     } catch (error) {
