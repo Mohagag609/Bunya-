@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+        .log { background-color: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        button { padding: 10px 20px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Test</h1>
+    
+    <div id="status" class="status disconnected">Disconnected</div>
+    
+    <div>
+        <button onclick="connect()">Connect</button>
+        <button onclick="disconnect()">Disconnect</button>
+        <button onclick="testSync()">Test Sync</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+    
+    <div id="log" class="log"></div>
+    
+    <script>
+        let socket = null;
+        
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `<div>[${time}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function updateStatus(connected) {
+            const statusDiv = document.getElementById('status');
+            if (connected) {
+                statusDiv.textContent = 'Connected';
+                statusDiv.className = 'status connected';
+            } else {
+                statusDiv.textContent = 'Disconnected';
+                statusDiv.className = 'status disconnected';
+            }
+        }
+        
+        function connect() {
+            try {
+                socket = io();
+                
+                socket.on('connect', () => {
+                    log('WebSocket connected: ' + socket.id);
+                    updateStatus(true);
+                });
+                
+                socket.on('disconnect', () => {
+                    log('WebSocket disconnected');
+                    updateStatus(false);
+                });
+                
+                socket.on('sync_update', (data) => {
+                    log('Sync update received: ' + JSON.stringify(data));
+                });
+                
+                socket.on('status', (data) => {
+                    log('Status: ' + JSON.stringify(data));
+                });
+                
+                log('Attempting to connect...');
+            } catch (error) {
+                log('Connection error: ' + error.message);
+            }
+        }
+        
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+                updateStatus(false);
+                log('Disconnected manually');
+            }
+        }
+        
+        function testSync() {
+            if (socket && socket.connected) {
+                socket.emit('sync_request', {
+                    type: 'test',
+                    data: { message: 'Hello from client' }
+                });
+                log('Sync request sent');
+            } else {
+                log('Not connected to WebSocket');
+            }
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+        
+        // Auto-connect on page load
+        window.onload = connect;
+    </script>
+</body>
+</html>

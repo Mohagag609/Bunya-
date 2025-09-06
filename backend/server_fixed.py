@@ -7,6 +7,7 @@ from logging.handlers import RotatingFileHandler
 from dotenv import load_dotenv
 from datetime import datetime
 import traceback
+from sqlalchemy import text
 
 # Load environment variables
 load_dotenv()
@@ -23,9 +24,6 @@ DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://neondb_owner:npg_oJC
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
-app.config['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE', 'True').lower() == 'true'
-app.config['SESSION_COOKIE_HTTPONLY'] = os.environ.get('SESSION_COOKIE_HTTPONLY', 'True').lower() == 'true'
-app.config['SESSION_COOKIE_SAMESITE'] = os.environ.get('SESSION_COOKIE_SAMESITE', 'Lax')
 
 # Database engine options for better performance
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
@@ -65,46 +63,14 @@ def setup_logging():
 # Setup logging
 setup_logging()
 
-# --- Security Middleware ---
-@app.before_request
-def before_request():
-    """Security headers and request logging"""
-    from flask import g
-    
-    # Add security headers
-    g.start_time = datetime.utcnow()
-    
-    # Log request
-    app.logger.info(f"Request: {request.method} {request.path} from {request.remote_addr}")
-
-@app.after_request
-def after_request(response):
-    """Add security headers to response"""
-    from flask import g
-    
-    # Security headers
-    response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['X-Frame-Options'] = 'DENY'
-    response.headers['X-XSS-Protection'] = '1; mode=block'
-    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-    
-    # Log response
-    if hasattr(g, 'start_time'):
-        duration = (datetime.utcnow() - g.start_time).total_seconds()
-        app.logger.info(f"Response: {response.status_code} in {duration:.3f}s")
-    
-    return response
-
-# Configure CORS to allow requests from localhost and the deployed frontend URL,
-# with explicit methods and credentials support for better compatibility.
-# Configure CORS for both local development and production
+# Configure CORS
 allowed_origins = [
     "http://localhost:3000", 
     "http://localhost:8000", 
     "http://127.0.0.1:3000", 
     "http://127.0.0.1:8000", 
-    "https://estate-pro-a62r.onrender.com"
+    "https://estate-pro-a62r.onrender.com",
+    "https://kolaaaaa.onrender.com"
 ]
 
 # Add the current domain to allowed origins for production
@@ -114,15 +80,6 @@ if 'RENDER' in os.environ:
     if service_url:
         allowed_origins.append(service_url)
         app.logger.info(f"Added Render service URL to CORS: {service_url}")
-    
-    # Also add any custom domains from environment
-    custom_domains = os.environ.get('CUSTOM_DOMAINS', '')
-    if custom_domains:
-        for domain in custom_domains.split(','):
-            domain = domain.strip()
-            if domain:
-                allowed_origins.append(f"https://{domain}")
-                app.logger.info(f"Added custom domain to CORS: {domain}")
 
 CORS(app, origins=allowed_origins, methods=["GET", "PUT", "POST", "DELETE"], supports_credentials=True)
 
@@ -237,8 +194,7 @@ with app.app_context():
 def health_check():
     """Health check endpoint for monitoring"""
     try:
-        # Check database connection
-        from sqlalchemy import text
+        # Check database connection using text() for SQLAlchemy 2.0
         db.session.execute(text('SELECT 1'))
         return jsonify({
             'status': 'healthy',

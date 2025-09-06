@@ -2,8 +2,8 @@ services:
   - type: web
     name: estate-manager
     env: python
-    buildCommand: pip install -r requirements-py311.txt
-    startCommand: gunicorn -c gunicorn.conf.py backend.server_simple_production:app
+    buildCommand: pip install -r backend/requirements_final.txt
+    startCommand: python backend/server_original_fixed.py
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
@@ -12,5 +12,3 @@ services:
           property: connectionString
       - key: PYTHON_VERSION
         value: 3.11.0
-      - key: FLASK_SOCKETIO_ASYNC_MODE
-        value: threading
