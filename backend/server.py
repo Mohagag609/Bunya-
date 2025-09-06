@@ -51,14 +51,14 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         
         # Route to index.html for root and SPA routes
         if path == '/' or path == '':
-            self.path = '/frontend/index.html'
+            self.path = '/index.html'
         elif path.startswith('/api/'):
             # Handle API routes (if needed in the future)
             self.handle_api_request(parsed_path)
             return
         elif not os.path.exists('.' + path):
             # For SPA routing, serve index.html for unknown paths
-            self.path = '/frontend/index.html'
+            self.path = '/index.html'
         
         # Call parent method
         return super().do_GET()

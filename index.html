@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ar" dir="rtl" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="max-age=3600">
+<title>مدير الاستثمار العقاري — النسخة النهائية (محلي) — محدثة</title>
+
+<!-- External Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+<script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Manifest -->
+<link rel="manifest" href="manifest.json">
+
+<!-- Modern Design System -->
+<link rel="stylesheet" href="css/design-system.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/style_modern.css">
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="brand">
+      <div class="logo">🏛️</div>
+      <h1 class="brand-title">مدير الاستثمار العقاري — النسخة النهائية</h1>
+    </div>
+    <div class="tools">
+      <button class="btn btn-secondary btn-sm" id="undoBtn" disabled>
+        <span class="nav-icon">↪️</span>
+        <span>تراجع</span>
+      </button>
+      <button class="btn btn-secondary btn-sm" id="redoBtn" disabled>
+        <span class="nav-icon">↩️</span>
+        <span>تقدم</span>
+      </button>
+      <select class="select" id="themeSel">
+        <option value="dark">🌙 داكن</option>
+        <option value="light">☀️ فاتح</option>
+      </select>
+      <select class="select" id="fontSel">
+        <option value="14">خط 14</option>
+        <option value="16" selected>خط 16</option>
+        <option value="18">خط 18</option>
+      </select>
+      <button class="btn btn-secondary btn-sm" id="lockBtn">
+        <span class="nav-icon">🔒</span>
+        <span>قفل</span>
+      </button>
+    </div>
+  </div>
+  <div class="main-layout">
+    <div class="sidebar">
+      <nav class="sidebar-nav" id="tabs"></nav>
+    </div>
+    <div class="content" id="view">
+      <!-- Content will be dynamically loaded here -->
+    </div>
+  </div>
+  
+  <footer class="footer">
+    <div class="footer-content">
+      <span class="footer-text">💾 LocalStorage • PDF/CSV • بحث/فرز/تعديل مباشر • أقساط مرنة • عمولة/صيانة • تدفقات نقدية • فلاتر تاريخ للتقارير</span>
+    </div>
+  </footer>
+</div>
+
+<script>
+// Define OBJECT_STORES globally before any other scripts
+window.OBJECT_STORES = [
+    'customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments',
+    'partnerDebts', 'safes', 'transfers', 'auditLog', 'vouchers', 'brokerDues',
+    'brokers', 'partnerGroups', 'settings', 'keyval'
+];
+console.log('OBJECT_STORES defined:', window.OBJECT_STORES);
+</script>
+<!-- Modern Component Systems -->
+<script src="components/theme-system.js"></script>
+<script src="components/toast-system.js"></script>
+<script src="components/skeleton-system.js"></script>
+<script src="components/modern-ui-updater.js"></script>
+<script src="js/performance-optimizer.js"></script>
+
+<!-- Core Application Scripts -->
+<script src="js/db.js"></script>
+<script src="js/app.js" defer></script>
+<script src="js/dashboard_widgets.js" defer></script>
+<script src="js/smart_search.js" defer></script>
+<script src="js/notifications_system.js" defer></script>
+<script src="js/backup_system.js" defer></script>
+<script src="js/performance_enhancements.js" defer></script>
+<script src="js/export_system.js" defer></script>
+</body>
+</html>
