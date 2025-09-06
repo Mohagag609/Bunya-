@@ -626,9 +626,28 @@ async function initializeApp() {
         });
     } catch (error) {
         console.error("Failed to initialize the application:", error);
+        
+        // Initialize state with empty arrays even when backend fails
+        state = {};
+        window.OBJECT_STORES.forEach(storeName => {
+            if (storeName !== 'keyval' && storeName !== 'settings') {
+                state[storeName] = [];
+            }
+        });
+        state.settings = { theme: 'dark', font: 16, pass: null, key: 'main' };
+        state.locked = false;
+        
         const viewEl = document.getElementById('view');
         if (viewEl) {
-            viewEl.innerHTML = `<div class="card warn"><h3>خطأ فادح</h3><p>لم يتمكن التطبيق من الاتصال بالخادم الخلفي.</p><pre>${error.message}</pre></div>`;
+            viewEl.innerHTML = `
+                <div class="card warn">
+                    <h3>خطأ فادح</h3>
+                    <p>لم يتمكن التطبيق من الاتصال بالخادم الخلفي.</p>
+                    <p>سيتم تشغيل التطبيق في وضع عدم الاتصال مع بيانات فارغة.</p>
+                    <pre>${error.message}</pre>
+                    <button onclick="location.reload()" class="btn">إعادة المحاولة</button>
+                </div>
+            `;
         }
         
         // Clean up any remaining background elements
@@ -1512,10 +1531,10 @@ function showNotification(message, type = 'info') {
         document.head.appendChild(style);
     }
 }
-function unitById(id){ return state.units.find(u=>u.id===id); }
-function custById(id){ return state.customers.find(c=>c.id===id); }
-function partnerById(id){ return state.partners.find(p=>p.id===id); }
-function brokerById(id){ return state.brokers.find(b=>b.id===id); }
+function unitById(id){ return (state.units || []).find(u=>u.id===id); }
+function custById(id){ return (state.customers || []).find(c=>c.id===id); }
+function partnerById(id){ return (state.partners || []).find(p=>p.id===id); }
+function brokerById(id){ return (state.brokers || []).find(b=>b.id===id); }
 function unitCode(id){ return (unitById(id)||{}).code||'—'; }
 function getUnitDisplayName(unit) { if (!unit) return '—'; const name = unit.name ? `اسم الوحدة (${unit.name})` : ''; const floor = unit.floor ? `رقم الدور (${unit.floor})` : ''; const building = unit.building ? `رقم العمارة (${unit.building})` : ''; return [name, floor, building].filter(Boolean).join(' '); }
 function parseNumber(v){ v=String(v||'').replace(/[^\d.]/g,''); return Number(v||0); }
@@ -1748,20 +1767,20 @@ function generatePartnerLedger(partnerId) {
     let totalExpense = 0;
 
     // Process vouchers to get income and expenses
-    state.vouchers.forEach(v => {
+    (state.vouchers || []).forEach(v => {
         let contract;
         // Find contract, accommodating different linked_ref types
-        const directContract = state.contracts.find(c => c.id === v.linked_ref);
+        const directContract = (state.contracts || []).find(c => c.id === v.linked_ref);
         if (directContract) {
             contract = directContract;
         } else {
-            const installment = state.installments.find(i => i.id === v.linked_ref);
+            const installment = (state.installments || []).find(i => i.id === v.linked_ref);
             if (installment) {
-                contract = state.contracts.find(c => c.unitId === installment.unitId);
+                contract = (state.contracts || []).find(c => c.unitId === installment.unitId);
             } else {
-                const brokerDue = state.brokerDues.find(d => d.id === v.linked_ref);
+                const brokerDue = (state.brokerDues || []).find(d => d.id === v.linked_ref);
                 if (brokerDue) {
-                    contract = state.contracts.find(c => c.id === brokerDue.contractId);
+                    contract = (state.contracts || []).find(c => c.id === brokerDue.contractId);
                 }
             }
         }
@@ -1811,8 +1830,8 @@ function generatePartnerLedger(partnerId) {
 
 function calculateKpis(filter = {}) {
   const { from, to } = filter;
-  let contracts = state.contracts;
-  let vouchers = state.vouchers;
+  let contracts = state.contracts || [];
+  let vouchers = state.vouchers || [];
 
   if (from) {
     contracts = contracts.filter(c => c.start >= from);
@@ -1826,7 +1845,7 @@ function calculateKpis(filter = {}) {
   const totalSales = contracts.reduce((sum, c) => sum + Number(c.totalPrice || 0), 0);
   const totalReceipts = vouchers.filter(v => v.type === 'receipt').reduce((sum, v) => sum + v.amount, 0);
 
-  const totalDebt = state.units.reduce((sum, u) => sum + calcRemaining(u), 0);
+  const totalDebt = (state.units || []).reduce((sum, u) => sum + calcRemaining(u), 0);
 
   const collectionPercentage = totalSales > 0 ? (totalReceipts / totalSales) * 100 : 0;
 
@@ -1835,13 +1854,13 @@ function calculateKpis(filter = {}) {
   const netProfit = totalReceipts - totalExpenses;
 
   const unitCounts = {
-    total: state.units.length,
-    available: state.units.filter(u=>u.status==='متاحة').length,
-    sold: state.units.filter(u=>u.status==='مباعة').length,
-    reserved: state.units.filter(u=>u.status==='محجوزة').length,
+    total: (state.units || []).length,
+    available: (state.units || []).filter(u=>u.status==='متاحة').length,
+    sold: (state.units || []).filter(u=>u.status==='مباعة').length,
+    reserved: (state.units || []).filter(u=>u.status==='محجوزة').length,
   };
 
-  const investorCount = state.partners.length;
+  const investorCount = (state.partners || []).length;
 
   return {
     totalSales, totalReceipts, totalDebt, collectionPercentage,
@@ -1863,18 +1882,18 @@ function exportDashboardExcel() {
         ['إجمالي المصروفات', kpis.totalExpenses],
     ];
 
-    let upcomingInstallments = state.installments.filter(i => i.status !== 'مدفوع').sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
+    let upcomingInstallments = (state.installments || []).filter(i => i.status !== 'مدفوع').sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
     if (fromDate) upcomingInstallments = upcomingInstallments.filter(i => i.dueDate >= fromDate);
     if (toDate) upcomingInstallments = upcomingInstallments.filter(i => i.dueDate <= toDate);
     const installmentData = upcomingInstallments.map(i => ({
         'الوحدة': getUnitDisplayName(unitById(i.unitId)),
-        'العميل': (custById(state.contracts.find(c => c.unitId === i.unitId)?.customerId) || {}).name,
+        'العميل': (custById((state.contracts || []).find(c => c.unitId === i.unitId)?.customerId) || {}).name,
         'المبلغ': i.amount,
         'تاريخ الاستحقاق': i.dueDate
     }));
 
     let transactions = [];
-    state.vouchers.forEach(v => {
+    (state.vouchers || []).forEach(v => {
         if ((!fromDate || v.date >= fromDate) && (!toDate || v.date <= toDate)) {
             transactions.push({
                 'التاريخ': v.date,
@@ -2063,7 +2082,7 @@ function renderDash() {
 
     const headers = ['الوحدة', 'العميل', 'المبلغ', 'تاريخ الاستحقاق'];
     const rows = upcomingInstallments.map(i => {
-      const contract = state.contracts.find(c => c.unitId === i.unitId);
+      const contract = (state.contracts || []).find(c => c.unitId === i.unitId);
       const customer = contract ? custById(contract.customerId) : null;
       return [
         getUnitDisplayName(unitById(i.unitId)),
@@ -2082,7 +2101,7 @@ function renderDash() {
   // Render Recent Transactions Table
   try {
     let transactions = [];
-    state.vouchers.forEach(v => {
+    (state.vouchers || []).forEach(v => {
         if ((!fromDate || v.date >= fromDate) && (!toDate || v.date <= toDate)) {
             transactions.push({
                 date: v.date,
@@ -2114,10 +2133,10 @@ function renderDash() {
 
 /* ===== لوحة التحكم القديمة ===== */
 function renderOldDash(){
-  const total=state.units.length, avail=state.units.filter(u=>u.status==='متاحة').length, sold=state.units.filter(u=>u.status==='مباعة').length, ret=state.units.filter(u=>u.status==='مرتجعة').length;
-  const revenue=state.vouchers.filter(v=>v.type === 'receipt').reduce((s,p)=>s+Number(p.amount||0),0);
+  const total=(state.units || []).length, avail=(state.units || []).filter(u=>u.status==='متاحة').length, sold=(state.units || []).filter(u=>u.status==='مباعة').length, ret=(state.units || []).filter(u=>u.status==='مرتجعة').length;
+  const revenue=(state.vouchers || []).filter(v=>v.type === 'receipt').reduce((s,p)=>s+Number(p.amount||0),0);
   const now=new Date(); const proj={};
-  state.installments.filter(i=>i.status!=='مدفوع' && i.dueDate && new Date(i.dueDate)>=now).forEach(i=>{ const ym=i.dueDate.slice(0,7); proj[ym]=(proj[ym]||0)+Number(i.amount||0); });
+  (state.installments || []).filter(i=>i.status!=='مدفوع' && i.dueDate && new Date(i.dueDate)>=now).forEach(i=>{ const ym=i.dueDate.slice(0,7); proj[ym]=(proj[ym]||0)+Number(i.amount||0); });
   const projRows=Object.keys(proj).sort().slice(0,6).map(k=>[k, proj[k]]);
 
   view.innerHTML=`
@@ -2181,7 +2200,7 @@ function renderOldDash(){
 }
 window.printProjection=()=>{
   const now=new Date(); const proj={};
-  state.installments.filter(i=>i.status!=='مدفوع' && i.dueDate && new Date(i.dueDate)>=now).forEach(i=>{ const ym=i.dueDate.slice(0,7); proj[ym]=(proj[ym]||0)+Number(i.amount||0); });
+  (state.installments || []).filter(i=>i.status!=='مدفوع' && i.dueDate && new Date(i.dueDate)>=now).forEach(i=>{ const ym=i.dueDate.slice(0,7); proj[ym]=(proj[ym]||0)+Number(i.amount||0); });
   const rows=Object.keys(proj).sort().slice(0,12).map(k=>`<tr><td>${k}</td><td>${egp(proj[k])}</td></tr>`).join('');
   printHTML('تدفقات نقدية (12 شهر)', `<h1>تدفقات نقدية (12 شهر)</h1><table><thead><tr><th>الشهر</th><th>الإجمالي</th></tr></thead><tbody>${rows}</tbody></table>`);
 };
@@ -2273,7 +2292,7 @@ function renderCustomers(){
 
   window.expCustomers=()=>{
     const headers = ['الاسم','الهاتف','الرقم القومي','العنوان','الحالة','ملاحظات'];
-    const rows = state.customers.map(c=>[c.name||'', c.phone||'', c.nationalId||'', c.address||'', c.status||'', c.notes||'']);
+    const rows = (state.customers || []).map(c=>[c.name||'', c.phone||'', c.nationalId||'', c.address||'', c.status||'', c.notes||'']);
     exportCSV(headers, rows, 'customers.csv');
   };
 
@@ -2294,7 +2313,7 @@ function renderCustomers(){
 
   window.printCustomers=()=>{
     const headers = ['الاسم','الهاتف','الرقم القومي','العنوان','الحالة'];
-    const rows=state.customers.map(c=>`<tr><td>${c.name||''}</td><td>${c.phone||''}</td><td>${c.nationalId||''}</td><td>${c.address||''}</td><td>${c.status||''}</td></tr>`).join('');
+    const rows=(state.customers || []).map(c=>`<tr><td>${c.name||''}</td><td>${c.phone||''}</td><td>${c.nationalId||''}</td><td>${c.address||''}</td><td>${c.status||''}</td></tr>`).join('');
     printHTML('تقرير العملاء', `<h1>تقرير العملاء</h1><table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>`);
   };
 
@@ -2436,7 +2455,7 @@ window.delRow= async (coll,id)=>{
           if (currentView === 'contracts') {
             // إعادة رسم الجدول مباشرة
             const q = (document.getElementById('ct-q')?.value || '').trim().toLowerCase();
-            let list = state.contracts.slice();
+            let list = (state.contracts || []).slice();
             if (q) {
                 list = list.filter(c => {
                     const customerName = (custById(c.customerId) || {}).name || '';
@@ -2479,7 +2498,7 @@ window.delRow= async (coll,id)=>{
 };
 
 function deleteUnit(unitId) {
-  const isLinked = state.contracts.some(c => c.unitId === unitId);
+  const isLinked = (state.contracts || []).some(c => c.unitId === unitId);
   if (isLinked) {
     alert('لا يمكن حذف هذه الوحدة لأنها مرتبطة بعقد قائم. يجب حذف العقد أولاً.');
     return;
@@ -2489,14 +2508,14 @@ function deleteUnit(unitId) {
 
 /* ===== الوحدات ===== */
 function calcRemaining(u){
-  const ct = state.contracts.find(c => c.unitId === u.id);
+  const ct = (state.contracts || []).find(c => c.unitId === u.id);
   if (!ct) return 0;
 
   const totalOwed = (ct.totalPrice || 0) - (ct.discountAmount || 0);
 
-  const installmentIds = new Set(state.installments.filter(i => i.unitId === u.id).map(i => i.id));
+  const installmentIds = new Set((state.installments || []).filter(i => i.unitId === u.id).map(i => i.id));
 
-  const totalPaid = state.vouchers
+  const totalPaid = (state.vouchers || [])
       .filter(v => v.type === 'receipt' && (v.linked_ref === ct.id || installmentIds.has(v.linked_ref)))
       .reduce((sum, v) => sum + v.amount, 0);
 
@@ -2646,14 +2665,14 @@ function renderUnits(){
     } catch (err) {
         alert("فشل حفظ الوحدة: " + err.message);
         // Manual rollback of state is needed on failure
-        state.units = state.units.filter(u => u.id !== newUnit.id);
+        state.units = (state.units || []).filter(u => u.id !== newUnit.id);
         state.unitPartners = state.unitPartners.filter(up => up.unitId !== newUnit.id);
     }
   };
 
   window.expUnits=()=>{
     const headers=['اسم الوحدة','الدور','البرج','نوع الوحدة','الشركاء','السعر','المتبقي','الحالة','ملاحظات'];
-    const rows=state.units.map(u=> {
+    const rows=(state.units || []).map(u=> {
       const partners = state.unitPartners.filter(up => up.unitId === u.id)
           .map(up => `${(partnerById(up.partnerId) || {}).name} (${up.percent}%)`)
           .join(' | ');
@@ -2682,7 +2701,7 @@ function renderUnits(){
 
   window.printUnits=()=>{
     const headers=['اسم الوحدة','الدور','البرج','نوع الوحدة','السعر','المتبقي','الحالة'];
-    const rows=state.units.map(u=>`<tr><td>${u.name||''}</td><td>${u.floor||''}</td><td>${u.building||''}</td><td>${u.unitType||''}</td><td>${egp(u.totalPrice)}</td><td>${egp(calcRemaining(u))}</td><td>${u.status}</td></tr>`).join('');
+    const rows=(state.units || []).map(u=>`<tr><td>${u.name||''}</td><td>${u.floor||''}</td><td>${u.building||''}</td><td>${u.unitType||''}</td><td>${egp(u.totalPrice)}</td><td>${egp(calcRemaining(u))}</td><td>${u.status}</td></tr>`).join('');
     printHTML('تقرير الوحدات', `<h1>تقرير الوحدات</h1><table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>`);
   };
   draw();
@@ -2811,11 +2830,11 @@ window.executeReturn = async (unitId, buyingPartnerId) => {
     const originalState = JSON.parse(JSON.stringify(state));
     saveState();
     const u = unitById(unitId);
-    const ct = state.contracts.find(c => c.unitId === unitId);
+    const ct = (state.contracts || []).find(c => c.unitId === unitId);
     if (!u || !ct) return alert('خطأ: لم يتم العثور على الوحدة أو العقد.');
 
     const originalPartners = state.unitPartners.filter(up => up.unitId === unitId);
-    const originalInstallments = state.installments.filter(i => i.unitId === unitId);
+    const originalInstallments = (state.installments || []).filter(i => i.unitId === unitId);
     const unpaidInstallments = originalInstallments.filter(i => i.status !== 'مدفوع');
 
     const sellingPartners = originalPartners.filter(p => p.partnerId !== buyingPartnerId);
@@ -2852,7 +2871,7 @@ window.executeReturn = async (unitId, buyingPartnerId) => {
 
         // Update local state
         state.contracts = state.contracts.filter(c => c.id !== ct.id);
-        state.installments = state.installments.filter(i => i.unitId !== unitId || i.status === 'مدفوع');
+        state.installments = (state.installments || []).filter(i => i.unitId !== unitId || i.status === 'مدفوع');
         state.partnerDebts.push(...newPartnerDebts);
         state.unitPartners = state.unitPartners.filter(up => up.unitId !== unitId);
         state.unitPartners.push(newUnitPartnerLink);
@@ -2988,7 +3007,7 @@ function renderUnitDetails(unitId){
 }
 
 async function deleteContract(contractId) {
-    const contract = state.contracts.find(c => c.id === contractId);
+    const contract = (state.contracts || []).find(c => c.id === contractId);
     if (!contract) {
         showNotification('لم يتم العثور على العقد.', 'error');
         return;
@@ -3001,11 +3020,11 @@ async function deleteContract(contractId) {
 
     try {
         const unitId = contract.unitId;
-        const installmentsToDelete = state.installments.filter(i => i.unitId === unitId);
-        const brokerDueToDelete = state.brokerDues.find(d => d.contractId === contractId);
+        const installmentsToDelete = (state.installments || []).filter(i => i.unitId === unitId);
+        const brokerDueToDelete = (state.brokerDues || []).find(d => d.contractId === contractId);
 
         const installmentIds = new Set(installmentsToDelete.map(i => i.id));
-        const vouchersToDelete = state.vouchers.filter(v =>
+        const vouchersToDelete = (state.vouchers || []).filter(v =>
             v.linked_ref === contractId ||
             installmentIds.has(v.linked_ref) ||
             (brokerDueToDelete && v.linked_ref === brokerDueToDelete.id)
@@ -3031,12 +3050,12 @@ async function deleteContract(contractId) {
         }
 
         // Update local state on success
-        state.vouchers = state.vouchers.filter(v => !vouchersToDelete.some(vd => vd.id === v.id));
+        state.vouchers = (state.vouchers || []).filter(v => !vouchersToDelete.some(vd => vd.id === v.id));
         if (brokerDueToDelete) { 
-            state.brokerDues = state.brokerDues.filter(d => d.id !== brokerDueToDelete.id); 
+            state.brokerDues = (state.brokerDues || []).filter(d => d.id !== brokerDueToDelete.id); 
         }
-        state.installments = state.installments.filter(i => !installmentsToDelete.some(id => id.id === i.id));
-        state.contracts = state.contracts.filter(c => c.id !== contractId);
+        state.installments = (state.installments || []).filter(i => !installmentsToDelete.some(id => id.id === i.id));
+        state.contracts = (state.contracts || []).filter(c => c.id !== contractId);
         
         // إضافة persist() لضمان الحفظ
         persist();
@@ -3048,7 +3067,7 @@ async function deleteContract(contractId) {
         if (currentView === 'contracts') {
             // إعادة رسم الجدول مباشرة
             const q = (document.getElementById('ct-q')?.value || '').trim().toLowerCase();
-            let list = state.contracts.slice();
+            let list = (state.contracts || []).slice();
             if (q) {
                 list = list.filter(c => {
                     const customerName = (custById(c.customerId) || {}).name || '';
@@ -3090,7 +3109,7 @@ async function deleteContract(contractId) {
 
 /* ===== العقود + توليد أقساط ===== */
 function editContract(contractId) {
-    const contract = state.contracts.find(c => c.id === contractId);
+    const contract = (state.contracts || []).find(c => c.id === contractId);
     if (!contract) {
         return alert('لم يتم العثور على العقد.');
     }
@@ -3111,9 +3130,9 @@ function editContract(contractId) {
 function renderContracts(){
   function draw(){
     const q = (document.getElementById('ct-q')?.value || '').trim().toLowerCase();
-    let list = state.contracts.slice();
+    let list = (state.contracts || []).slice();
     if (q) {
-        list = list.filter(c => {
+      list = list.filter(c => {
             const customerName = (custById(c.customerId) || {}).name || '';
             const unitName = getUnitDisplayName(unitById(c.unitId));
             const searchable = `${c.code || ''} ${unitName} ${customerName} ${c.brokerName || ''}`.toLowerCase();
@@ -3149,8 +3168,8 @@ function renderContracts(){
     <div class="card">
       <h3>إضافة عقد</h3>
       <div class="grid grid-4">
-        <select class="select" id="ct-unit"><option value="">اختر الوحدة...</option>${state.units.filter(u=>u.status==='متاحة' || u.status ==='محجوزة').map(u=>`<option value="${u.id}">${u.code}</option>`).join('')}</select>
-        <select class="select" id="ct-cust"><option value="">اختر العميل...</option>${state.customers.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select>
+        <select class="select" id="ct-unit"><option value="">اختر الوحدة...</option>${(state.units || []).filter(u=>u.status==='متاحة' || u.status ==='محجوزة').map(u=>`<option value="${u.id}">${u.code}</option>`).join('')}</select>
+        <select class="select" id="ct-cust"><option value="">اختر العميل...</option>${(state.customers || []).map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select>
         <input class="input" id="ct-total" placeholder="السعر الكلي" readonly style="background:var(--bg);">
         <select class="select" id="ct-payment-type">
             <option value="installment">تقسيط</option>
@@ -3209,7 +3228,7 @@ function renderContracts(){
     const startStr=document.getElementById('ct-start').value||today(); const start=new Date(startStr);
 
     // --- 1.1. Check for existing contracts for this unit ---
-    const existingContract = state.contracts.find(c => c.unitId === unitId);
+    const existingContract = (state.contracts || []).find(c => c.unitId === unitId);
     if (existingContract) {
         return showNotification('خطأ: هذه الوحدة لها عقد موجود بالفعل!', 'error');
     }
@@ -3230,7 +3249,7 @@ function renderContracts(){
     const itemsToCreate = { contracts: [], installments: [], vouchers: [], brokerDues: [] };
     const itemsToUpdate = { units: [], safes: [] };
 
-    const code='CTR-'+String(state.contracts.length+1).padStart(5,'0');
+    const code='CTR-'+String((state.contracts || []).length+1).padStart(5,'0');
     const ct={id:uid('CT'), code, unitId, customerId, totalPrice:total, downPayment:down, discountAmount: discount, maintenanceDeposit, brokerName, brokerPercent:brokerP, brokerAmount:brokerAmt, commissionSafeId, type, count, extraAnnual:Math.min(Math.max(extra,0),3), annualPaymentValue: annualBonusValue, start:startStr};
     itemsToCreate.contracts.push(ct);
 
@@ -3329,7 +3348,7 @@ function renderContracts(){
 
   window.expContracts = () => {
     const headers = ['كود العقد','الوحدة','العميل','السعر','المقدم','الخصم','اسم السمسار','نسبة العمولة','مبلغ العمولة'];
-    const rows = state.contracts.map(c => [
+    const rows = (state.contracts || []).map(c => [
         c.code,
         getUnitDisplayName(unitById(c.unitId)),
         (custById(c.customerId) || {}).name || '',
@@ -3345,7 +3364,7 @@ function renderContracts(){
 
   window.printContracts=()=>{
     const headers = ['الكود','الوحدة','العميل','السعر','المقدم','نوع','عدد','بداية'];
-    const rows=state.contracts.map(c=>`<tr><td>${c.code||''}</td><td>${getUnitDisplayName(unitById(c.unitId))}</td><td>${(custById(c.customerId)||{}).name||'—'}</td><td>${egp(c.totalPrice)}</td><td>${egp(c.downPayment)}</td><td>${c.type}</td><td>${c.count}</td><td>${c.start}</td></tr>`).join('');
+    const rows=(state.contracts || []).map(c=>`<tr><td>${c.code||''}</td><td>${getUnitDisplayName(unitById(c.unitId))}</td><td>${(custById(c.customerId)||{}).name||'—'}</td><td>${egp(c.totalPrice)}</td><td>${egp(c.downPayment)}</td><td>${c.type}</td><td>${c.count}</td><td>${c.start}</td></tr>`).join('');
     printHTML('تقرير العقود', `<h1>تقرير العقود</h1><table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>`);
   };
 
@@ -3406,7 +3425,7 @@ function renderContracts(){
   document.getElementById('ct-count').oninput = updateTotalInstallments;
   document.getElementById('ct-annual-bonus').oninput = updateTotalInstallments;
 
-  console.log('Rendering contracts page. Total contracts:', state.contracts.length);
+  console.log('Rendering contracts page. Total contracts:', (state.contracts || []).length);
   draw();
   updateFormForUnit();
   updateTotalInstallments();
@@ -3463,9 +3482,9 @@ function renderBrokers() {
     }
 
     function drawDuesTab() {
-        const dueList = state.brokerDues.filter(d => d.status === 'due').sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
+        const dueList = (state.brokerDues || []).filter(d => d.status === 'due').sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
         const rows = dueList.map(d => {
-            const contract = state.contracts.find(c => c.id === d.contractId);
+            const contract = (state.contracts || []).find(c => c.id === d.contractId);
             return [
                 d.brokerName,
                 contract ? unitCode(contract.unitId) : '—',
@@ -3536,12 +3555,12 @@ function renderBrokerDetails(brokerId) {
         return nav('brokers');
     }
 
-    const brokerDues = state.brokerDues.filter(d => d.brokerName === broker.name);
+    const brokerDues = (state.brokerDues || []).filter(d => d.brokerName === broker.name);
     const dueAmount = brokerDues.filter(d => d.status === 'due').reduce((sum, d) => sum + d.amount, 0);
     const paidAmount = brokerDues.filter(d => d.status === 'paid').reduce((sum, d) => sum + d.amount, 0);
 
     const dueRows = brokerDues.map(d => {
-        const contract = state.contracts.find(c => c.id === d.contractId);
+        const contract = (state.contracts || []).find(c => c.id === d.contractId);
         let payButton = '';
         if (d.status === 'due') {
             payButton = `<button class="btn ok" onclick="payBrokerDue('${d.id}')">دفع الآن</button>`;
@@ -3608,14 +3627,14 @@ function renderInstallments() {
         const from = document.getElementById('i-from')?.value;
         const to = document.getElementById('i-to')?.value;
 
-        let list = state.installments.slice();
+        let list = (state.installments || []).slice();
         if (from) list = list.filter(i => i.dueDate >= from);
         if (to) list = list.filter(i => i.dueDate <= to);
 
         // Group by unitId
         const grouped = list.reduce((acc, i) => {
             if (!acc[i.unitId]) {
-                const contract = state.contracts.find(c => c.unitId === i.unitId);
+                const contract = (state.contracts || []).find(c => c.unitId === i.unitId);
                 const customer = contract ? custById(contract.customerId) : null;
                 acc[i.unitId] = {
                     unit: unitById(i.unitId),
@@ -3701,7 +3720,7 @@ function renderInstallments() {
     };
 
     window.rescheduleInstallment = async function(id){
-      const i = state.installments.find(x=>x.id===id); if(!i) return;
+      const i = (state.installments || []).find(x=>x.id===id); if(!i) return;
       const oldDetails = { amount: i.amount, dueDate: i.dueDate };
 
       const newAmtStr = prompt('قيمة القسط الجديدة', i.amount);
@@ -3716,7 +3735,7 @@ function renderInstallments() {
       const originalState = JSON.parse(JSON.stringify(state));
       saveState();
       const unitId = i.unitId;
-      const remainList = state.installments.filter(x=>x.unitId===unitId && x.status!=='مدفوع').sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
+      const remainList = (state.installments || []).filter(x=>x.unitId===unitId && x.status!=='مدفوع').sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
       const idx = remainList.findIndex(x=>x.id===id);
       const diff = Math.round((i.amount - newAmt) * 100) / 100;
 
@@ -3749,7 +3768,7 @@ function renderInstallments() {
     // Make functions available in the global scope for onclick handlers
     window.toggleGroup = toggleGroup;
     window.payInstallment = (id) => {
-      const i = state.installments.find(x=>x.id===id);
+      const i = (state.installments || []).find(x=>x.id===id);
       if(!i || i.status==='مدفوع' || i.amount<=0) return alert('هذا القسط غير صالح للدفع.');
 
       const safeOptions = state.safes.map(s => `<option value="${s.id}">${s.name} (${egp(s.balance)})</option>`).join('');
@@ -3784,7 +3803,7 @@ function renderInstallments() {
       const rows=currentList.map(i=> {
           const originalAmount = i.originalAmount ?? i.amount;
           const paidAmount = originalAmount - i.amount;
-          const contract = state.contracts.find(c => c.unitId === i.unitId);
+          const contract = (state.contracts || []).find(c => c.unitId === i.unitId);
           const customer = contract ? custById(contract.customerId) : null;
           return [getUnitDisplayName(unitById(i.unitId)), customer?.name, i.type, originalAmount, paidAmount, i.amount, i.dueDate||'', i.paymentDate||'', i.status||''];
       });
@@ -3795,7 +3814,7 @@ function renderInstallments() {
       const rows=currentList.map(i=> {
         const originalAmount = i.originalAmount ?? i.amount;
         const paidAmount = originalAmount - i.amount;
-        const contract = state.contracts.find(c => c.unitId === i.unitId);
+        const contract = (state.contracts || []).find(c => c.unitId === i.unitId);
         const customer = contract ? custById(contract.customerId) : null;
         return `
         <tr>
@@ -3830,12 +3849,12 @@ async function processPayment(unitId, amount, method, date, safeId, installmentI
     let remainingAmountToProcess = amount;
     const installmentsToUpdate = [];
 
-    const customer = custById(state.contracts.find(c => c.unitId === unitId)?.customerId);
+    const customer = custById((state.contracts || []).find(c => c.unitId === unitId)?.customerId);
     const voucher = { id: uid('V'), type: 'receipt', date, amount, safeId, description: `سداد دفعة للوحدة ${getUnitDisplayName(unitById(unitId))}`, payer: customer ? customer.name : 'غير محدد', linked_ref: installmentId || unitId };
 
     safe.balance = (safe.balance || 0) + amount;
 
-    const installmentsToPay = state.installments.filter(i => i.unitId === unitId && i.status !== 'مدفوع').sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
+    const installmentsToPay = (state.installments || []).filter(i => i.unitId === unitId && i.status !== 'مدفوع').sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
 
     for (const inst of installmentsToPay) {
         if (remainingAmountToProcess <= 0) break;
@@ -4733,34 +4752,34 @@ window.runReport=(type)=>{
   switch(type){
     case 'units_status':
       title='تقرير حالة الوحدات'; headers=['الحالة','العدد','إجمالي السعر'];
-      const stats={}; state.units.forEach(u=>{ stats[u.status]=(stats[u.status]||{c:0,p:0}); stats[u.status].c++; stats[u.status].p+=Number(u.totalPrice||0); });
+      const stats={}; (state.units || []).forEach(u=>{ stats[u.status]=(stats[u.status]||{c:0,p:0}); stats[u.status].c++; stats[u.status].p+=Number(u.totalPrice||0); });
       rows=Object.keys(stats).map(k=>[k,stats[k].c,egp(stats[k].p)]);
       break;
     case 'cust_activity':
       title='تقرير نشاط العملاء'; headers=['العميل','عدد الوحدات','إجمالي المدفوعات'];
-      const custs={}; state.contracts.forEach(c=>{ custs[c.customerId]=(custs[c.customerId]||{u:new Set(),p:0}); custs[c.customerId].u.add(c.unitId); });
+      const custs={}; (state.contracts || []).forEach(c=>{ custs[c.customerId]=(custs[c.customerId]||{u:new Set(),p:0}); custs[c.customerId].u.add(c.unitId); });
 
-      let custVouchers=state.vouchers.filter(v=>v.type === 'receipt');
+      let custVouchers=(state.vouchers || []).filter(v=>v.type === 'receipt');
       if(from) custVouchers=custVouchers.filter(p=>p.date>=from);
       if(to) custVouchers=custVouchers.filter(p=>p.date<=to);
       custVouchers.forEach(p=>{
-        const ct=state.contracts.find(c=>c.unitId===p.linked_ref || state.installments.find(i => i.id === p.linked_ref && i.unitId === c.unitId));
+        const ct=(state.contracts || []).find(c=>c.unitId===p.linked_ref || (state.installments || []).find(i => i.id === p.linked_ref && i.unitId === c.unitId));
         if(ct&&ct.customerId&&custs[ct.customerId]) custs[ct.customerId].p+=Number(p.amount||0);
       });
       rows=Object.keys(custs).map(k=>[(custById(k)||{}).name||k,custs[k].u.size,egp(custs[k].p)]);
       break;
     case 'inst_due':
       title='تقرير الأقساط المستحقة'; headers=['الوحدة','العميل','المبلغ','تاريخ الاستحقاق'];
-      let inst=state.installments.filter(i=>i.status!=='مدفوع');
+      let inst=(state.installments || []).filter(i=>i.status!=='مدفوع');
       if(from) inst=inst.filter(i=>i.dueDate>=from); if(to) inst=inst.filter(i=>i.dueDate<=to);
-      rows=inst.map(i=>[getUnitDisplayName(unitById(i.unitId)),(custById(state.contracts.find(c=>c.unitId===i.unitId)?.customerId)||{}).name,egp(i.amount),i.dueDate]);
+      rows=inst.map(i=>[getUnitDisplayName(unitById(i.unitId)),(custById((state.contracts || []).find(c=>c.unitId===i.unitId)?.customerId)||{}).name,egp(i.amount),i.dueDate]);
       break;
     case 'inst_overdue':
       title='تقرير الأقساط المتأخرة فقط';
       headers=['الوحدة', 'العميل', 'المبلغ', 'تاريخ الاستحقاق', 'أيام التأخير'];
       const today = new Date();
       today.setHours(0,0,0,0);
-      let overdueInst = state.installments.filter(i => {
+      let overdueInst = (state.installments || []).filter(i => {
           return i.status !== 'مدفوع' && i.dueDate && new Date(i.dueDate) < today;
       });
       if (from) overdueInst = overdueInst.filter(i => i.dueDate >= from);
@@ -4769,7 +4788,7 @@ window.runReport=(type)=>{
         const delay = Math.floor((today - new Date(i.dueDate)) / (1000 * 60 * 60 * 24));
         return [
           getUnitDisplayName(unitById(i.unitId)),
-          (custById(state.contracts.find(c=>c.unitId===i.unitId)?.customerId)||{}).name,
+          (custById((state.contracts || []).find(c=>c.unitId===i.unitId)?.customerId)||{}).name,
           egp(i.amount),
           i.dueDate,
           `${delay} يوم`
@@ -4778,7 +4797,7 @@ window.runReport=(type)=>{
       break;
     case 'payments_monthly':
       title='تقرير المدفوعات الشهرية'; headers=['الشهر','إجمالي المدفوعات'];
-      let pays=state.vouchers.filter(v=>v.type === 'receipt');
+      let pays=(state.vouchers || []).filter(v=>v.type === 'receipt');
       if(from) pays=pays.filter(p=>p.date>=from); if(to) pays=pays.filter(p=>p.date<=to);
       const months={}; pays.forEach(p=>{ const ym=p.date.slice(0,7); months[ym]=(months[ym]||0)+Number(p.amount||0); });
       const reportData = Object.keys(months).sort().map(k=>({month: k, total: months[k]}));
@@ -4820,7 +4839,7 @@ window.runReport=(type)=>{
       if(to) trans_sum=trans_sum.filter(t=>t.date<=to);
 
       trans_sum.forEach(v => {
-          const contract = state.contracts.find(c => c.id === v.linked_ref || state.installments.find(i=>i.id === v.linked_ref && i.unitId === c.unitId));
+          const contract = (state.contracts || []).find(c => c.id === v.linked_ref || (state.installments || []).find(i=>i.id === v.linked_ref && i.unitId === c.unitId));
           if(!contract) return;
           const unitPartners = state.unitPartners.filter(up => up.unitId === contract.unitId);
           unitPartners.forEach(link => {
@@ -4844,11 +4863,11 @@ window.runReport=(type)=>{
       break;
     case 'partner_profits':
       title='تقرير أرباح الشركاء'; headers=['الشريك','الوحدة','إجمالي الدفعة','نسبة الشريك','ربح الشريك'];
-      let partnerPays=state.vouchers.filter(v=>v.type === 'receipt');
+      let partnerPays=(state.vouchers || []).filter(v=>v.type === 'receipt');
       if(from) partnerPays=partnerPays.filter(p=>p.date>=from); if(to) partnerPays=partnerPays.filter(p=>p.date<=to);
       const partnerIdForProfit = document.getElementById('rep-partner-sel')?.value;
       partnerPays.forEach(p=>{
-        const contract = state.contracts.find(c => c.id === p.linked_ref || state.installments.find(i=>i.id === p.linked_ref && i.unitId === c.unitId));
+        const contract = (state.contracts || []).find(c => c.id === p.linked_ref || (state.installments || []).find(i=>i.id === p.linked_ref && i.unitId === c.unitId));
         if(!contract) return;
         const links=state.unitPartners.filter(up=>up.unitId===contract.unitId && (!partnerIdForProfit || up.partnerId === partnerIdForProfit));
         links.forEach(l=>{
@@ -4868,13 +4887,13 @@ window.runReport=(type)=>{
       const partner = partnerById(partnerId);
       title += ` - ${partner.name}`;
 
-      let paysForPartner = state.vouchers.filter(v=>v.type === 'receipt');
+      let paysForPartner = (state.vouchers || []).filter(v=>v.type === 'receipt');
       if (from) paysForPartner = paysForPartner.filter(p => p.date >= from);
       if (to) paysForPartner = paysForPartner.filter(p => p.date <= to);
 
       const monthlyProfits = {};
       paysForPartner.forEach(p => {
-          const contract = state.contracts.find(c => c.id === p.linked_ref || state.installments.find(i=>i.id === p.linked_ref && i.unitId === c.unitId));
+          const contract = (state.contracts || []).find(c => c.id === p.linked_ref || (state.installments || []).find(i=>i.id === p.linked_ref && i.unitId === c.unitId));
           if(!contract) return;
           const link = state.unitPartners.find(up => up.unitId === contract.unitId && up.partnerId === partnerId);
           if (link) {
@@ -5154,12 +5173,12 @@ function renderBackup(){
 }
 
 window.payBrokerDue = function(dueId) {
-    const due = state.brokerDues.find(d => d.id === dueId);
+    const due = (state.brokerDues || []).find(d => d.id === dueId);
     if (!due || due.status === 'paid') {
         return alert('هذه العمولة غير صالحة للدفع.');
     }
 
-    const contract = state.contracts.find(c => c.id === due.contractId);
+    const contract = (state.contracts || []).find(c => c.id === due.contractId);
     if (!contract) {
         return alert('لم يتم العثور على العقد المرتبط بهذه العمولة.');
     }
@@ -5218,7 +5237,7 @@ window.payBrokerDue = function(dueId) {
 
 /* ===== عرض تفاصيل العقد ===== */
 window.openContractDetails = function(id) {
-    const ct = state.contracts.find(c => c.id === id);
+    const ct = (state.contracts || []).find(c => c.id === id);
     if (!ct) {
         alert('لم يتم العثور على العقد');
         return nav('contracts');
@@ -5228,7 +5247,7 @@ window.openContractDetails = function(id) {
     const customer = custById(ct.customerId);
 
     // Calculations for new summary cards
-    const allInstallments = state.installments.filter(i => i.unitId === ct.unitId);
+    const allInstallments = (state.installments || []).filter(i => i.unitId === ct.unitId);
     const installmentIds = new Set(allInstallments.map(i => i.id));
 
     const totalPaid = state.vouchers
@@ -5258,7 +5277,7 @@ window.openContractDetails = function(id) {
       </tr>`;
     }).join('');
 
-    const pays = state.vouchers.filter(v => v.type === 'receipt' && (v.linked_ref === ct.id || installmentIds.has(v.linked_ref)));
+    const pays = (state.vouchers || []).filter(v => v.type === 'receipt' && (v.linked_ref === ct.id || installmentIds.has(v.linked_ref)));
     const payRows = pays.map(p => `<tr>
         <td>${egp(p.amount)}</td>
         <td>${p.description||'—'}</td>
