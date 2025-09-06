@@ -2,8 +2,8 @@ services:
   - type: web
     name: real-estate-manager-modern
     env: python
-    buildCommand: chmod +x build.sh && ./build.sh
-    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 backend.flask_server:app
+    buildCommand: pip install -r requirements-simple.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 app:app
     envVars:
       - key: PORT
         value: 5000

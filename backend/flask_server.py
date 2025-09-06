@@ -5,8 +5,6 @@ Flask Server for Real Estate Manager with PostgreSQL
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-import psycopg2
-import psycopg2.extras
 import os
 import json
 import sys
@@ -16,6 +14,17 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+# Try to import psycopg2, fallback to mock if not available
+try:
+    import psycopg2
+    import psycopg2.extras
+    PSYCOPG2_AVAILABLE = True
+    print("✅ psycopg2 imported successfully")
+except ImportError as e:
+    print(f"⚠️ psycopg2 not available: {e}")
+    print("💡 App will work without database persistence")
+    PSYCOPG2_AVAILABLE = False
+
 app = Flask(__name__, static_folder='../frontend', static_url_path='')
 CORS(app)
 
@@ -24,6 +33,10 @@ DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:password@lo
 
 def get_db_connection():
     """Get database connection"""
+    if not PSYCOPG2_AVAILABLE:
+        print("❌ psycopg2 not available, cannot connect to database")
+        return None
+    
     try:
         conn = psycopg2.connect(DATABASE_URL)
         return conn
@@ -34,6 +47,10 @@ def get_db_connection():
 
 def init_database():
     """Initialize database tables"""
+    if not PSYCOPG2_AVAILABLE:
+        print("❌ Cannot initialize database - psycopg2 not available")
+        return False
+        
     conn = get_db_connection()
     if not conn:
         print("❌ Cannot initialize database - no connection")
@@ -234,17 +251,21 @@ def clear_store(store_name):
 if __name__ == '__main__':
     # Initialize database
     print("🔧 Initializing database...")
-    if init_database():
-        print("✅ Database initialized successfully")
+    if PSYCOPG2_AVAILABLE:
+        if init_database():
+            print("✅ Database initialized successfully")
+        else:
+            print("⚠️ Database initialization failed - continuing without database")
+            print("💡 The app will work but data won't persist")
     else:
-        print("⚠️ Database initialization failed - continuing without database")
+        print("⚠️ psycopg2 not available - running without database")
         print("💡 The app will work but data won't persist")
     
     # Get port from environment
     port = int(os.environ.get('PORT', 5000))
     
     print(f"🚀 Real Estate Manager Server starting...")
-    print(f"📊 Database: PostgreSQL")
+    print(f"📊 Database: {'PostgreSQL' if PSYCOPG2_AVAILABLE else 'Not Available'}")
     print(f"🌐 Server running at: http://localhost:{port}")
     print(f"🔧 Environment: {os.environ.get('FLASK_ENV', 'development')}")
     print(f"🔗 DATABASE_URL: {DATABASE_URL[:50]}...")
