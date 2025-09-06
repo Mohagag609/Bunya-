@@ -1,0 +1,87 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build outputs
+dist/
+build/
+out/
+*.min.js
+*.min.css
+
+# Database files
+*.sqlite
+*.db
+data/
+
+# Logs
+logs/
+*.log
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Git files
+.git/
+.gitignore
+
+# Docker files
+Dockerfile*
+docker-compose*.yml
+
+# Documentation
+*.md
+!README.md
+!CHANGELOG.md
+!CONTRIBUTING.md
+
+# Test files
+test-*.html
+*.test.js
+*.spec.js
+
+# Archive files
+*.zip
+*.tar.gz
+*.rar
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+
+# Generated files
+*.generated.*
+*.auto.*
+
+# Large files
+*.pdf
+*.xlsx
+*.csv
+*.mp4
+*.avi
+*.mov
+*.wmv
+*.flv
+*.webm
+*.mkv

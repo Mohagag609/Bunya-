@@ -1,0 +1,132 @@
+# ملفات البيئة
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# ملفات Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# ملفات البناء
+dist/
+build/
+out/
+*.min.js
+*.min.css
+
+# ملفات قاعدة البيانات
+*.sqlite
+*.db
+data/
+backups/
+
+# ملفات النظام
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ملفات IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ملفات Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ملفات Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# ملفات التطوير
+*.log
+logs/
+temp/
+tmp/
+
+# ملفات النسخ الاحتياطي
+*.bak
+*.backup
+*.old
+
+# ملفات التصدير المؤقتة
+exports/
+downloads/
+temp_exports/
+
+# ملفات الاختبار
+test-results/
+coverage/
+.nyc_output/
+
+# ملفات البناء
+dist/
+build/
+out/
+
+# ملفات الخادم
+*.pid
+*.sock
+
+# ملفات Docker
+.dockerignore
+docker-compose.override.yml
+
+# ملفات الأرشيف
+*.zip
+*.tar.gz
+*.rar
+
+# ملفات التكوين المحلية
+config.local.js
+settings.local.json
+
+# ملفات الذاكرة المؤقتة
+.cache/
+.parcel-cache/
+
+# ملفات PWA
+sw.js.map
+workbox-*.js.map
+
+# ملفات التحليل
+.analytics/
+.metrics/
+
+# ملفات الأمان
+*.key
+*.pem
+*.crt
+*.p12
+
+# ملفات النسخ الاحتياطي التلقائية
+auto_backup_*
+scheduled_backup_*
+
+# ملفات التقرير
+reports/
+*.pdf
+*.xlsx
+*.csv
+
+# ملفات الوسائط المؤقتة
+uploads/
+media/temp/

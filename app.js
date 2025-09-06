@@ -16,27 +16,9 @@ function showLoadingIndicator() {
     hideLoadingIndicator();
     
     const loadingHTML = `
-        <div id="loading-overlay" style="
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10000;
-            pointer-events: auto;
-        ">
-            <div style="
-                width: 40px;
-                height: 40px;
-                border: 3px solid rgba(255, 255, 255, 0.1);
-                border-top: 3px solid #667eea;
-                border-radius: 50%;
-                animation: spin 1s linear infinite;
-            "></div>
+        <div id="loading-overlay" class="loading-overlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">جاري التحميل...</div>
         </div>
     `;
     document.body.insertAdjacentHTML('beforeend', loadingHTML);
@@ -137,6 +119,9 @@ async function initializeApp() {
 
         // Setup UI and global event listeners
         setupGlobalEventListeners();
+        
+        // Initialize modern UI systems
+        initializeModernUI();
         checkLock();
         saveState(); // Save initial state for undo/redo
         updateUndoRedoButtons();
@@ -1219,6 +1204,40 @@ async function redo() {
 function saveState() { historyStack = historyStack.slice(0, historyIndex + 1); historyStack.push(JSON.parse(JSON.stringify(state))); if (historyStack.length > 50) { historyStack.shift(); } historyIndex = historyStack.length - 1; updateUndoRedoButtons(); }
 function updateUndoRedoButtons() { const undoBtn = document.getElementById('undoBtn'); const redoBtn = document.getElementById('redoBtn'); if (undoBtn) undoBtn.disabled = historyIndex <= 0; if (redoBtn) redoBtn.disabled = historyIndex >= historyStack.length - 1; }
 
+// Initialize modern UI systems
+function initializeModernUI() {
+    // Initialize theme system
+    if (window.theme) {
+        // Apply saved theme and direction
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        const savedDirection = localStorage.getItem('direction') || 'rtl';
+        window.theme.setTheme(savedTheme);
+        window.theme.setDirection(savedDirection);
+    }
+
+    // Initialize toast system
+    if (window.toast) {
+        // Show welcome message
+        window.toast.info('مرحباً بك في مدير الاستثمار العقاري المحدث!', {
+            title: 'مرحباً',
+            duration: 3000
+        });
+    }
+
+    // Initialize performance optimizer
+    if (window.performanceOptimizer) {
+        window.performanceOptimizer.startPerformanceMonitoring();
+    }
+
+    // Initialize modern UI updater
+    if (window.modernUI) {
+        // Update existing UI elements
+        window.modernUI.updateUI();
+    }
+
+    console.log('Modern UI systems initialized successfully');
+}
+
 function setupGlobalEventListeners() {
     console.log('Setting up global event listeners, state.settings:', state.settings);
     // Don't set values here - let applySettings() handle it after data is loaded
@@ -1227,26 +1246,77 @@ function setupGlobalEventListeners() {
         console.log('Theme changed to:', e.target.value);
         state.settings.theme = e.target.value;
         applySettings(); // Apply the new theme immediately
+        
+        // Show toast notification
+        if (window.toast) {
+            window.toast.success(`تم تغيير الثيم إلى ${e.target.value === 'dark' ? 'الداكن' : 'الفاتح'}`);
+        }
+        
         const settingsToSave = { key: 'main', ...state.settings };
-        await put('settings', settingsToSave).catch(err => alert(err.message));
+        await put('settings', settingsToSave).catch(err => {
+            if (window.toast) {
+                window.toast.error('فشل في حفظ الإعدادات: ' + err.message);
+            } else {
+                alert(err.message);
+            }
+        });
     });
     document.getElementById('fontSel').addEventListener('change', async (e) => {
         state.settings.font = Number(e.target.value);
         applySettings(); // Apply the new font size immediately
+        
+        // Show toast notification
+        if (window.toast) {
+            window.toast.info(`تم تغيير حجم الخط إلى ${e.target.value}`);
+        }
+        
         const settingsToSave = { key: 'main', ...state.settings };
-        await put('settings', settingsToSave).catch(err => alert(err.message));
+        await put('settings', settingsToSave).catch(err => {
+            if (window.toast) {
+                window.toast.error('فشل في حفظ الإعدادات: ' + err.message);
+            } else {
+                alert(err.message);
+            }
+        });
     });
     document.getElementById('lockBtn').addEventListener('click', async () => {
         const pass = prompt('ضع كلمة مرور أو اتركها فارغة لإلغاء القفل', '');
         state.locked = !!pass;
         state.settings.pass = pass || null;
+        
+        // Show toast notification
+        if (window.toast) {
+            if (state.locked) {
+                window.toast.success('تم تفعيل القفل بنجاح');
+            } else {
+                window.toast.info('تم إلغاء القفل');
+            }
+        } else {
+            alert(state.locked ? 'تم تفعيل القفل' : 'تم إلغاء القفل');
+        }
+        
         const settingsToSave = { key: 'main', ...state.settings };
-        await put('settings', settingsToSave).catch(err => alert(err.message));
-        alert(state.locked ? 'تم تفعيل القفل' : 'تم إلغاء القفل');
+        await put('settings', settingsToSave).catch(err => {
+            if (window.toast) {
+                window.toast.error('فشل في حفظ الإعدادات: ' + err.message);
+            } else {
+                alert(err.message);
+            }
+        });
         checkLock();
     });
-    document.getElementById('undoBtn').addEventListener('click', undo);
-    document.getElementById('redoBtn').addEventListener('click', redo);
+    document.getElementById('undoBtn').addEventListener('click', () => {
+        undo();
+        if (window.toast) {
+            window.toast.info('تم التراجع عن آخر عملية');
+        }
+    });
+    document.getElementById('redoBtn').addEventListener('click', () => {
+        redo();
+        if (window.toast) {
+            window.toast.info('تم إعادة آخر عملية');
+        }
+    });
 
     document.addEventListener('keydown', (e) => {
         const targetNode = e.target.nodeName.toLowerCase();
@@ -1269,8 +1339,14 @@ function applySettings(){
         const theme = state.settings.theme || 'dark';
         const fontSize = state.settings.font || 16;
         
-        // Apply theme immediately
-        document.documentElement.setAttribute('data-theme', theme); 
+        // Apply theme using modern theme system
+        if (window.theme) {
+            window.theme.setTheme(theme);
+        } else {
+            document.documentElement.setAttribute('data-theme', theme);
+        }
+        
+        // Apply font size
         document.documentElement.style.fontSize = fontSize + 'px';
         
         // Update the select elements to match the current settings
@@ -1282,7 +1358,11 @@ function applySettings(){
         console.log('Settings applied:', { theme, fontSize, settings: state.settings });
     } else {
         // Apply default settings if state is not ready
-        document.documentElement.setAttribute('data-theme', 'dark'); 
+        if (window.theme) {
+            window.theme.setTheme('dark');
+        } else {
+            document.documentElement.setAttribute('data-theme', 'dark');
+        }
         document.documentElement.style.fontSize = '16px';
         console.log('Applied default settings, state not ready yet');
     }
@@ -1478,14 +1558,33 @@ function nav(id, param = null){
   const route = routes.find(x=>x.id===id); if(!route) return;
 
   if (route.tab) {
-    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-    const tab = document.getElementById('tab-'+id); if(tab) tab.classList.add('active');
+    // Update navigation with modern UI
+    document.querySelectorAll('.nav-item').forEach(t=>t.classList.remove('active'));
+    const tab = document.getElementById('tab-'+id); 
+    if(tab) tab.classList.add('active');
+  }
+
+  // Show loading skeleton if available
+  if (window.skeleton && window.modernUI) {
+    const content = document.getElementById('view');
+    if (content) {
+      window.modernUI.showContentSkeleton();
+    }
   }
 
   route.render(param);
   
-  // Final cleanup after rendering
+  // Hide loading skeleton and update UI
   setTimeout(() => {
+    if (window.skeleton && window.modernUI) {
+      window.modernUI.hideSkeletonLoading();
+    }
+    
+    // Update modern UI elements
+    if (window.modernUI) {
+      window.modernUI.updateUI();
+    }
+    
     cleanupBackgroundElements();
   }, 200);
   
@@ -1498,14 +1597,43 @@ function createTabs() {
     tabsContainer.innerHTML = ''; // Clear existing tabs
     routes.forEach(r => {
         if (r.tab) {
-            const b = document.createElement('button');
-            b.className = 'tab';
-            b.id = 'tab-' + r.id;
-            b.textContent = r.title;
-            b.addEventListener('click', () => nav(r.id));
-            tabsContainer.appendChild(b);
+            const tab = document.createElement('a');
+            tab.className = 'nav-item';
+            tab.id = 'tab-' + r.id;
+            tab.href = '#';
+            
+            // Get icon for the tab
+            const icon = getTabIcon(r.id);
+            
+            tab.innerHTML = `
+                <span class="nav-icon">${icon}</span>
+                <span class="nav-text">${r.title}</span>
+            `;
+            
+            tab.addEventListener('click', (e) => {
+                e.preventDefault();
+                nav(r.id);
+            });
+            
+            tabsContainer.appendChild(tab);
         }
     });
+}
+
+function getTabIcon(tabId) {
+    const iconMap = {
+        'dash': '📊',
+        'customers': '👥',
+        'units': '🏠',
+        'partners': '🤝',
+        'contracts': '📋',
+        'installments': '💰',
+        'reports': '📈',
+        'settings': '⚙️',
+        'backup': '💾',
+        'export': '📤'
+    };
+    return iconMap[tabId] || '📄';
 }
 
 function showModal(title, content, onSave) {
@@ -1775,54 +1903,124 @@ function renderDash() {
 
   const kpis = calculateKpis({ from: fromDate, to: toDate });
   const kpiHTML = `
-    <div class="card"><h4>إجمالي المبيعات</h4><div class="big">${egp(kpis.totalSales)}</div></div>
-    <div class="card"><h4>إجمالي المتحصلات</h4><div class="big">${egp(kpis.totalReceipts)}</div></div>
-    <div class="card"><h4>إجمالي المديونية</h4><div class="big">${egp(kpis.totalDebt)}</div></div>
-    <div class="card"><h4>إجمالي المصروفات</h4><div class="big">${egp(kpis.totalExpenses)}</div></div>
+    <div class="kpi-card">
+      <div class="kpi-header">
+        <h3 class="kpi-title">إجمالي المبيعات</h3>
+        <span class="kpi-icon">💵</span>
+      </div>
+      <div class="kpi-value">${egp(kpis.totalSales)}</div>
+      <div class="kpi-change positive">
+        <span>+12%</span>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-header">
+        <h3 class="kpi-title">إجمالي المتحصلات</h3>
+        <span class="kpi-icon">💰</span>
+      </div>
+      <div class="kpi-value">${egp(kpis.totalReceipts)}</div>
+      <div class="kpi-change positive">
+        <span>+8%</span>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-header">
+        <h3 class="kpi-title">إجمالي المديونية</h3>
+        <span class="kpi-icon">📉</span>
+      </div>
+      <div class="kpi-value">${egp(kpis.totalDebt)}</div>
+      <div class="kpi-change negative">
+        <span>-5%</span>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-header">
+        <h3 class="kpi-title">إجمالي المصروفات</h3>
+        <span class="kpi-icon">📊</span>
+      </div>
+      <div class="kpi-value">${egp(kpis.totalExpenses)}</div>
+      <div class="kpi-change neutral">
+        <span>—</span>
+      </div>
+    </div>
   `;
 
   const filterHTML = `
-    <div class="panel" style="margin-bottom: 16px;">
-        <div class="tools" style="justify-content: space-between; flex-wrap: wrap;">
-            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                <label>من:</label>
-                <input type="date" class="input" id="dash-from" value="${fromDate || ''}">
-                <label>إلى:</label>
-                <input type="date" class="input" id="dash-to" value="${toDate || ''}">
-                <button class="btn" id="dash-apply-filter">تطبيق</button>
-            </div>
-            <div style="display: flex; gap: 8px;">
-                <button class="btn secondary" onclick="printHTML('لوحة التحكم', document.getElementById('view').innerHTML)">طباعة PDF</button>
-                <button class="btn secondary" onclick="exportDashboardExcel()">تصدير Excel</button>
-            </div>
+    <div class="panel">
+      <div class="panel-header">
+        <h3 class="panel-title">فلاتر التاريخ</h3>
+        <div class="panel-actions">
+          <button class="btn btn-secondary btn-sm" onclick="printHTML('لوحة التحكم', document.getElementById('view').innerHTML)">
+            <span class="nav-icon">🖨️</span>
+            <span>طباعة PDF</span>
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="exportDashboardExcel()">
+            <span class="nav-icon">📊</span>
+            <span>تصدير Excel</span>
+          </button>
         </div>
+      </div>
+      <div class="panel-body">
+        <div class="input-group" style="display: flex; gap: 16px; align-items: end; flex-wrap: wrap;">
+          <div class="input-group">
+            <label class="input-label">من تاريخ:</label>
+            <input type="date" class="input" id="dash-from" value="${fromDate || ''}">
+          </div>
+          <div class="input-group">
+            <label class="input-label">إلى تاريخ:</label>
+            <input type="date" class="input" id="dash-to" value="${toDate || ''}">
+          </div>
+          <button class="btn btn-primary" id="dash-apply-filter">
+            <span class="nav-icon">🔍</span>
+            <span>تطبيق الفلتر</span>
+          </button>
+        </div>
+      </div>
     </div>
   `;
 
   view.innerHTML = filterHTML + `
-    <div id="kpi-container-new" class="grid grid-4 panel">
+    <div class="kpi-grid">
       ${kpiHTML}
     </div>
 
-    <div class="grid grid-3" style="margin-top:16px; gap:16px; align-items:flex-start;">
+    <div class="grid grid-3" style="margin-top: 24px; gap: 24px; align-items: flex-start;">
       <div class="panel" style="grid-column: span 2;">
-        <h3>الأقساط القادمة والمتأخرة</h3>
-        <div id="upcoming-installments-table">
-          <p style="color:var(--muted); font-size:12px;">سيتم عرض الأقساط هنا...</p>
+        <div class="panel-header">
+          <h3 class="panel-title">الأقساط القادمة والمتأخرة</h3>
+        </div>
+        <div class="panel-body">
+          <div id="upcoming-installments-table">
+            <div class="empty-state">
+              <div class="empty-state-icon">📅</div>
+              <div class="empty-state-message">سيتم عرض الأقساط هنا...</div>
+            </div>
+          </div>
         </div>
       </div>
       <div class="panel">
-        <h3>حالة الوحدات</h3>
-        <div class="chart-container" style="position: relative; height:200px; width:100%">
-          <canvas id="new-units-chart"></canvas>
+        <div class="panel-header">
+          <h3 class="panel-title">حالة الوحدات</h3>
+        </div>
+        <div class="panel-body">
+          <div class="chart-container" style="position: relative; height: 200px; width: 100%">
+            <canvas id="new-units-chart"></canvas>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="panel" style="margin-top:16px;">
-      <h3>أحدث الحركات المالية</h3>
-      <div id="recent-transactions-table">
-        <p style="color:var(--muted); font-size:12px;">سيتم عرض أحدث الحركات هنا...</p>
+    <div class="panel" style="margin-top: 24px;">
+      <div class="panel-header">
+        <h3 class="panel-title">أحدث الحركات المالية</h3>
+      </div>
+      <div class="panel-body">
+        <div id="recent-transactions-table">
+          <div class="empty-state">
+            <div class="empty-state-icon">💳</div>
+            <div class="empty-state-message">سيتم عرض أحدث الحركات هنا...</div>
+          </div>
+        </div>
       </div>
     </div>
   `;

@@ -5,34 +5,72 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Cache-Control" content="max-age=3600">
 <title>مدير الاستثمار العقاري — النسخة النهائية (محلي) — محدثة</title>
+
+<!-- External Libraries -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
 <script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Manifest -->
 <link rel="manifest" href="manifest.json">
+
+<!-- Modern Design System -->
+<link rel="stylesheet" href="src/styles/design-system.css">
+<link rel="stylesheet" href="src/styles/components.css">
+<link rel="stylesheet" href="src/styles/layout.css">
 <link rel="stylesheet" href="style_modern.css">
-
-
-
-</style>
 </head>
 <body>
 <div class="container">
   <div class="header">
-    <div class="brand"><div class="logo">🏛️</div><h1>مدير الاستثمار العقاري — النسخة النهائية</h1></div>
+    <div class="brand">
+      <div class="logo">🏛️</div>
+      <h1 class="brand-title">مدير الاستثمار العقاري — النسخة النهائية</h1>
+    </div>
     <div class="tools">
-      <button class="btn secondary" id="undoBtn" disabled>↪️ تراجع</button>
-      <button class="btn secondary" id="redoBtn" disabled>↩️ تقدم</button>
-      <select class="select" id="themeSel"><option value="dark">داكن</option><option value="light">فاتح</option></select>
-      <select class="select" id="fontSel"><option value="14">خط 14</option><option value="16" selected>خط 16</option><option value="18">خط 18</option></select>
-      <button class="btn secondary" id="lockBtn">🔒 قفل</button>
+      <button class="btn btn-secondary btn-sm" id="undoBtn" disabled>
+        <span class="nav-icon">↪️</span>
+        <span>تراجع</span>
+      </button>
+      <button class="btn btn-secondary btn-sm" id="redoBtn" disabled>
+        <span class="nav-icon">↩️</span>
+        <span>تقدم</span>
+      </button>
+      <select class="select" id="themeSel">
+        <option value="dark">🌙 داكن</option>
+        <option value="light">☀️ فاتح</option>
+      </select>
+      <select class="select" id="fontSel">
+        <option value="14">خط 14</option>
+        <option value="16" selected>خط 16</option>
+        <option value="18">خط 18</option>
+      </select>
+      <button class="btn btn-secondary btn-sm" id="lockBtn">
+        <span class="nav-icon">🔒</span>
+        <span>قفل</span>
+      </button>
     </div>
   </div>
   <div class="main-layout">
-    <div class="sidebar" id="tabs"></div>
-    <div class="content" id="view"></div>
+    <div class="sidebar">
+      <nav class="sidebar-nav" id="tabs"></nav>
+    </div>
+    <div class="content" id="view">
+      <!-- Content will be dynamically loaded here -->
+    </div>
   </div>
-  <div style="text-align:center;color:var(--muted);font-size:12px;margin-top:10px">💾 LocalStorage • PDF/CSV • بحث/فرز/تعديل مباشر • أقساط مرنة • عمولة/صيانة • تدفقات نقدية • فلاتر تاريخ للتقارير</div>
+  
+  <footer class="footer">
+    <div class="footer-content">
+      <span class="footer-text">💾 LocalStorage • PDF/CSV • بحث/فرز/تعديل مباشر • أقساط مرنة • عمولة/صيانة • تدفقات نقدية • فلاتر تاريخ للتقارير</span>
+    </div>
+  </footer>
 </div>
 
 <script>
@@ -44,6 +82,14 @@ window.OBJECT_STORES = [
 ];
 console.log('OBJECT_STORES defined:', window.OBJECT_STORES);
 </script>
+<!-- Modern Component Systems -->
+<script src="src/components/theme-system.js"></script>
+<script src="src/components/toast-system.js"></script>
+<script src="src/components/skeleton-system.js"></script>
+<script src="src/ui/modern-ui-updater.js"></script>
+<script src="src/utils/performance-optimizer.js"></script>
+
+<!-- Core Application Scripts -->
 <script src="db.js"></script>
 <script src="app.js" defer></script>
 <script src="dashboard_widgets.js" defer></script>

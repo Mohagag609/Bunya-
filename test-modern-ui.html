@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار الواجهة الحديثة - مدير الاستثمار العقاري</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Modern Design System -->
+    <link rel="stylesheet" href="src/styles/design-system.css">
+    <link rel="stylesheet" href="src/styles/components.css">
+    <link rel="stylesheet" href="src/styles/layout.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="brand">
+                <div class="logo">🏛️</div>
+                <h1 class="brand-title">اختبار الواجهة الحديثة</h1>
+            </div>
+            <div class="tools">
+                <button class="btn btn-secondary btn-sm" onclick="testToast()">
+                    <span class="nav-icon">🔔</span>
+                    <span>اختبار الإشعارات</span>
+                </button>
+                <button class="btn btn-primary btn-sm" onclick="testSkeleton()">
+                    <span class="nav-icon">⏳</span>
+                    <span>اختبار السكيلتون</span>
+                </button>
+                <select class="select" id="themeSel">
+                    <option value="dark">🌙 داكن</option>
+                    <option value="light">☀️ فاتح</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Main Layout -->
+        <div class="main-layout">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <nav class="sidebar-nav">
+                    <a href="#" class="nav-item active">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-text">لوحة التحكم</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <span class="nav-icon">👥</span>
+                        <span class="nav-text">العملاء</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <span class="nav-icon">🏠</span>
+                        <span class="nav-text">الوحدات</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <span class="nav-icon">🤝</span>
+                        <span class="nav-text">الشركاء</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <span class="nav-icon">📋</span>
+                        <span class="nav-text">العقود</span>
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Content -->
+            <div class="content">
+                <!-- KPI Cards -->
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-header">
+                            <h3 class="kpi-title">إجمالي المبيعات</h3>
+                            <span class="kpi-icon">💵</span>
+                        </div>
+                        <div class="kpi-value">1,250,000 ج.م</div>
+                        <div class="kpi-change positive">
+                            <span>+12%</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-header">
+                            <h3 class="kpi-title">إجمالي المتحصلات</h3>
+                            <span class="kpi-icon">💰</span>
+                        </div>
+                        <div class="kpi-value">850,000 ج.م</div>
+                        <div class="kpi-change positive">
+                            <span>+8%</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-header">
+                            <h3 class="kpi-title">إجمالي المديونية</h3>
+                            <span class="kpi-icon">📉</span>
+                        </div>
+                        <div class="kpi-value">400,000 ج.م</div>
+                        <div class="kpi-change negative">
+                            <span>-5%</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-header">
+                            <h3 class="kpi-title">إجمالي المصروفات</h3>
+                            <span class="kpi-icon">📊</span>
+                        </div>
+                        <div class="kpi-value">200,000 ج.م</div>
+                        <div class="kpi-change neutral">
+                            <span>—</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Panels -->
+                <div class="grid grid-2" style="margin-top: 24px; gap: 24px;">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3 class="panel-title">أحدث المعاملات</h3>
+                            <div class="panel-actions">
+                                <button class="btn btn-primary btn-sm">عرض الكل</button>
+                            </div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="table-container">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>التاريخ</th>
+                                            <th>الوصف</th>
+                                            <th>المبلغ</th>
+                                            <th>الحالة</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>2024-01-15</td>
+                                            <td>قسط شهري - أحمد محمد</td>
+                                            <td>5,000 ج.م</td>
+                                            <td><span class="badge badge-success">مدفوع</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td>2024-01-14</td>
+                                            <td>قسط شهري - فاطمة علي</td>
+                                            <td>4,500 ج.م</td>
+                                            <td><span class="badge badge-warning">متأخر</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td>2024-01-13</td>
+                                            <td>قسط شهري - محمود حسن</td>
+                                            <td>6,000 ج.م</td>
+                                            <td><span class="badge badge-success">مدفوع</span></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3 class="panel-title">حالة الوحدات</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📊</div>
+                                <div class="empty-state-message">سيتم عرض الرسم البياني هنا</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Forms -->
+                <div class="panel" style="margin-top: 24px;">
+                    <div class="panel-header">
+                        <h3 class="panel-title">نموذج الاختبار</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div class="grid grid-2" style="gap: 16px;">
+                            <div class="input-group">
+                                <label class="input-label">الاسم</label>
+                                <input type="text" class="input" placeholder="أدخل الاسم">
+                            </div>
+                            <div class="input-group">
+                                <label class="input-label">البريد الإلكتروني</label>
+                                <input type="email" class="input" placeholder="أدخل البريد الإلكتروني">
+                            </div>
+                            <div class="input-group">
+                                <label class="input-label">النوع</label>
+                                <select class="select">
+                                    <option>اختر النوع</option>
+                                    <option>عميل</option>
+                                    <option>شريك</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label class="input-label">المبلغ</label>
+                                <input type="number" class="input" placeholder="أدخل المبلغ">
+                            </div>
+                        </div>
+                        <div style="margin-top: 16px; display: flex; gap: 12px;">
+                            <button class="btn btn-primary">حفظ</button>
+                            <button class="btn btn-secondary">إلغاء</button>
+                            <button class="btn btn-danger">حذف</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <span class="footer-text">💾 LocalStorage • PDF/CSV • بحث/فرز/تعديل مباشر • أقساط مرنة • عمولة/صيانة • تدفقات نقدية • فلاتر تاريخ للتقارير</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Modern Component Systems -->
+    <script src="src/components/theme-system.js"></script>
+    <script src="src/components/toast-system.js"></script>
+    <script src="src/components/skeleton-system.js"></script>
+    <script src="src/ui/modern-ui-updater.js"></script>
+    <script src="src/utils/performance-optimizer.js"></script>
+
+    <script>
+        // Test functions
+        function testToast() {
+            if (window.toast) {
+                window.toast.success('تم الاختبار بنجاح!');
+                setTimeout(() => window.toast.warning('تحذير: هذا مجرد اختبار'), 1000);
+                setTimeout(() => window.toast.error('خطأ: هذا مجرد اختبار'), 2000);
+                setTimeout(() => window.toast.info('معلومة: هذا مجرد اختبار'), 3000);
+            }
+        }
+
+        function testSkeleton() {
+            const content = document.querySelector('.content');
+            if (window.skeleton) {
+                const skeletonId = window.skeleton.show(content, 'table', { rows: 3, columns: 4 });
+                setTimeout(() => {
+                    window.skeleton.hide(skeletonId);
+                }, 3000);
+            }
+        }
+
+        // Initialize theme system
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.theme) {
+                const themeSelector = document.getElementById('themeSel');
+                themeSelector.addEventListener('change', (e) => {
+                    window.theme.setTheme(e.target.value);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
