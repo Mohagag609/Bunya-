@@ -1,1 +1,1 @@
-web: gunicorn --bind 0.0.0.0:$PORT backend.flask_server:app
+web: gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 backend.flask_server:app

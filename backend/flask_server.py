@@ -29,12 +29,14 @@ def get_db_connection():
         return conn
     except Exception as e:
         print(f"Database connection error: {e}")
+        print(f"DATABASE_URL: {DATABASE_URL[:50]}...")
         return None
 
 def init_database():
     """Initialize database tables"""
     conn = get_db_connection()
     if not conn:
+        print("❌ Cannot initialize database - no connection")
         return False
     
     try:
@@ -64,13 +66,15 @@ def init_database():
                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """)
+            print(f"✅ Created table: {store}")
         
         conn.commit()
         cursor.close()
         conn.close()
+        print("🎉 Database initialization successful!")
         return True
     except Exception as e:
-        print(f"Database initialization error: {e}")
+        print(f"❌ Database initialization error: {e}")
         return False
 
 @app.route('/')
@@ -229,12 +233,12 @@ def clear_store(store_name):
 
 if __name__ == '__main__':
     # Initialize database
-    print("Initializing database...")
+    print("🔧 Initializing database...")
     if init_database():
-        print("Database initialized successfully")
+        print("✅ Database initialized successfully")
     else:
-        print("Database initialization failed")
-        sys.exit(1)
+        print("⚠️ Database initialization failed - continuing without database")
+        print("💡 The app will work but data won't persist")
     
     # Get port from environment
     port = int(os.environ.get('PORT', 5000))
@@ -243,5 +247,6 @@ if __name__ == '__main__':
     print(f"📊 Database: PostgreSQL")
     print(f"🌐 Server running at: http://localhost:{port}")
     print(f"🔧 Environment: {os.environ.get('FLASK_ENV', 'development')}")
+    print(f"🔗 DATABASE_URL: {DATABASE_URL[:50]}...")
     
     app.run(host='0.0.0.0', port=port, debug=False)
