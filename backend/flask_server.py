@@ -109,6 +109,48 @@ def health_check():
         "timestamp": datetime.now().isoformat()
     })
 
+@app.route('/api/settings/init', methods=['POST'])
+def init_settings():
+    """Initialize default settings"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({"error": "No database connection"}), 500
+        
+        cursor = conn.cursor()
+        
+        # Check if settings already exist
+        cursor.execute("SELECT key FROM settings WHERE key = %s", ('main',))
+        if cursor.fetchone():
+            cursor.close()
+            conn.close()
+            return jsonify({"message": "Settings already initialized"})
+        
+        # Insert default settings
+        default_settings = {
+            "theme": "dark",
+            "language": "ar",
+            "currency": "EGP",
+            "dateFormat": "DD/MM/YYYY",
+            "companyName": "مدير الاستثمار العقاري",
+            "version": "1.0.0"
+        }
+        
+        cursor.execute("""
+            INSERT INTO settings (key, data) 
+            VALUES (%s, %s)
+        """, ('main', json.dumps(default_settings)))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({"message": "Settings initialized successfully", "settings": default_settings})
+    
+    except Exception as e:
+        print(f"Error initializing settings: {e}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/<store_name>', methods=['GET'])
 def get_all(store_name):
     """Get all items from a store"""
@@ -125,7 +167,17 @@ def get_all(store_name):
         if store_name == 'settings':
             cursor.execute("SELECT data FROM settings WHERE key = %s", ('main',))
             result = cursor.fetchone()
-            data = [result['data']] if result else []
+            if result:
+                data = [result['data']]
+            else:
+                # Return default settings if none exist
+                default_settings = {
+                    "theme": "dark",
+                    "language": "ar",
+                    "currency": "EGP",
+                    "dateFormat": "DD/MM/YYYY"
+                }
+                data = [default_settings]
         else:
             cursor.execute(f"SELECT data FROM {store_name} ORDER BY created_at")
             results = cursor.fetchall()
