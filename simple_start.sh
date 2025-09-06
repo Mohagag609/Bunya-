@@ -1,17 +1,13 @@
 #!/bin/bash
 
-# Simple startup script for Render
+# Simple startup script for Render (without database init)
 echo "🚀 Starting Estate Manager on Render..."
 
 # Install dependencies
 echo "📦 Installing dependencies..."
 pip install -r requirements.txt
 
-# Initialize database
-echo "🗄️ Initializing database..."
-python init_db.py
-
-# Start the application
+# Start the application directly
 echo "🌐 Starting application..."
 cd backend
 python server.py

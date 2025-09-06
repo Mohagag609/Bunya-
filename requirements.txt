@@ -1,13 +1,13 @@
 # Main requirements file for Render deployment
-# This file is used by Render for building the application
+# Compatible with Python 3.11
 
 # Core Flask dependencies
 Flask==3.0.0
 Flask-Cors==4.0.0
 Flask-SQLAlchemy==3.1.1
 
-# Database driver (compatible with Python 3.13)
-psycopg[binary]==3.2.9
+# Database driver (PostgreSQL)
+psycopg2-binary==2.9.9
 
 # Server
 gunicorn==21.2.0
@@ -17,3 +17,6 @@ python-dotenv==1.0.0
 marshmallow==3.20.1
 Werkzeug==3.0.1
 SQLAlchemy==2.0.23
+
+# Additional dependencies
+click==8.1.7
