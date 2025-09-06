@@ -16,7 +16,10 @@ from models import db, models
 
 # --- App Initialization & Config ---
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-app = Flask(__name__, static_folder=project_root)
+app = Flask(__name__, 
+           static_folder=project_root,
+           static_url_path='',
+           template_folder=project_root)
 
 # Load configuration from environment variables
 DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://neondb_owner:npg_oJCB7e5ajzYO@ep-cold-mode-advs9k91-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require')
@@ -265,16 +268,120 @@ def api_status():
     }), 200
 
 # --- Static File Serving & CLI ---
-@app.route('/', defaults={'path': 'index.html'})
-@app.route('/<path:path>')
-def serve_static(path):
-    safe_path = os.path.abspath(os.path.join(app.static_folder, path))
-    if not safe_path.startswith(app.static_folder):
-        return "Not Found", 404
-    if os.path.exists(safe_path):
-        return send_from_directory(app.static_folder, path)
+@app.route('/')
+def serve_index():
+    """Serve the main index.html file"""
+    response = send_from_directory(app.static_folder, 'index.html')
+    response.headers['Content-Type'] = 'text/html; charset=utf-8'
+    return response
+
+@app.route('/<path:filename>')
+def serve_static_files(filename):
+    """Serve static files (CSS, JS, images, etc.)"""
+    try:
+        response = send_from_directory(app.static_folder, filename)
+        
+        # Set proper content type based on file extension
+        if filename.endswith('.css'):
+            response.headers['Content-Type'] = 'text/css'
+        elif filename.endswith('.js'):
+            response.headers['Content-Type'] = 'application/javascript'
+        elif filename.endswith('.json'):
+            response.headers['Content-Type'] = 'application/json'
+        elif filename.endswith('.html'):
+            response.headers['Content-Type'] = 'text/html; charset=utf-8'
+        
+        return response
+    except FileNotFoundError:
+        # If file not found, serve index.html (for SPA routing)
+        response = send_from_directory(app.static_folder, 'index.html')
+        response.headers['Content-Type'] = 'text/html; charset=utf-8'
+        return response
+
+# Add specific routes for common static files
+@app.route('/style.css')
+def serve_css():
+    response = send_from_directory(app.static_folder, 'style.css')
+    response.headers['Content-Type'] = 'text/css'
+    return response
+
+@app.route('/app.js')
+def serve_app_js():
+    response = send_from_directory(app.static_folder, 'app.js')
+    response.headers['Content-Type'] = 'application/javascript'
+    return response
+
+@app.route('/db.js')
+def serve_db_js():
+    response = send_from_directory(app.static_folder, 'db.js')
+    response.headers['Content-Type'] = 'application/javascript'
+    return response
+
+@app.route('/dashboard_widgets.js')
+def serve_dashboard_js():
+    response = send_from_directory(app.static_folder, 'dashboard_widgets.js')
+    response.headers['Content-Type'] = 'application/javascript'
+    return response
+
+@app.route('/smart_search.js')
+def serve_smart_search_js():
+    response = send_from_directory(app.static_folder, 'smart_search.js')
+    response.headers['Content-Type'] = 'application/javascript'
+    return response
+
+@app.route('/notifications_system.js')
+def serve_notifications_js():
+    response = send_from_directory(app.static_folder, 'notifications_system.js')
+    response.headers['Content-Type'] = 'application/javascript'
+    return response
+
+@app.route('/backup_system.js')
+def serve_backup_js():
+    response = send_from_directory(app.static_folder, 'backup_system.js')
+    response.headers['Content-Type'] = 'application/javascript'
+    return response
+
+@app.route('/performance_enhancements.js')
+def serve_performance_js():
+    response = send_from_directory(app.static_folder, 'performance_enhancements.js')
+    response.headers['Content-Type'] = 'application/javascript'
+    return response
+
+@app.route('/export_system.js')
+def serve_export_js():
+    response = send_from_directory(app.static_folder, 'export_system.js')
+    response.headers['Content-Type'] = 'application/javascript'
+    return response
+
+@app.route('/animations.js')
+def serve_animations_js():
+    response = send_from_directory(app.static_folder, 'animations.js')
+    response.headers['Content-Type'] = 'application/javascript'
+    return response
+
+@app.route('/manifest.json')
+def serve_manifest():
+    response = send_from_directory(app.static_folder, 'manifest.json')
+    response.headers['Content-Type'] = 'application/json'
+    return response
+
+@app.route('/sw.js')
+def serve_sw():
+    response = send_from_directory(app.static_folder, 'sw.js')
+    response.headers['Content-Type'] = 'application/javascript'
+    return response
+
+# Add route for any HTML files
+@app.route('/<path:filename>')
+def serve_html_files(filename):
+    """Serve HTML files with proper content type"""
+    if filename.endswith('.html'):
+        response = send_from_directory(app.static_folder, filename)
+        response.headers['Content-Type'] = 'text/html; charset=utf-8'
+        return response
     else:
-        return send_from_directory(app.static_folder, 'index.html')
+        # For other files, use the generic static file handler
+        return serve_static_files(filename)
 
 @app.cli.command("init-db")
 def init_db_command():
