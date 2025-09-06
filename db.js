@@ -1,14 +1,14 @@
-const DB_NAME = 'estate_pro_db';
-const DB_VERSION = 1;
-let db;
+export const DB_NAME = 'estate_pro_db';
+export const DB_VERSION = 1;
+export let db;
 
-const OBJECT_STORES = [
+export const OBJECT_STORES = [
     'customers', 'units', 'partners', 'unitPartners', 'contracts', 'installments',
     'partnerDebts', 'safes', 'transfers', 'auditLog', 'vouchers', 'brokerDues',
     'brokers', 'partnerGroups', 'settings', 'keyval' // 'keyval' for misc data like migration status
 ];
 
-function openDB() {
+export function openDB() {
     return new Promise((resolve, reject) => {
         if (db) {
             return resolve(db);
@@ -45,7 +45,7 @@ function openDB() {
     });
 }
 
-function getAll(storeName) {
+export function getAll(storeName) {
     return new Promise((resolve, reject) => {
         openDB().then(db => {
             const transaction = db.transaction(storeName, 'readonly');
@@ -57,7 +57,7 @@ function getAll(storeName) {
     });
 }
 
-function put(storeName, item) {
+export function put(storeName, item) {
     return new Promise((resolve, reject) => {
         openDB().then(db => {
             const transaction = db.transaction(storeName, 'readwrite');
@@ -69,7 +69,7 @@ function put(storeName, item) {
     });
 }
 
-async function getKeyVal(key) {
+export async function getKeyVal(key) {
     return new Promise((resolve, reject) => {
         openDB().then(db => {
             const transaction = db.transaction('keyval', 'readonly');
@@ -81,6 +81,6 @@ async function getKeyVal(key) {
     });
 }
 
-async function setKeyVal(key, value) {
+export async function setKeyVal(key, value) {
     return put('keyval', { key, value });
 }
