@@ -1,1 +1,1 @@
-web: gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT backend.server_production:app
+web: gunicorn -c gunicorn.conf.py backend.server_simple_production:app
