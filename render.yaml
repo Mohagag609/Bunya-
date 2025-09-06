@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: estate-manager
+    env: python
+    plan: free
+    buildCommand: |
+      pip install -r requirements.txt
+      cd backend
+      python -m flask --app server:app init-db
+    startCommand: python backend/server.py
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SESSION_COOKIE_SECURE
+        value: true
+      - key: SESSION_COOKIE_HTTPONLY
+        value: true
+      - key: SESSION_COOKIE_SAMESITE
+        value: Lax
+    healthCheckPath: /health
+
+  - type: pserv
+    name: estate-manager-db
+    plan: free
+    env: postgresql
+    region: oregon
